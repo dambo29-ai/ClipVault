@@ -563,31 +563,11 @@ final class ClipboardStore: ObservableObject {
     }
     
     private func applyRetentionRules() {
-        removeExpiredItems()
-        trimItemsToMaxCount()
-    }
-    
-    private func removeExpiredItems() {
-        guard let retentionInterval =
-            historyRetentionOption.retentionInterval else {
-            return
-        }
-
-        let cutoffDate = Date().addingTimeInterval(
-            -retentionInterval
+        items = ClipboardRetentionService.applyingRules(
+            to: items,
+            retentionOption: historyRetentionOption,
+            maximumNormalItemCount: maxItemCount
         )
-
-        items = items.filter { item in
-            guard item.kind == .normal else {
-                return true
-            }
-
-            if item.origin == .restored {
-                return true
-            }
-
-            return item.createdAt >= cutoffDate
-        }
     }
     
     private func rememberDefaultAppGroups() {
@@ -912,20 +892,10 @@ final class ClipboardStore: ObservableObject {
     }
     
     private func trimItemsToMaxCount() {
-        var remainingNormalItemSlots = maxItemCount
-
-        items = items.filter { item in
-            guard item.kind == .normal else {
-                return true
-            }
-
-            guard remainingNormalItemSlots > 0 else {
-                return false
-            }
-
-            remainingNormalItemSlots -= 1
-            return true
-        }
+        items = ClipboardRetentionService.trimmingNormalItems(
+            in: items,
+            maximumNormalItemCount: maxItemCount
+        )
     }
     
     private func addSensitiveSkippedPlaceholder() {
