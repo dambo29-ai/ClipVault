@@ -6,8 +6,23 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		EC8CB539300020FD00383DB4 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = EC8CB538300020FD00383DB4 /* KeyboardShortcuts */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		EC96DE1A3004106C0062B204 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = EC8CB5072FFE993B00383DB4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = EC8CB50E2FFE993B00383DB4;
+			remoteInfo = ClipVault;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		EC8CB50F2FFE993B00383DB4 /* ClipVault.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClipVault.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		EC96DE163004106C0062B204 /* ClipVaultTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ClipVaultTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -16,10 +31,23 @@
 			path = ClipVault;
 			sourceTree = "<group>";
 		};
+		EC96DE173004106C0062B204 /* ClipVaultTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ClipVaultTests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		EC8CB50C2FFE993B00383DB4 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EC8CB539300020FD00383DB4 /* KeyboardShortcuts in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EC96DE133004106C0062B204 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -33,6 +61,7 @@
 			isa = PBXGroup;
 			children = (
 				EC8CB5112FFE993B00383DB4 /* ClipVault */,
+				EC96DE173004106C0062B204 /* ClipVaultTests */,
 				EC8CB5102FFE993B00383DB4 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,6 +70,7 @@
 			isa = PBXGroup;
 			children = (
 				EC8CB50F2FFE993B00383DB4 /* ClipVault.app */,
+				EC96DE163004106C0062B204 /* ClipVaultTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -65,10 +95,34 @@
 			);
 			name = ClipVault;
 			packageProductDependencies = (
+				EC8CB538300020FD00383DB4 /* KeyboardShortcuts */,
 			);
 			productName = ClipVault;
 			productReference = EC8CB50F2FFE993B00383DB4 /* ClipVault.app */;
 			productType = "com.apple.product-type.application";
+		};
+		EC96DE153004106C0062B204 /* ClipVaultTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = EC96DE1C3004106C0062B204 /* Build configuration list for PBXNativeTarget "ClipVaultTests" */;
+			buildPhases = (
+				EC96DE123004106C0062B204 /* Sources */,
+				EC96DE133004106C0062B204 /* Frameworks */,
+				EC96DE143004106C0062B204 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				EC96DE1B3004106C0062B204 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				EC96DE173004106C0062B204 /* ClipVaultTests */,
+			);
+			name = ClipVaultTests;
+			packageProductDependencies = (
+			);
+			productName = ClipVaultTests;
+			productReference = EC96DE163004106C0062B204 /* ClipVaultTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
 
@@ -83,6 +137,10 @@
 					EC8CB50E2FFE993B00383DB4 = {
 						CreatedOnToolsVersion = 26.6;
 					};
+					EC96DE153004106C0062B204 = {
+						CreatedOnToolsVersion = 26.6;
+						TestTargetID = EC8CB50E2FFE993B00383DB4;
+					};
 				};
 			};
 			buildConfigurationList = EC8CB50A2FFE993B00383DB4 /* Build configuration list for PBXProject "ClipVault" */;
@@ -94,18 +152,29 @@
 			);
 			mainGroup = EC8CB5062FFE993B00383DB4;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				EC8CB537300020FD00383DB4 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = EC8CB5102FFE993B00383DB4 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
 				EC8CB50E2FFE993B00383DB4 /* ClipVault */,
+				EC96DE153004106C0062B204 /* ClipVaultTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		EC8CB50D2FFE993B00383DB4 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EC96DE143004106C0062B204 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -122,7 +191,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		EC96DE123004106C0062B204 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		EC96DE1B3004106C0062B204 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = EC8CB50E2FFE993B00383DB4 /* ClipVault */;
+			targetProxy = EC96DE1A3004106C0062B204 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		EC8CB5182FFE993C00383DB4 /* Debug */ = {
@@ -309,6 +393,46 @@
 			};
 			name = Release;
 		};
+		EC96DE1D3004106C0062B204 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 82ZL45493H;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.alejandromora.ClipVaultTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ClipVault.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ClipVault";
+			};
+			name = Debug;
+		};
+		EC96DE1E3004106C0062B204 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 82ZL45493H;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.alejandromora.ClipVaultTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ClipVault.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ClipVault";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -330,7 +454,35 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		EC96DE1C3004106C0062B204 /* Build configuration list for PBXNativeTarget "ClipVaultTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EC96DE1D3004106C0062B204 /* Debug */,
+				EC96DE1E3004106C0062B204 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		EC8CB537300020FD00383DB4 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sindresorhus/KeyboardShortcuts";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.0.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		EC8CB538300020FD00383DB4 /* KeyboardShortcuts */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = EC8CB537300020FD00383DB4 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */;
+			productName = KeyboardShortcuts;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = EC8CB5072FFE993B00383DB4 /* Project object */;
 }
