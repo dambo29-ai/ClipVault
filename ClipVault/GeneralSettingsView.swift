@@ -48,6 +48,10 @@ struct GeneralSettingsView: View {
 
                     Divider()
 
+                    selectionCaptureEnabledSetting
+
+                    Divider()
+
                     selectionCapturePermissionSetting
 
                     Divider()
@@ -274,6 +278,45 @@ struct GeneralSettingsView: View {
         }
     }
     
+    private var selectionCaptureEnabledSetting: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Enable Option-Select Capture")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+
+                Text(
+                    "Hold Option while selecting text to copy it, make it ready to paste, and save accepted text to ClipVault history."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Toggle(
+                "",
+                isOn: Binding(
+                    get: {
+                        optionSelectionGestureMonitor
+                            .isCaptureEnabled
+                    },
+                    set: { isEnabled in
+                        setOptionSelectCaptureEnabled(
+                            isEnabled
+                        )
+                    }
+                )
+            )
+            .labelsHidden()
+            .toggleStyle(.switch)
+            .frame(
+                width: settingsControlColumnWidth,
+                alignment: .trailing
+            )
+        }
+    }
+    
     private var selectionCapturePermissionSetting: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 4) {
@@ -495,6 +538,30 @@ struct GeneralSettingsView: View {
                 name: name
             )
             .labelsHidden()
+        }
+    }
+    
+    private func setOptionSelectCaptureEnabled(
+        _ isEnabled: Bool
+    ) {
+        optionSelectionGestureMonitor
+            .setCaptureEnabled(isEnabled)
+
+        guard
+            isEnabled,
+            !AccessibilityPermissionService.isGranted
+        else {
+            refreshAccessibilityPermission()
+            return
+        }
+
+        AccessibilityPermissionService
+            .requestAccessAndOpenSettings()
+
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + 1.0
+        ) {
+            refreshAccessibilityPermission()
         }
     }
     

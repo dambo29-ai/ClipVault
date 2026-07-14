@@ -176,7 +176,7 @@ struct ClipVaultApp: App {
                         )
 
                     optionSelectionGestureMonitor
-                        .startMonitoring()
+                        .applySavedCapturePreference()
                 }
         }
         .menuBarExtraStyle(.menu)

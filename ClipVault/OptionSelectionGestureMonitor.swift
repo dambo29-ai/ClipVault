@@ -11,6 +11,7 @@ import Foundation
 
 @MainActor
 final class OptionSelectionGestureMonitor: ObservableObject {
+    @Published private(set) var isCaptureEnabled: Bool
     @Published private(set) var isMonitoring = false
     @Published private(set) var lastDetectedAt: Date?
     @Published private(set) var lastDetectedAppName: String?
@@ -18,6 +19,10 @@ final class OptionSelectionGestureMonitor: ObservableObject {
     @Published private(set) var lastRetrievalMessage =
         "No selection captured yet"
 
+    private static let captureEnabledPreferenceKey =
+        "optionSelectCaptureEnabled"
+
+    private let userDefaults: UserDefaults
     private var globalEventMonitor: Any?
 
     private var optionWasHeldAtMouseDown = false
@@ -31,6 +36,18 @@ final class OptionSelectionGestureMonitor: ObservableObject {
         SelectionClipboardTransactionService()
 
     private weak var clipboardStore: ClipboardStore?
+
+    init(
+        userDefaults: UserDefaults = .standard
+    ) {
+        self.userDefaults = userDefaults
+
+        isCaptureEnabled =
+            userDefaults.bool(
+                forKey:
+                    Self.captureEnabledPreferenceKey
+            )
+    }
 
     deinit {
         if let globalEventMonitor {
@@ -47,7 +64,41 @@ final class OptionSelectionGestureMonitor: ObservableObject {
             clipboardStore
     }
 
+    func applySavedCapturePreference() {
+        if isCaptureEnabled {
+            startMonitoring()
+        } else {
+            stopMonitoring()
+        }
+    }
+
+    func setCaptureEnabled(
+        _ isEnabled: Bool
+    ) {
+        guard isCaptureEnabled != isEnabled else {
+            return
+        }
+
+        isCaptureEnabled = isEnabled
+
+        userDefaults.set(
+            isEnabled,
+            forKey:
+                Self.captureEnabledPreferenceKey
+        )
+
+        if isEnabled {
+            startMonitoring()
+        } else {
+            stopMonitoring()
+        }
+    }
+
     func startMonitoring() {
+        guard isCaptureEnabled else {
+            return
+        }
+
         guard globalEventMonitor == nil else {
             return
         }
