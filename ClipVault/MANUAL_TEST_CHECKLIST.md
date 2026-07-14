@@ -63,6 +63,35 @@ Record the macOS and ClipVault build versions when performing a full regression 
 * [ ] Pausing monitoring prevents new clips from being saved.
 * [ ] Resuming monitoring restores clipboard capture.
 
+### Option-Select Capture
+
+* [ ] **Enable Option-Select Capture** defaults to off when no preference has previously been saved.
+* [ ] Enabling Option-select starts capture immediately without requiring a relaunch.
+* [ ] Disabling Option-select stops capture immediately without requiring a relaunch.
+* [ ] The Option-select preference persists after relaunch.
+* [ ] Enabling Option-select requests Accessibility access only when access has not already been granted.
+* [ ] **Selection Capture Access** accurately reports whether Accessibility access is granted.
+* [ ] Holding Option while dragging across text copies the completed selection.
+* [ ] Option-click without dragging does not trigger capture.
+* [ ] Dragging without Option does not trigger capture.
+* [ ] The Option-selected text becomes the active system clipboard item.
+* [ ] Immediately pressing `Command–V` pastes the Option-selected text.
+* [ ] Accepted Option-selected text appears once at the top of ClipVault history.
+* [ ] The source application name is correct.
+* [ ] The source bundle identifier is correct.
+* [ ] Option-selecting the same text again moves or replaces the existing item instead of creating a duplicate.
+* [ ] Option-select capture works while the main ClipVault window is closed.
+* [ ] Pausing clipboard monitoring prevents Option-selected text from being saved to history.
+* [ ] While monitoring is paused, Option-selected text still becomes the active system clipboard item and can be pasted.
+* [ ] Resuming monitoring allows subsequent Option-selected text to be saved again.
+* [ ] Option-select works in TextEdit.
+* [ ] Option-select works in Notes.
+* [ ] Option-select works in Safari.
+* [ ] Option-select works in Apple Mail.
+* [ ] Option-select works in Microsoft Word.
+* [ ] Rapid repeated Option-select gestures do not crash ClipVault or corrupt clipboard history.
+* [ ] A gesture that produces no readable text does not replace the last valid clipboard item.
+
 ---
 
 ## 5. Clipboard Row Actions
@@ -97,6 +126,10 @@ Record the macOS and ClipVault build versions when performing a full regression 
 
 * [ ] A likely password or secret is skipped when appropriate.
 * [ ] A skipped clip remains available in the system clipboard.
+* [ ] A likely-sensitive Option-selected value is not saved to normal history.
+* [ ] A likely-sensitive Option-selected value remains the active system clipboard item and can be pasted.
+* [ ] A likely-sensitive Option-selection produces one skipped-warning row when warnings are enabled.
+* [ ] Disabling **Show Skipped Clip Warnings** prevents Option-select warning rows without preventing the selected value from being pasted.
 * [ ] The skipped-warning row is red.
 * [ ] The warning text is bold.
 * [ ] The warning row is non-clickable.
@@ -189,6 +222,12 @@ Expected likely-sensitive warning:
 * [ ] Blocked mode never saves copied text from the selected app.
 * [ ] Blocked copied text remains available in the system clipboard.
 * [ ] A blocked warning row appears when skipped warnings are enabled.
+* [ ] Allowed mode saves accepted Option-selected text.
+* [ ] Smart mode applies the same sensitive-content policy to Option-selected text as to normal copied text.
+* [ ] Blocked mode does not save Option-selected text from the blocked app.
+* [ ] Option-selected text from a blocked app remains the active system clipboard item and can be pasted.
+* [ ] A blocked-app Option-selection produces one warning row when warnings are enabled.
+* [ ] The blocked-app warning identifies the correct source application.
 * [ ] The Blocked picker label displays normally without literal asterisks.
 * [ ] A lock icon appears only when the app is Blocked.
 * [ ] The lock icon does not leave an empty gap in Allowed or Smart modes.
@@ -444,16 +483,23 @@ Perform these steps in order:
 8. [ ] Copy a clip back to the clipboard.
 9. [ ] Delete one clip.
 10. [ ] Open General Settings.
-11. [ ] Change and restore one harmless setting.
-12. [ ] Open App Rules.
-13. [ ] Search for an application.
-14. [ ] Change one app rule.
-15. [ ] Reset the app rule.
-16. [ ] Refresh the app list.
-17. [ ] Export a backup.
-18. [ ] Quit ClipVault.
-19. [ ] Relaunch ClipVault.
-20. [ ] Confirm history, settings, and app rules remain correct.
+11. [ ] Enable Option-select capture.
+12. [ ] Option-select text in TextEdit.
+13. [ ] Immediately paste and confirm that the selected text is active.
+14. [ ] Confirm the Option-selected text appears once in history.
+15. [ ] Disable Option-select capture and confirm that a new Option-drag does not trigger.
+16. [ ] Restore the preferred Option-select setting.
+17. [ ] Change and restore one other harmless setting.
+18. [ ] Open App Rules.
+19. [ ] Search for an application.
+20. [ ] Change one app rule.
+21. [ ] Confirm the changed rule also applies to Option-selected text.
+22. [ ] Reset the app rule.
+23. [ ] Refresh the app list.
+24. [ ] Export a backup.
+25. [ ] Quit ClipVault.
+26. [ ] Relaunch ClipVault.
+27. [ ] Confirm history, settings, Option-select preference, and app rules remain correct.
 
 ---
 
