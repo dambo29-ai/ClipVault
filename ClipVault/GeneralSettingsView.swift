@@ -19,6 +19,8 @@ struct GeneralSettingsView: View {
     @State private var backupKeepCountText = ""
     @State private var hasAccessibilityPermission =
         AccessibilityPermissionService.isGranted
+    @State private var clipboardRestoreDiagnosticMessage =
+        "Not tested yet"
     
     private let settingsControlColumnWidth: CGFloat = 150
     
@@ -51,6 +53,10 @@ struct GeneralSettingsView: View {
                     Divider()
 
                     selectionCaptureDiagnosticSetting
+
+                    Divider()
+
+                    clipboardRestoreDiagnosticSetting
 
                     Divider()
 
@@ -409,6 +415,43 @@ struct GeneralSettingsView: View {
         }
     }
     
+    private var clipboardRestoreDiagnosticSetting: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Clipboard Restore Diagnostic")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+
+                Text(
+                    "Temporarily replaces the system clipboard, restores its previous contents, and verifies the result. Clipboard history should not change."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 8) {
+                Button("Test Restore") {
+                    runClipboardRestoreDiagnostic()
+                }
+
+                Text(clipboardRestoreDiagnosticMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.trailing)
+                    .frame(
+                        maxWidth: settingsControlColumnWidth,
+                        alignment: .trailing
+                    )
+            }
+            .frame(
+                width: settingsControlColumnWidth,
+                alignment: .trailing
+            )
+        }
+    }
+    
     private var keyboardShortcutsSetting: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 4) {
@@ -458,6 +501,111 @@ struct GeneralSettingsView: View {
     private func refreshAccessibilityPermission() {
         hasAccessibilityPermission =
             AccessibilityPermissionService.isGranted
+    }
+    
+    private func runClipboardRestoreDiagnostic() {
+        let pasteboard = NSPasteboard.general
+
+        let originalSnapshot =
+            ClipboardSnapshotService.capture(
+                from: pasteboard
+            )
+
+        pasteboard.clearContents()
+
+        let temporaryWriteSucceeded =
+            pasteboard.setString(
+                "ClipVault temporary clipboard diagnostic",
+                forType: .string
+            )
+
+        guard temporaryWriteSucceeded else {
+            ClipboardSnapshotService.restore(
+                originalSnapshot,
+                to: pasteboard
+            )
+
+            clipboardStore
+                .synchronizeClipboardMonitoringChangeCount()
+
+            clipboardRestoreDiagnosticMessage =
+                "Temporary clipboard write failed."
+
+            return
+        }
+
+        let restorationSucceeded =
+            ClipboardSnapshotService.restore(
+                originalSnapshot,
+                to: pasteboard
+            )
+
+        clipboardStore
+            .synchronizeClipboardMonitoringChangeCount()
+
+        guard restorationSucceeded else {
+            clipboardRestoreDiagnosticMessage =
+                "Clipboard restoration failed."
+
+            return
+        }
+
+        let restoredSnapshot =
+            ClipboardSnapshotService.capture(
+                from: pasteboard
+            )
+
+        if clipboardSnapshotsMatch(
+            originalSnapshot,
+            restoredSnapshot
+        ) {
+            clipboardRestoreDiagnosticMessage =
+                "Restore succeeded and was verified."
+        } else {
+            clipboardRestoreDiagnosticMessage =
+                "Clipboard was restored, but verification failed."
+        }
+    }
+    
+    private func clipboardSnapshotsMatch(
+        _ firstSnapshot: ClipboardSnapshot,
+        _ secondSnapshot: ClipboardSnapshot
+    ) -> Bool {
+        guard
+            firstSnapshot.items.count ==
+                secondSnapshot.items.count
+        else {
+            return false
+        }
+
+        for (
+            firstItem,
+            secondItem
+        ) in zip(
+            firstSnapshot.items,
+            secondSnapshot.items
+        ) {
+            guard
+                firstItem.representations.count ==
+                    secondItem.representations.count
+            else {
+                return false
+            }
+
+            for (
+                type,
+                firstData
+            ) in firstItem.representations {
+                guard
+                    secondItem.representations[type] ==
+                        firstData
+                else {
+                    return false
+                }
+            }
+        }
+
+        return true
     }
     
     private func applyHistoryLimitText() {
