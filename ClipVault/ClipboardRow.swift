@@ -66,9 +66,13 @@ struct ClipboardRow: View {
                     .lineLimit(3)
                     .multilineTextAlignment(.leading)
 
-                Text(item.createdAt, style: .time)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Text(
+                    ClipboardTimestampFormatter.string(
+                        for: item.createdAt
+                    )
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
             .padding(.vertical, 8)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -91,7 +95,11 @@ struct ClipboardRow: View {
     
     private var metadataView: some View {
         HStack(spacing: 6) {
-            Text(item.createdAt, style: .time)
+            Text(
+                ClipboardTimestampFormatter.string(
+                    for: item.createdAt
+                )
+            )
             
             if let sourceAppName = item.sourceAppName,
                !sourceAppName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
