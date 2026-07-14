@@ -19,8 +19,6 @@ struct GeneralSettingsView: View {
     @State private var backupKeepCountText = ""
     @State private var hasAccessibilityPermission =
         AccessibilityPermissionService.isGranted
-    @State private var clipboardRestoreDiagnosticMessage =
-        "Not tested yet"
     
     private let settingsControlColumnWidth: CGFloat = 150
     
@@ -56,11 +54,7 @@ struct GeneralSettingsView: View {
 
                     Divider()
 
-                    selectionCaptureDiagnosticSetting
-
-                    Divider()
-
-                    clipboardRestoreDiagnosticSetting
+                    selectionCaptureStatusSetting
 
                     Divider()
 
@@ -376,15 +370,15 @@ struct GeneralSettingsView: View {
         }
     }
     
-    private var selectionCaptureDiagnosticSetting: some View {
+    private var selectionCaptureStatusSetting: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Option-Select Diagnostic")
+                Text("Option-Select Status")
                     .font(.subheadline)
                     .fontWeight(.medium)
 
                 Text(
-                    "Hold Option while dragging to select text in another application. The selection becomes the active clipboard item and accepted text is also saved to ClipVault history."
+                    "Shows whether Option-select capture is active and the result of the most recent selection."
                 )
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -395,8 +389,8 @@ struct GeneralSettingsView: View {
             VStack(alignment: .trailing, spacing: 6) {
                 Label(
                     optionSelectionGestureMonitor.isMonitoring
-                        ? "Monitor Active"
-                        : "Monitor Inactive",
+                        ? "Capture Active"
+                        : "Capture Inactive",
                     systemImage:
                         optionSelectionGestureMonitor.isMonitoring
                             ? "wave.3.right.circle.fill"
@@ -412,7 +406,7 @@ struct GeneralSettingsView: View {
                 if let lastDetectedAt =
                     optionSelectionGestureMonitor.lastDetectedAt {
                     Text(
-                        "Last detected: \(ClipboardTimestampFormatter.string(for: lastDetectedAt))"
+                        "Last used: \(ClipboardTimestampFormatter.string(for: lastDetectedAt))"
                     )
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -431,62 +425,17 @@ struct GeneralSettingsView: View {
                     )
                     .font(.caption)
                     .foregroundStyle(.secondary)
-
-                    if let selectedText =
-                        optionSelectionGestureMonitor
-                            .lastSelectedText {
-                        Text(selectedText)
-                            .font(.caption)
-                            .lineLimit(4)
-                            .multilineTextAlignment(.trailing)
-                            .textSelection(.enabled)
-                            .frame(
-                                maxWidth: settingsControlColumnWidth,
-                                alignment: .trailing
-                            )
-                    }
+                    .multilineTextAlignment(.trailing)
                 } else {
-                    Text("No gesture detected yet")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .frame(
-                width: settingsControlColumnWidth,
-                alignment: .trailing
-            )
-        }
-    }
-    
-    private var clipboardRestoreDiagnosticSetting: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Clipboard Restore Diagnostic")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-
-                Text(
-                    "Temporarily replaces the system clipboard, restores its previous contents, and verifies the result. Clipboard history should not change."
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            VStack(alignment: .trailing, spacing: 8) {
-                Button("Test Restore") {
-                    runClipboardRestoreDiagnostic()
-                }
-
-                Text(clipboardRestoreDiagnosticMessage)
+                    Text(
+                        optionSelectionGestureMonitor.isCaptureEnabled
+                            ? "No selection captured yet"
+                            : "Option-select capture is disabled"
+                    )
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.trailing)
-                    .frame(
-                        maxWidth: settingsControlColumnWidth,
-                        alignment: .trailing
-                    )
+                }
             }
             .frame(
                 width: settingsControlColumnWidth,
@@ -568,111 +517,6 @@ struct GeneralSettingsView: View {
     private func refreshAccessibilityPermission() {
         hasAccessibilityPermission =
             AccessibilityPermissionService.isGranted
-    }
-    
-    private func runClipboardRestoreDiagnostic() {
-        let pasteboard = NSPasteboard.general
-
-        let originalSnapshot =
-            ClipboardSnapshotService.capture(
-                from: pasteboard
-            )
-
-        pasteboard.clearContents()
-
-        let temporaryWriteSucceeded =
-            pasteboard.setString(
-                "ClipVault temporary clipboard diagnostic",
-                forType: .string
-            )
-
-        guard temporaryWriteSucceeded else {
-            ClipboardSnapshotService.restore(
-                originalSnapshot,
-                to: pasteboard
-            )
-
-            clipboardStore
-                .synchronizeClipboardMonitoringChangeCount()
-
-            clipboardRestoreDiagnosticMessage =
-                "Temporary clipboard write failed."
-
-            return
-        }
-
-        let restorationSucceeded =
-            ClipboardSnapshotService.restore(
-                originalSnapshot,
-                to: pasteboard
-            )
-
-        clipboardStore
-            .synchronizeClipboardMonitoringChangeCount()
-
-        guard restorationSucceeded else {
-            clipboardRestoreDiagnosticMessage =
-                "Clipboard restoration failed."
-
-            return
-        }
-
-        let restoredSnapshot =
-            ClipboardSnapshotService.capture(
-                from: pasteboard
-            )
-
-        if clipboardSnapshotsMatch(
-            originalSnapshot,
-            restoredSnapshot
-        ) {
-            clipboardRestoreDiagnosticMessage =
-                "Restore succeeded and was verified."
-        } else {
-            clipboardRestoreDiagnosticMessage =
-                "Clipboard was restored, but verification failed."
-        }
-    }
-    
-    private func clipboardSnapshotsMatch(
-        _ firstSnapshot: ClipboardSnapshot,
-        _ secondSnapshot: ClipboardSnapshot
-    ) -> Bool {
-        guard
-            firstSnapshot.items.count ==
-                secondSnapshot.items.count
-        else {
-            return false
-        }
-
-        for (
-            firstItem,
-            secondItem
-        ) in zip(
-            firstSnapshot.items,
-            secondSnapshot.items
-        ) {
-            guard
-                firstItem.representations.count ==
-                    secondItem.representations.count
-            else {
-                return false
-            }
-
-            for (
-                type,
-                firstData
-            ) in firstItem.representations {
-                guard
-                    secondItem.representations[type] ==
-                        firstData
-                else {
-                    return false
-                }
-            }
-        }
-
-        return true
     }
     
     private func applyHistoryLimitText() {

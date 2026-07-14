@@ -193,10 +193,6 @@ final class ClipboardStore: ObservableObject {
         
         clipboardMonitoringService.synchronizeChangeCount()
     }
-    
-    func synchronizeClipboardMonitoringChangeCount() {
-        clipboardMonitoringService.synchronizeChangeCount()
-    }
 
     func beginIgnoringClipboardMonitoringChanges() {
         clipboardMonitoringService

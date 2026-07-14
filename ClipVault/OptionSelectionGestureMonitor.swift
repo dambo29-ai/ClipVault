@@ -15,7 +15,6 @@ final class OptionSelectionGestureMonitor: ObservableObject {
     @Published private(set) var isMonitoring = false
     @Published private(set) var lastDetectedAt: Date?
     @Published private(set) var lastDetectedAppName: String?
-    @Published private(set) var lastSelectedText: String?
     @Published private(set) var lastRetrievalMessage =
         "No selection captured yet"
 
@@ -226,7 +225,6 @@ final class OptionSelectionGestureMonitor: ObservableObject {
             lastDetectedAppName =
                 detectedAppName
 
-            lastSelectedText = nil
             lastRetrievalMessage =
                 "Running clipboard transaction…"
 
@@ -267,7 +265,6 @@ final class OptionSelectionGestureMonitor: ObservableObject {
                 let self,
                 let clipboardStore
             else {
-                self?.lastSelectedText = nil
                 self?.lastRetrievalMessage =
                     "Clipboard monitoring could not be accessed."
 
@@ -308,7 +305,6 @@ final class OptionSelectionGestureMonitor: ObservableObject {
     ) {
         switch result {
         case let .selectedText(selectedText):
-            lastSelectedText = nil
 
             let captureOutcome =
                 clipboardStore.captureSelectedText(
@@ -324,37 +320,30 @@ final class OptionSelectionGestureMonitor: ObservableObject {
             )
 
         case .accessibilityNotGranted:
-            lastSelectedText = nil
             lastRetrievalMessage =
                 "Accessibility access is not granted."
 
         case .sourceApplicationUnavailable:
-            lastSelectedText = nil
             lastRetrievalMessage =
                 "The source application could not be identified."
 
         case .transactionAlreadyRunning:
-            lastSelectedText = nil
             lastRetrievalMessage =
                 "Another selection transaction is already running."
 
         case .copyEventCouldNotBeCreated:
-            lastSelectedText = nil
             lastRetrievalMessage =
                 "The Command–C event could not be created."
 
         case .clipboardDidNotChange:
-            lastSelectedText = nil
             lastRetrievalMessage =
                 "The source application did not update the clipboard."
 
         case .noTextCopied:
-            lastSelectedText = nil
             lastRetrievalMessage =
                 "The source application copied no readable text."
 
         case .clipboardRestoreFailed:
-            lastSelectedText = nil
             lastRetrievalMessage =
                 "The original clipboard could not be restored."
         }
