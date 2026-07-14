@@ -469,6 +469,8 @@ Perform these steps in order:
 
 **Issues found: * Xcode 26.6 displayed three executable-parsing warnings from Apple testing frameworks during unit-test execution. All 12 ClipVault tests passed with green checkmarks and zero failures.**
 
+* Xcode 26.6 displayed one executable-parsing warning from XCTAutomationSupport during unit-test execution. All 35 ClipVault tests passed with zero failures.**
+
 *
 
 **Result:**
