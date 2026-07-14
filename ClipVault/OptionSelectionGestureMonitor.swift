@@ -23,8 +23,10 @@ final class OptionSelectionGestureMonitor: ObservableObject {
     private var optionWasHeldAtMouseDown = false
     private var didDragWhileSelecting = false
     private var sourceAppNameAtMouseDown: String?
+    private var sourceBundleIdentifierAtMouseDown: String?
+    private var sourceAppPathAtMouseDown: String?
     private var sourceProcessIdentifierAtMouseDown: pid_t?
-
+    
     private let transactionService =
         SelectionClipboardTransactionService()
 
@@ -125,6 +127,15 @@ final class OptionSelectionGestureMonitor: ObservableObject {
                 frontmostApplication?
                     .localizedName
 
+            sourceBundleIdentifierAtMouseDown =
+                frontmostApplication?
+                    .bundleIdentifier
+
+            sourceAppPathAtMouseDown =
+                frontmostApplication?
+                    .bundleURL?
+                    .path
+
             sourceProcessIdentifierAtMouseDown =
                 frontmostApplication?
                     .processIdentifier
@@ -139,6 +150,12 @@ final class OptionSelectionGestureMonitor: ObservableObject {
         case .leftMouseUp:
             let detectedAppName =
                 sourceAppNameAtMouseDown
+
+            let detectedBundleIdentifier =
+                sourceBundleIdentifierAtMouseDown
+
+            let detectedAppPath =
+                sourceAppPathAtMouseDown
 
             let detectedProcessIdentifier =
                 sourceProcessIdentifierAtMouseDown
@@ -173,13 +190,22 @@ final class OptionSelectionGestureMonitor: ObservableObject {
 
             captureSelectedTextAfterSelectionSettles(
                 processIdentifier:
-                    detectedProcessIdentifier
+                    detectedProcessIdentifier,
+                sourceAppName:
+                    detectedAppName,
+                sourceBundleIdentifier:
+                    detectedBundleIdentifier,
+                sourceAppPath:
+                    detectedAppPath
             )
         }
     }
 
     private func captureSelectedTextAfterSelectionSettles(
-        processIdentifier: pid_t
+        processIdentifier: pid_t,
+        sourceAppName: String?,
+        sourceBundleIdentifier: String?,
+        sourceAppPath: String?
     ) {
         Task { @MainActor [weak self] in
             try? await Task.sleep(
@@ -212,20 +238,39 @@ final class OptionSelectionGestureMonitor: ObservableObject {
                     )
 
             applyTransactionResult(
-                result
+                result,
+                clipboardStore: clipboardStore,
+                sourceAppName: sourceAppName,
+                sourceBundleIdentifier:
+                    sourceBundleIdentifier,
+                sourceAppPath: sourceAppPath
             )
         }
     }
 
     private func applyTransactionResult(
-        _ result:
-            SelectionClipboardTransactionResult
+        _ result: SelectionClipboardTransactionResult,
+        clipboardStore: ClipboardStore,
+        sourceAppName: String?,
+        sourceBundleIdentifier: String?,
+        sourceAppPath: String?
     ) {
         switch result {
-        case .selectedText:
+        case let .selectedText(selectedText):
             lastSelectedText = nil
-            lastRetrievalMessage =
-                "Selected text copied and the original clipboard was restored."
+
+            let captureOutcome =
+                clipboardStore.captureSelectedText(
+                    selectedText,
+                    sourceAppName: sourceAppName,
+                    sourceBundleIdentifier:
+                        sourceBundleIdentifier,
+                    sourceAppPath: sourceAppPath
+                )
+
+            applyCaptureOutcome(
+                captureOutcome
+            )
 
         case .accessibilityNotGranted:
             lastSelectedText = nil
@@ -263,12 +308,40 @@ final class OptionSelectionGestureMonitor: ObservableObject {
                 "The original clipboard could not be restored."
         }
     }
+    
+    private func applyCaptureOutcome(
+        _ outcome: ClipboardCaptureOutcome
+    ) {
+        switch outcome {
+        case .captured:
+            lastRetrievalMessage =
+                "Selected text was added to ClipVault and the original clipboard was restored."
+
+        case .skippedMonitoringPaused:
+            lastRetrievalMessage =
+                "Selection was not saved because clipboard monitoring is paused."
+
+        case .skippedEmpty:
+            lastRetrievalMessage =
+                "The copied selection contained no readable text."
+
+        case .skippedBlocked:
+            lastRetrievalMessage =
+                "Selection was skipped because the source application is blocked."
+
+        case .skippedSensitive:
+            lastRetrievalMessage =
+                "Selection was skipped because it appears to contain sensitive information."
+        }
+    }
 
     private func resetCurrentGesture() {
         optionWasHeldAtMouseDown = false
         didDragWhileSelecting = false
 
         sourceAppNameAtMouseDown = nil
+        sourceBundleIdentifierAtMouseDown = nil
+        sourceAppPathAtMouseDown = nil
 
         sourceProcessIdentifierAtMouseDown =
             nil

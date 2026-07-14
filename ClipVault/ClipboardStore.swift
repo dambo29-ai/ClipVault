@@ -15,6 +15,14 @@ private struct DefaultAppGroup {
     let bundleIdentifiers: [String]
 }
 
+enum ClipboardCaptureOutcome {
+    case captured
+    case skippedMonitoringPaused
+    case skippedEmpty
+    case skippedBlocked
+    case skippedSensitive
+}
+
 enum ClipboardBackupImportOutcome {
     case imported(
         importedCount: Int,
@@ -195,6 +203,23 @@ final class ClipboardStore: ObservableObject {
             .beginIgnoringClipboardChanges()
     }
 
+    func captureSelectedText(
+        _ text: String,
+        sourceAppName: String?,
+        sourceBundleIdentifier: String?,
+        sourceAppPath: String?
+    ) -> ClipboardCaptureOutcome {
+        processClipboardCapture(
+            ClipboardChangePayload(
+                text: text,
+                sourceAppName: sourceAppName,
+                sourceBundleIdentifier:
+                    sourceBundleIdentifier,
+                sourceAppPath: sourceAppPath
+            )
+        )
+    }
+    
     func endIgnoringClipboardMonitoringChanges() {
         clipboardMonitoringService
             .endIgnoringClipboardChanges()
@@ -372,70 +397,98 @@ final class ClipboardStore: ObservableObject {
     private func handleClipboardChange(
         _ payload: ClipboardChangePayload
     ) {
+        _ = processClipboardCapture(payload)
+    }
+
+    @discardableResult
+    private func processClipboardCapture(
+        _ payload: ClipboardChangePayload
+    ) -> ClipboardCaptureOutcome {
         guard !isMonitoringPaused else {
-            return
+            return .skippedMonitoringPaused
         }
 
-        let cleanedText = payload.text.trimmingCharacters(
-            in: .whitespacesAndNewlines
-        )
+        let cleanedText =
+            payload.text.trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
 
         guard !cleanedText.isEmpty else {
-            return
+            return .skippedEmpty
         }
-        let sourceAppName = payload.sourceAppName
-        let sourceBundleIdentifier = payload.sourceBundleIdentifier
-        
+
+        let sourceAppName =
+            payload.sourceAppName
+
+        let sourceBundleIdentifier =
+            payload.sourceBundleIdentifier
+
         if let sourceAppName,
            let sourceBundleIdentifier {
             rememberApp(
                 displayName: sourceAppName,
-                bundleIdentifier: sourceBundleIdentifier,
+                bundleIdentifier:
+                    sourceBundleIdentifier,
                 appPath: payload.sourceAppPath,
                 shouldSave: true
             )
         }
-        
-        let sourceRuleMode = ruleModeForSourceApp(
-            sourceAppName: sourceAppName,
-            bundleIdentifier: sourceBundleIdentifier
-        )
-        
+
+        let sourceRuleMode =
+            ruleModeForSourceApp(
+                sourceAppName: sourceAppName,
+                bundleIdentifier:
+                    sourceBundleIdentifier
+            )
+
         switch sourceRuleMode {
         case .blocked:
-            addBlockedAppSkippedPlaceholder(sourceAppName: sourceAppName)
-            return
-            
+            addBlockedAppSkippedPlaceholder(
+                sourceAppName: sourceAppName
+            )
+
+            return .skippedBlocked
+
         case .smart:
             if shouldSkipInSmartMode(cleanedText) {
                 addSensitiveSkippedPlaceholder()
-                return
+                return .skippedSensitive
             }
-            
+
         case .allowed:
             break
         }
-        
-        guard !PasswordDetector.isLikelyPassword(cleanedText) else {
+
+        guard
+            !PasswordDetector
+                .isLikelyPassword(cleanedText)
+        else {
             addSensitiveSkippedPlaceholder()
-            return
+            return .skippedSensitive
         }
-        
+
         let newItem = ClipboardItem(
             text: cleanedText,
             createdAt: Date(),
             sourceAppName: sourceAppName,
-            sourceBundleIdentifier: sourceBundleIdentifier
+            sourceBundleIdentifier:
+                sourceBundleIdentifier
         )
-        
+
         items.removeAll {
-            $0.kind == .normal && $0.text == cleanedText
+            $0.kind == .normal &&
+                $0.text == cleanedText
         }
-        
-        items.insert(newItem, at: 0)
+
+        items.insert(
+            newItem,
+            at: 0
+        )
+
         applyRetentionRules()
-        
         saveItems()
+
+        return .captured
     }
     
     private func ruleModeForSourceApp(
