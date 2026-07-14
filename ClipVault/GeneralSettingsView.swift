@@ -54,12 +54,8 @@ struct GeneralSettingsView: View {
 
                     Divider()
 
-                    selectionCaptureStatusSetting
-
-                    Divider()
-
                     keyboardShortcutsSetting
-
+                    
                 }
                 .padding(24)
             }
@@ -361,80 +357,6 @@ struct GeneralSettingsView: View {
                             refreshAccessibilityPermission()
                         }
                     }
-                }
-            }
-            .frame(
-                width: settingsControlColumnWidth,
-                alignment: .trailing
-            )
-        }
-    }
-    
-    private var selectionCaptureStatusSetting: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Option-Select Status")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-
-                Text(
-                    "Shows whether Option-select capture is active and the result of the most recent selection."
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            VStack(alignment: .trailing, spacing: 6) {
-                Label(
-                    optionSelectionGestureMonitor.isMonitoring
-                        ? "Capture Active"
-                        : "Capture Inactive",
-                    systemImage:
-                        optionSelectionGestureMonitor.isMonitoring
-                            ? "wave.3.right.circle.fill"
-                            : "wave.3.right.circle"
-                )
-                .font(.caption)
-                .foregroundStyle(
-                    optionSelectionGestureMonitor.isMonitoring
-                        ? .green
-                        : .secondary
-                )
-
-                if let lastDetectedAt =
-                    optionSelectionGestureMonitor.lastDetectedAt {
-                    Text(
-                        "Last used: \(ClipboardTimestampFormatter.string(for: lastDetectedAt))"
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                    if let appName =
-                        optionSelectionGestureMonitor
-                            .lastDetectedAppName {
-                        Text(appName)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Text(
-                        optionSelectionGestureMonitor
-                            .lastRetrievalMessage
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.trailing)
-                } else {
-                    Text(
-                        optionSelectionGestureMonitor.isCaptureEnabled
-                            ? "No selection captured yet"
-                            : "Option-select capture is disabled"
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.trailing)
                 }
             }
             .frame(
