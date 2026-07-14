@@ -6,12 +6,19 @@
 //
 
 import SwiftUI
+import AppKit
 import KeyboardShortcuts
 
 struct GeneralSettingsView: View {
     @EnvironmentObject var clipboardStore: ClipboardStore
+
+    @EnvironmentObject
+    var optionSelectionGestureMonitor:
+        OptionSelectionGestureMonitor
     @State private var historyLimitText = ""
     @State private var backupKeepCountText = ""
+    @State private var hasAccessibilityPermission =
+        AccessibilityPermissionService.isGranted
     
     private let settingsControlColumnWidth: CGFloat = 150
     
@@ -39,6 +46,14 @@ struct GeneralSettingsView: View {
 
                     Divider()
 
+                    selectionCapturePermissionSetting
+
+                    Divider()
+
+                    selectionCaptureDiagnosticSetting
+
+                    Divider()
+
                     keyboardShortcutsSetting
 
                 }
@@ -51,8 +66,20 @@ struct GeneralSettingsView: View {
             alignment: .topLeading
         )
         .onAppear {
-            historyLimitText = "\(clipboardStore.maxItemCount)"
-            backupKeepCountText = "\(clipboardStore.backupKeepCount)"
+            historyLimitText =
+                "\(clipboardStore.maxItemCount)"
+
+            backupKeepCountText =
+                "\(clipboardStore.backupKeepCount)"
+
+            refreshAccessibilityPermission()
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: NSApplication.didBecomeActiveNotification
+            )
+        ) { _ in
+            refreshAccessibilityPermission()
         }
     }
     
@@ -241,6 +268,147 @@ struct GeneralSettingsView: View {
         }
     }
     
+    private var selectionCapturePermissionSetting: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Selection Capture Access")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+
+                Text(
+                    "Accessibility access will allow ClipVault to detect Option-select gestures in other applications."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 8) {
+                Label(
+                    hasAccessibilityPermission
+                        ? "Access Granted"
+                        : "Access Not Granted",
+                    systemImage:
+                        hasAccessibilityPermission
+                            ? "checkmark.circle.fill"
+                            : "exclamationmark.triangle.fill"
+                )
+                .font(.caption)
+                .foregroundStyle(
+                    hasAccessibilityPermission
+                        ? .green
+                        : .secondary
+                )
+
+                Button(
+                    hasAccessibilityPermission
+                        ? "Refresh Status"
+                        : "Request Access"
+                ) {
+                    if hasAccessibilityPermission {
+                        refreshAccessibilityPermission()
+                    } else {
+                        AccessibilityPermissionService
+                            .requestAccessAndOpenSettings()
+
+                        DispatchQueue.main.asyncAfter(
+                            deadline: .now() + 1.0
+                        ) {
+                            refreshAccessibilityPermission()
+                        }
+                    }
+                }
+            }
+            .frame(
+                width: settingsControlColumnWidth,
+                alignment: .trailing
+            )
+        }
+    }
+    
+    private var selectionCaptureDiagnosticSetting: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Option-Select Diagnostic")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+
+                Text(
+                    "Hold Option while dragging to select text in another application. The selected text is shown here for testing but is not saved."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 6) {
+                Label(
+                    optionSelectionGestureMonitor.isMonitoring
+                        ? "Monitor Active"
+                        : "Monitor Inactive",
+                    systemImage:
+                        optionSelectionGestureMonitor.isMonitoring
+                            ? "wave.3.right.circle.fill"
+                            : "wave.3.right.circle"
+                )
+                .font(.caption)
+                .foregroundStyle(
+                    optionSelectionGestureMonitor.isMonitoring
+                        ? .green
+                        : .secondary
+                )
+
+                if let lastDetectedAt =
+                    optionSelectionGestureMonitor.lastDetectedAt {
+                    Text(
+                        "Last detected: \(ClipboardTimestampFormatter.string(for: lastDetectedAt))"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                    if let appName =
+                        optionSelectionGestureMonitor
+                            .lastDetectedAppName {
+                        Text(appName)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Text(
+                        optionSelectionGestureMonitor
+                            .lastRetrievalMessage
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                    if let selectedText =
+                        optionSelectionGestureMonitor
+                            .lastSelectedText {
+                        Text(selectedText)
+                            .font(.caption)
+                            .lineLimit(4)
+                            .multilineTextAlignment(.trailing)
+                            .textSelection(.enabled)
+                            .frame(
+                                maxWidth: settingsControlColumnWidth,
+                                alignment: .trailing
+                            )
+                    }
+                } else {
+                    Text("No gesture detected yet")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(
+                width: settingsControlColumnWidth,
+                alignment: .trailing
+            )
+        }
+    }
+    
     private var keyboardShortcutsSetting: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 4) {
@@ -285,6 +453,11 @@ struct GeneralSettingsView: View {
             )
             .labelsHidden()
         }
+    }
+    
+    private func refreshAccessibilityPermission() {
+        hasAccessibilityPermission =
+            AccessibilityPermissionService.isGranted
     }
     
     private func applyHistoryLimitText() {

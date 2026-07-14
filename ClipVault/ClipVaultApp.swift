@@ -12,6 +12,10 @@ import KeyboardShortcuts
 @main
 struct ClipVaultApp: App {
     @StateObject private var clipboardStore = ClipboardStore()
+
+    @StateObject private var optionSelectionGestureMonitor =
+        OptionSelectionGestureMonitor()
+
     @Environment(\.openWindow) private var openWindow
     @State private var hasRegisteredKeyboardShortcuts = false
 
@@ -165,6 +169,9 @@ struct ClipVaultApp: App {
             Image(systemName: "doc.on.clipboard")
                 .onAppear {
                     registerKeyboardShortcutsIfNeeded()
+
+                    optionSelectionGestureMonitor
+                        .startMonitoring()
                 }
         }
         .menuBarExtraStyle(.menu)
@@ -196,6 +203,9 @@ struct ClipVaultApp: App {
         Window("ClipVault Settings", id: "settings-window") {
             SettingsContainerView()
                 .environmentObject(clipboardStore)
+                .environmentObject(
+                    optionSelectionGestureMonitor
+                )
         }
         .defaultSize(width: 900, height: 700)
     }
