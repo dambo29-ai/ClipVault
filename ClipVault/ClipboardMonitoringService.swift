@@ -22,6 +22,7 @@ final class ClipboardMonitoringService {
 
     private var lastChangeCount: Int
     private var monitoringTask: Task<Void, Never>?
+    private var temporaryIgnoreDepth = 0
 
     init(
         pasteboard: NSPasteboard = .general,
@@ -69,11 +70,30 @@ final class ClipboardMonitoringService {
         lastChangeCount = pasteboard.changeCount
     }
 
+    func beginIgnoringClipboardChanges() {
+        temporaryIgnoreDepth += 1
+        synchronizeChangeCount()
+    }
+
+    func endIgnoringClipboardChanges() {
+        temporaryIgnoreDepth = max(
+            0,
+            temporaryIgnoreDepth - 1
+        )
+
+        synchronizeChangeCount()
+    }
+
     private func checkForClipboardChange(
         onClipboardChange: @escaping @MainActor (
             ClipboardChangePayload
         ) -> Void
     ) {
+        if temporaryIgnoreDepth > 0 {
+            synchronizeChangeCount()
+            return
+        }
+
         guard pasteboard.changeCount != lastChangeCount else {
             return
         }

@@ -171,6 +171,11 @@ struct ClipVaultApp: App {
                     registerKeyboardShortcutsIfNeeded()
 
                     optionSelectionGestureMonitor
+                        .configure(
+                            clipboardStore: clipboardStore
+                        )
+
+                    optionSelectionGestureMonitor
                         .startMonitoring()
                 }
         }

@@ -189,6 +189,16 @@ final class ClipboardStore: ObservableObject {
     func synchronizeClipboardMonitoringChangeCount() {
         clipboardMonitoringService.synchronizeChangeCount()
     }
+
+    func beginIgnoringClipboardMonitoringChanges() {
+        clipboardMonitoringService
+            .beginIgnoringClipboardChanges()
+    }
+
+    func endIgnoringClipboardMonitoringChanges() {
+        clipboardMonitoringService
+            .endIgnoringClipboardChanges()
+    }
     
     func deleteItem(_ item: ClipboardItem) {
         items.removeAll { $0.id == item.id }

@@ -16,7 +16,7 @@ final class OptionSelectionGestureMonitor: ObservableObject {
     @Published private(set) var lastDetectedAppName: String?
     @Published private(set) var lastSelectedText: String?
     @Published private(set) var lastRetrievalMessage =
-        "No selection read yet"
+        "No selection captured yet"
 
     private var globalEventMonitor: Any?
 
@@ -25,10 +25,24 @@ final class OptionSelectionGestureMonitor: ObservableObject {
     private var sourceAppNameAtMouseDown: String?
     private var sourceProcessIdentifierAtMouseDown: pid_t?
 
+    private let transactionService =
+        SelectionClipboardTransactionService()
+
+    private weak var clipboardStore: ClipboardStore?
+
     deinit {
         if let globalEventMonitor {
-            NSEvent.removeMonitor(globalEventMonitor)
+            NSEvent.removeMonitor(
+                globalEventMonitor
+            )
         }
+    }
+
+    func configure(
+        clipboardStore: ClipboardStore
+    ) {
+        self.clipboardStore =
+            clipboardStore
     }
 
     func startMonitoring() {
@@ -61,17 +75,20 @@ final class OptionSelectionGestureMonitor: ObservableObject {
                 }
 
                 let optionIsPressed =
-                    event.modifierFlags.contains(.option)
+                    event.modifierFlags
+                        .contains(.option)
 
                 Task { @MainActor [weak self] in
                     self?.handle(
                         eventKind,
-                        optionIsPressed: optionIsPressed
+                        optionIsPressed:
+                            optionIsPressed
                     )
                 }
             }
 
-        isMonitoring = globalEventMonitor != nil
+        isMonitoring =
+            globalEventMonitor != nil
     }
 
     func stopMonitoring() {
@@ -79,7 +96,10 @@ final class OptionSelectionGestureMonitor: ObservableObject {
             return
         }
 
-        NSEvent.removeMonitor(globalEventMonitor)
+        NSEvent.removeMonitor(
+            globalEventMonitor
+        )
+
         self.globalEventMonitor = nil
 
         resetCurrentGesture()
@@ -92,17 +112,22 @@ final class OptionSelectionGestureMonitor: ObservableObject {
     ) {
         switch eventKind {
         case .leftMouseDown:
-            optionWasHeldAtMouseDown = optionIsPressed
+            optionWasHeldAtMouseDown =
+                optionIsPressed
+
             didDragWhileSelecting = false
 
             let frontmostApplication =
-                NSWorkspace.shared.frontmostApplication
+                NSWorkspace.shared
+                    .frontmostApplication
 
             sourceAppNameAtMouseDown =
-                frontmostApplication?.localizedName
+                frontmostApplication?
+                    .localizedName
 
             sourceProcessIdentifierAtMouseDown =
-                frontmostApplication?.processIdentifier
+                frontmostApplication?
+                    .processIdentifier
 
         case .leftMouseDragged:
             guard optionWasHeldAtMouseDown else {
@@ -122,93 +147,131 @@ final class OptionSelectionGestureMonitor: ObservableObject {
                 resetCurrentGesture()
             }
 
-            guard optionWasHeldAtMouseDown,
-                  didDragWhileSelecting else {
+            guard
+                optionWasHeldAtMouseDown,
+                didDragWhileSelecting
+            else {
                 return
             }
 
             lastDetectedAt = Date()
-            lastDetectedAppName = detectedAppName
+            lastDetectedAppName =
+                detectedAppName
+
             lastSelectedText = nil
             lastRetrievalMessage =
-                "Reading selected text…"
+                "Running clipboard transaction…"
 
-            guard let detectedProcessIdentifier else {
-                lastSelectedText = nil
+            guard
+                let detectedProcessIdentifier
+            else {
                 lastRetrievalMessage =
-                    "The source application could not be identified"
+                    "The source application could not be identified."
+
                 return
             }
 
-            retrieveSelectedTextAfterSelectionSettles(
-                processIdentifier: detectedProcessIdentifier
+            captureSelectedTextAfterSelectionSettles(
+                processIdentifier:
+                    detectedProcessIdentifier
             )
         }
     }
 
-    private func retrieveSelectedTextAfterSelectionSettles(
+    private func captureSelectedTextAfterSelectionSettles(
         processIdentifier: pid_t
     ) {
         Task { @MainActor [weak self] in
             try? await Task.sleep(
-                nanoseconds: 250_000_000
+                for: .milliseconds(250)
             )
 
-            guard let self else {
+            guard
+                let self,
+                let clipboardStore
+            else {
+                self?.lastSelectedText = nil
+                self?.lastRetrievalMessage =
+                    "Clipboard monitoring could not be accessed."
+
                 return
             }
 
             let result =
-                SelectedTextRetrievalService
-                    .retrieveSelectedText(
-                        from: processIdentifier
+                await transactionService
+                    .captureSelectedText(
+                        from: processIdentifier,
+                        beginIgnoringClipboardChanges: {
+                            clipboardStore
+                                .beginIgnoringClipboardMonitoringChanges()
+                        },
+                        endIgnoringClipboardChanges: {
+                            clipboardStore
+                                .endIgnoringClipboardMonitoringChanges()
+                        }
                     )
 
-            applyRetrievalResult(result)
+            applyTransactionResult(
+                result
+            )
         }
     }
 
-    private func applyRetrievalResult(
-        _ result: SelectedTextRetrievalResult
+    private func applyTransactionResult(
+        _ result:
+            SelectionClipboardTransactionResult
     ) {
         switch result {
-        case .selectedText(let text):
-            lastSelectedText = text
+        case .selectedText:
+            lastSelectedText = nil
             lastRetrievalMessage =
-                "Selected text read successfully."
+                "Selected text copied and the original clipboard was restored."
 
         case .accessibilityNotGranted:
             lastSelectedText = nil
             lastRetrievalMessage =
                 "Accessibility access is not granted."
 
-        case .applicationUnavailable:
+        case .sourceApplicationUnavailable:
             lastSelectedText = nil
             lastRetrievalMessage =
                 "The source application could not be identified."
 
-        case .focusedElementUnavailable:
+        case .transactionAlreadyRunning:
             lastSelectedText = nil
             lastRetrievalMessage =
-                "The focused text element could not be found."
+                "Another selection transaction is already running."
 
-        case .noSelectedText:
+        case .copyEventCouldNotBeCreated:
             lastSelectedText = nil
             lastRetrievalMessage =
-                "No readable selected text was found."
+                "The Command–C event could not be created."
 
-        case .retrievalFailed:
+        case .clipboardDidNotChange:
             lastSelectedText = nil
             lastRetrievalMessage =
-                "Selected text could not be read."
+                "The source application did not update the clipboard."
+
+        case .noTextCopied:
+            lastSelectedText = nil
+            lastRetrievalMessage =
+                "The source application copied no readable text."
+
+        case .clipboardRestoreFailed:
+            lastSelectedText = nil
+            lastRetrievalMessage =
+                "The original clipboard could not be restored."
         }
     }
 
     private func resetCurrentGesture() {
         optionWasHeldAtMouseDown = false
         didDragWhileSelecting = false
+
         sourceAppNameAtMouseDown = nil
-        sourceProcessIdentifierAtMouseDown = nil
+
+        sourceProcessIdentifierAtMouseDown =
+            nil
     }
 }
 
