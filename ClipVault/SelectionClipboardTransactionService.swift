@@ -95,27 +95,22 @@ final class SelectionClipboardTransactionService {
                 : .clipboardRestoreFailed
         }
 
-        let copiedText =
-            pasteboard.string(
-                forType: .string
-            )
+        guard
+            let copiedText =
+                pasteboard.string(
+                    forType: .string
+                ),
+            !copiedText.isEmpty
+        else {
+            let restorationSucceeded =
+                ClipboardSnapshotService.restore(
+                    originalSnapshot,
+                    to: pasteboard
+                )
 
-        let restorationSucceeded =
-            ClipboardSnapshotService.restore(
-                originalSnapshot,
-                to: pasteboard
-            )
-
-        guard restorationSucceeded else {
-            return .clipboardRestoreFailed
-        }
-
-        guard let copiedText else {
-            return .noTextCopied
-        }
-
-        guard !copiedText.isEmpty else {
-            return .noTextCopied
+            return restorationSucceeded
+                ? .noTextCopied
+                : .clipboardRestoreFailed
         }
 
         return .selectedText(copiedText)

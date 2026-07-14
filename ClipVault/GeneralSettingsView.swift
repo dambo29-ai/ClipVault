@@ -341,7 +341,7 @@ struct GeneralSettingsView: View {
                     .fontWeight(.medium)
 
                 Text(
-                    "Hold Option while dragging to select text in another application. ClipVault saves accepted selections to history while preserving the previous system clipboard."
+                    "Hold Option while dragging to select text in another application. The selection becomes the active clipboard item and accepted text is also saved to ClipVault history."
                 )
                 .font(.caption)
                 .foregroundStyle(.secondary)

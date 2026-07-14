@@ -315,11 +315,11 @@ final class OptionSelectionGestureMonitor: ObservableObject {
         switch outcome {
         case .captured:
             lastRetrievalMessage =
-                "Selected text was added to ClipVault and the original clipboard was restored."
+                "Selected text was added to ClipVault and is ready to paste."
 
         case .skippedMonitoringPaused:
             lastRetrievalMessage =
-                "Selection was not saved because clipboard monitoring is paused."
+                "Selection is ready to paste but was not saved because clipboard monitoring is paused."
 
         case .skippedEmpty:
             lastRetrievalMessage =
@@ -327,11 +327,11 @@ final class OptionSelectionGestureMonitor: ObservableObject {
 
         case .skippedBlocked:
             lastRetrievalMessage =
-                "Selection was skipped because the source application is blocked."
+                "Selection is ready to paste but was not saved because the source application is blocked."
 
         case .skippedSensitive:
             lastRetrievalMessage =
-                "Selection was skipped because it appears to contain sensitive information."
+                "Selection is ready to paste but was not saved because it appears to contain sensitive information."
         }
     }
 
