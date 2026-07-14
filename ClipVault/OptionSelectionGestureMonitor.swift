@@ -282,39 +282,29 @@ final class OptionSelectionGestureMonitor: ObservableObject {
                         endIgnoringClipboardChanges: {
                             clipboardStore
                                 .endIgnoringClipboardMonitoringChanges()
+                        },
+                        processSelectedText: {
+                            selectedText in
+
+                            clipboardStore.captureSelectedText(
+                                selectedText,
+                                sourceAppName: sourceAppName,
+                                sourceBundleIdentifier:
+                                    sourceBundleIdentifier,
+                                sourceAppPath: sourceAppPath
+                            )
                         }
                     )
 
-            applyTransactionResult(
-                result,
-                clipboardStore: clipboardStore,
-                sourceAppName: sourceAppName,
-                sourceBundleIdentifier:
-                    sourceBundleIdentifier,
-                sourceAppPath: sourceAppPath
-            )
+            applyTransactionResult(result)
         }
     }
 
     private func applyTransactionResult(
-        _ result: SelectionClipboardTransactionResult,
-        clipboardStore: ClipboardStore,
-        sourceAppName: String?,
-        sourceBundleIdentifier: String?,
-        sourceAppPath: String?
+        _ result: SelectionClipboardTransactionResult
     ) {
         switch result {
-        case let .selectedText(selectedText):
-
-            let captureOutcome =
-                clipboardStore.captureSelectedText(
-                    selectedText,
-                    sourceAppName: sourceAppName,
-                    sourceBundleIdentifier:
-                        sourceBundleIdentifier,
-                    sourceAppPath: sourceAppPath
-                )
-
+        case let .processed(captureOutcome):
             applyCaptureOutcome(
                 captureOutcome
             )
@@ -359,7 +349,7 @@ final class OptionSelectionGestureMonitor: ObservableObject {
 
         case .skippedMonitoringPaused:
             lastRetrievalMessage =
-                "Selection is ready to paste but was not saved because clipboard monitoring is paused."
+                "Selection was ignored because clipboard monitoring is paused."
 
         case .skippedEmpty:
             lastRetrievalMessage =
@@ -367,11 +357,11 @@ final class OptionSelectionGestureMonitor: ObservableObject {
 
         case .skippedBlocked:
             lastRetrievalMessage =
-                "Selection is ready to paste but was not saved because the source application is blocked."
+                "Selection was ignored because the source application is blocked."
 
         case .skippedSensitive:
             lastRetrievalMessage =
-                "Selection is ready to paste but was not saved because it appears to contain sensitive information."
+                "Selection was ignored because it appears to contain sensitive information."
         }
     }
 

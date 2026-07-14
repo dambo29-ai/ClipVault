@@ -10,7 +10,7 @@ import CoreGraphics
 import Foundation
 
 enum SelectionClipboardTransactionResult {
-    case selectedText(String)
+    case processed(ClipboardCaptureOutcome)
     case accessibilityNotGranted
     case sourceApplicationUnavailable
     case transactionAlreadyRunning
@@ -34,7 +34,8 @@ final class SelectionClipboardTransactionService {
     func captureSelectedText(
         from processIdentifier: pid_t,
         beginIgnoringClipboardChanges: () -> Void,
-        endIgnoringClipboardChanges: () -> Void
+        endIgnoringClipboardChanges: () -> Void,
+        processSelectedText: (String) -> ClipboardCaptureOutcome
     ) async -> SelectionClipboardTransactionResult {
         guard !isRunning else {
             return .transactionAlreadyRunning
@@ -113,7 +114,22 @@ final class SelectionClipboardTransactionService {
                 : .clipboardRestoreFailed
         }
 
-        return .selectedText(copiedText)
+        let captureOutcome =
+            processSelectedText(copiedText)
+
+        guard captureOutcome == .captured else {
+            let restorationSucceeded =
+                ClipboardSnapshotService.restore(
+                    originalSnapshot,
+                    to: pasteboard
+                )
+
+            return restorationSucceeded
+                ? .processed(captureOutcome)
+                : .clipboardRestoreFailed
+        }
+
+        return .processed(captureOutcome)
     }
 
     private func postCommandC(

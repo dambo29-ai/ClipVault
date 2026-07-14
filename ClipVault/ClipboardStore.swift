@@ -15,7 +15,12 @@ private struct DefaultAppGroup {
     let bundleIdentifiers: [String]
 }
 
-enum ClipboardCaptureOutcome {
+enum ClipboardCaptureSource {
+    case nativeClipboard
+    case optionSelect
+}
+
+enum ClipboardCaptureOutcome: Equatable {
     case captured
     case skippedMonitoringPaused
     case skippedEmpty
@@ -212,7 +217,8 @@ final class ClipboardStore: ObservableObject {
                 sourceBundleIdentifier:
                     sourceBundleIdentifier,
                 sourceAppPath: sourceAppPath
-            )
+            ),
+            captureSource: .optionSelect
         )
     }
     
@@ -393,12 +399,16 @@ final class ClipboardStore: ObservableObject {
     private func handleClipboardChange(
         _ payload: ClipboardChangePayload
     ) {
-        _ = processClipboardCapture(payload)
+        _ = processClipboardCapture(
+            payload,
+            captureSource: .nativeClipboard
+        )
     }
 
     @discardableResult
     private func processClipboardCapture(
-        _ payload: ClipboardChangePayload
+        _ payload: ClipboardChangePayload,
+        captureSource: ClipboardCaptureSource
     ) -> ClipboardCaptureOutcome {
         guard !isMonitoringPaused else {
             return .skippedMonitoringPaused
@@ -437,29 +447,29 @@ final class ClipboardStore: ObservableObject {
                     sourceBundleIdentifier
             )
 
-        switch sourceRuleMode {
-        case .blocked:
+        let policyDecision =
+            ClipboardCapturePolicyService.decision(
+                for: cleanedText,
+                ruleMode: sourceRuleMode
+            )
+
+        switch policyDecision {
+        case .capture:
+            break
+
+        case .skipBlocked:
             addBlockedAppSkippedPlaceholder(
-                sourceAppName: sourceAppName
+                sourceAppName: sourceAppName,
+                captureSource: captureSource
             )
 
             return .skippedBlocked
 
-        case .smart:
-            if shouldSkipInSmartMode(cleanedText) {
-                addSensitiveSkippedPlaceholder()
-                return .skippedSensitive
-            }
+        case .skipSensitive:
+            addSensitiveSkippedPlaceholder(
+                captureSource: captureSource
+            )
 
-        case .allowed:
-            break
-        }
-
-        guard
-            !PasswordDetector
-                .isLikelyPassword(cleanedText)
-        else {
-            addSensitiveSkippedPlaceholder()
             return .skippedSensitive
         }
 
@@ -514,115 +524,6 @@ final class ClipboardStore: ObservableObject {
             
             return .allowed
         }
-    }
-    
-    private func shouldSkipInSmartMode(_ text: String) -> Bool {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        guard !trimmed.isEmpty else {
-            return false
-        }
-        
-        if isObviousEmail(trimmed) {
-            return false
-        }
-        
-        if isLikelyURL(trimmed) {
-            return false
-        }
-        
-        if PasswordDetector.isLikelyPassword(trimmed) {
-            return true
-        }
-        
-        if isLikelySecretToken(trimmed) {
-            return true
-        }
-        
-        return false
-    }
-    
-    private func isObviousEmail(_ text: String) -> Bool {
-        guard !text.contains(" ") else {
-            return false
-        }
-        
-        let parts = text.split(separator: "@")
-        
-        guard parts.count == 2,
-              let domain = parts.last,
-              domain.contains(".") else {
-            return false
-        }
-        
-        return true
-    }
-    
-    private func isLikelyURL(_ text: String) -> Bool {
-        let lowercased = text.lowercased()
-        
-        if lowercased.hasPrefix("http://") || lowercased.hasPrefix("https://") {
-            return true
-        }
-        
-        if lowercased.hasPrefix("www.") {
-            return true
-        }
-        
-        guard let url = URL(string: text),
-              let scheme = url.scheme?.lowercased() else {
-            return false
-        }
-        
-        return ["http", "https", "mailto", "ftp"].contains(scheme)
-    }
-    
-    private func isLikelySecretToken(_ text: String) -> Bool {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        guard !trimmed.contains(" ") else {
-            return false
-        }
-        
-        guard trimmed.count >= 16 else {
-            return false
-        }
-        
-        let lowercased = trimmed.lowercased()
-        
-        let secretPrefixes = [
-            "sk-",
-            "pk_",
-            "rk_",
-            "ghp_",
-            "gho_",
-            "github_pat_",
-            "xoxb-",
-            "xoxp-"
-        ]
-        
-        if secretPrefixes.contains(where: { lowercased.hasPrefix($0) }) {
-            return true
-        }
-        
-        let hasLowercase = trimmed.rangeOfCharacter(from: .lowercaseLetters) != nil
-        let hasUppercase = trimmed.rangeOfCharacter(from: .uppercaseLetters) != nil
-        let hasNumber = trimmed.rangeOfCharacter(from: .decimalDigits) != nil
-        let hasSymbol = trimmed.rangeOfCharacter(from: CharacterSet.alphanumerics.inverted) != nil
-        
-        let categoryCount = [hasLowercase, hasUppercase, hasNumber, hasSymbol]
-            .filter { $0 }
-            .count
-        
-        if trimmed.count >= 24 && categoryCount >= 3 {
-            return true
-        }
-        
-        if trimmed.count >= 32 && categoryCount >= 2 {
-            return true
-        }
-        
-        return false
     }
     
     private func applyRetentionRules() {
@@ -961,23 +862,60 @@ final class ClipboardStore: ObservableObject {
         )
     }
     
-    private func addSensitiveSkippedPlaceholder() {
-        let message = "(Likely sensitive clip skipped in ClipVault. Clip still available in system clipboard for use.)"
-        addSkippedPlaceholder(message: message)
+    private func addSensitiveSkippedPlaceholder(
+        captureSource: ClipboardCaptureSource
+    ) {
+        let message: String
+
+        switch captureSource {
+        case .nativeClipboard:
+            message =
+                "(Likely sensitive clip skipped in ClipVault. Clip still available in system clipboard for use.)"
+
+        case .optionSelect:
+            message =
+                "(Likely sensitive Option-selection skipped in ClipVault. Previous system clipboard restored.)"
+        }
+
+        addSkippedPlaceholder(
+            message: message
+        )
     }
     
-    private func addBlockedAppSkippedPlaceholder(sourceAppName: String?) {
-        let appName = sourceAppName?.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        let message: String
-        
+    private func addBlockedAppSkippedPlaceholder(
+        sourceAppName: String?,
+        captureSource: ClipboardCaptureSource
+    ) {
+        let appName =
+            sourceAppName?.trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
+
+        let sourceDescription: String
+
         if let appName, !appName.isEmpty {
-            message = "(Clip skipped because it came from blocked app: \(appName). Clip still available in system clipboard for use.)"
+            sourceDescription =
+                "blocked app: \(appName)"
         } else {
-            message = "(Clip skipped because it came from a blocked app. Clip still available in system clipboard for use.)"
+            sourceDescription =
+                "a blocked app"
         }
-        
-        addSkippedPlaceholder(message: message)
+
+        let message: String
+
+        switch captureSource {
+        case .nativeClipboard:
+            message =
+                "(Clip skipped because it came from \(sourceDescription). Clip still available in system clipboard for use.)"
+
+        case .optionSelect:
+            message =
+                "(Option-selection skipped because it came from \(sourceDescription). Previous system clipboard restored.)"
+        }
+
+        addSkippedPlaceholder(
+            message: message
+        )
     }
     
     private func addSkippedPlaceholder(message: String) {

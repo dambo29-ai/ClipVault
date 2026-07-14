@@ -356,7 +356,7 @@ private func showClipVaultHelpAlert(backupKeepCount: Int) {
     appendSection(
         to: helpText,
         heading: "Skipped Warnings",
-        body: "If enabled in Settings, ClipVault shows red placeholder rows when sensitive or blocked clips are skipped. The skipped text still remains available in the normal macOS system clipboard.",
+        body: "If enabled in Settings, ClipVault shows red placeholder rows when sensitive or blocked clips are skipped. Text copied normally with Command–C remains available in the macOS system clipboard. Rejected Option-selections restore the previous clipboard instead.",
         headingAttributes: boldAttributes,
         bodyAttributes: regularAttributes
     )

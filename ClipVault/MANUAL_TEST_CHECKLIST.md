@@ -82,7 +82,7 @@ Record the macOS and ClipVault build versions when performing a full regression 
 * [ ] Option-selecting the same text again moves or replaces the existing item instead of creating a duplicate.
 * [ ] Option-select capture works while the main ClipVault window is closed.
 * [ ] Pausing clipboard monitoring prevents Option-selected text from being saved to history.
-* [ ] While monitoring is paused, Option-selected text still becomes the active system clipboard item and can be pasted.
+* [ ] While monitoring is paused, Option-select restores the previous clipboard and does not make the selected text pasteable.
 * [ ] Resuming monitoring allows subsequent Option-selected text to be saved again.
 * [ ] Option-select works in TextEdit.
 * [ ] Option-select works in Notes.
@@ -127,9 +127,9 @@ Record the macOS and ClipVault build versions when performing a full regression 
 * [ ] A likely password or secret is skipped when appropriate.
 * [ ] A skipped clip remains available in the system clipboard.
 * [ ] A likely-sensitive Option-selected value is not saved to normal history.
-* [ ] A likely-sensitive Option-selected value remains the active system clipboard item and can be pasted.
+* [ ] A likely-sensitive Option-selection restores the previous clipboard and does not make the sensitive value pasteable.
 * [ ] A likely-sensitive Option-selection produces one skipped-warning row when warnings are enabled.
-* [ ] Disabling **Show Skipped Clip Warnings** prevents Option-select warning rows without preventing the selected value from being pasted.
+* [ ] Disabling **Show Skipped Clip Warnings** prevents Option-select warning rows while still restoring the previous clipboard.
 * [ ] The skipped-warning row is red.
 * [ ] The warning text is bold.
 * [ ] The warning row is non-clickable.
@@ -225,7 +225,7 @@ Expected likely-sensitive warning:
 * [ ] Allowed mode saves accepted Option-selected text.
 * [ ] Smart mode applies the same sensitive-content policy to Option-selected text as to normal copied text.
 * [ ] Blocked mode does not save Option-selected text from the blocked app.
-* [ ] Option-selected text from a blocked app remains the active system clipboard item and can be pasted.
+* [ ] Option-selecting text in a blocked app restores the previous clipboard and does not make the blocked text pasteable.
 * [ ] A blocked-app Option-selection produces one warning row when warnings are enabled.
 * [ ] The blocked-app warning identifies the correct source application.
 * [ ] The Blocked picker label displays normally without literal asterisks.
