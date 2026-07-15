@@ -30,6 +30,31 @@ final class ClipboardRetentionServiceTests: XCTestCase {
 
         XCTAssertTrue(result.isEmpty)
     }
+    
+    func testExpiredPinnedCapturedClipIsRetained() {
+        let now = date(2026, 7, 13)
+
+        let pinnedItem = makeItem(
+            text: "Expired pinned clip",
+            createdAt: now.addingTimeInterval(
+                -(30 * 24 * 60 * 60)
+            ),
+            origin: .captured,
+            isPinned: true,
+            pinnedAt: now.addingTimeInterval(
+                -(20 * 24 * 60 * 60)
+            )
+        )
+
+        let result =
+            ClipboardRetentionService.removingExpiredItems(
+                from: [pinnedItem],
+                retentionOption: .oneDay,
+                now: now
+            )
+
+        XCTAssertEqual(result, [pinnedItem])
+    }
 
     func testRecentCapturedClipIsRetained() {
         let now = date(2026, 7, 13)
@@ -132,6 +157,50 @@ final class ClipboardRetentionServiceTests: XCTestCase {
             }
         )
     }
+    
+    func testPinnedItemsDoNotConsumeNormalHistoryLimit() {
+        let pinnedItem = makeItem(
+            text: "Pinned",
+            isPinned: true,
+            pinnedAt: date(2026, 7, 13)
+        )
+
+        let unpinnedItems = [
+            makeItem(text: "Newest unpinned"),
+            makeItem(text: "Middle unpinned"),
+            makeItem(text: "Oldest unpinned")
+        ]
+
+        let result =
+            ClipboardRetentionService.trimmingNormalItems(
+                in: [pinnedItem] + unpinnedItems,
+                maximumNormalItemCount: 2
+            )
+
+        XCTAssertEqual(
+            result.map(\.text),
+            [
+                "Pinned",
+                "Newest unpinned",
+                "Middle unpinned"
+            ]
+        )
+
+        XCTAssertEqual(
+            result.filter {
+                $0.kind == .normal &&
+                !$0.isPinned
+            }
+            .count,
+            2
+        )
+
+        XCTAssertTrue(
+            result.contains {
+                $0.id == pinnedItem.id
+            }
+        )
+    }
 
     func testOnlyOldestExcessNormalItemsAreRemoved() {
         let items = [
@@ -149,6 +218,48 @@ final class ClipboardRetentionServiceTests: XCTestCase {
         XCTAssertEqual(
             result.map(\.text),
             ["Newest", "Middle"]
+        )
+    }
+    
+    func testCombinedRulesPreservePinnedItemOutsideLimitAndRetention() {
+        let now = date(2026, 7, 13)
+
+        let pinnedItem = makeItem(
+            text: "Old pinned item",
+            createdAt: date(2020, 1, 1),
+            origin: .captured,
+            isPinned: true,
+            pinnedAt: date(2026, 7, 1)
+        )
+
+        let newestUnpinnedItem = makeItem(
+            text: "Newest unpinned",
+            createdAt: now
+        )
+
+        let oldestUnpinnedItem = makeItem(
+            text: "Oldest unpinned",
+            createdAt: now.addingTimeInterval(-60)
+        )
+
+        let result =
+            ClipboardRetentionService.applyingRules(
+                to: [
+                    pinnedItem,
+                    newestUnpinnedItem,
+                    oldestUnpinnedItem
+                ],
+                retentionOption: .oneDay,
+                maximumNormalItemCount: 1,
+                now: now
+            )
+
+        XCTAssertEqual(
+            result.map(\.text),
+            [
+                "Old pinned item",
+                "Newest unpinned"
+            ]
         )
     }
 
@@ -195,13 +306,17 @@ final class ClipboardRetentionServiceTests: XCTestCase {
         text: String,
         createdAt: Date = Date(),
         kind: ClipboardItemKind = .normal,
-        origin: ClipboardItemOrigin = .captured
+        origin: ClipboardItemOrigin = .captured,
+        isPinned: Bool = false,
+        pinnedAt: Date? = nil
     ) -> ClipboardItem {
         ClipboardItem(
             text: text,
             createdAt: createdAt,
             kind: kind,
-            origin: origin
+            origin: origin,
+            isPinned: isPinned,
+            pinnedAt: pinnedAt
         )
     }
 

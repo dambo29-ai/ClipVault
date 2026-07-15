@@ -45,6 +45,10 @@ enum ClipboardRetentionService {
                 return true
             }
 
+            if item.isPinned {
+                return true
+            }
+
             if item.origin == .restored {
                 return true
             }
@@ -64,6 +68,10 @@ enum ClipboardRetentionService {
 
         return items.filter { item in
             guard item.kind == .normal else {
+                return true
+            }
+
+            if item.isPinned {
                 return true
             }
 
