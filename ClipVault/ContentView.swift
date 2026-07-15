@@ -36,10 +36,32 @@ struct ContentView: View {
     
     private var contentFilteredItems: [ClipboardItem] {
         switch selectedContentFilter {
-        case .all, .text:
+        case .all:
             return clipboardStore.items
-            
-        case .links, .images, .files:
+
+        case .text:
+            return clipboardStore.items.filter {
+                guard $0.kind == .normal else {
+                    return true
+                }
+
+                return !ClipboardLinkClassificationService.isLink(
+                    $0.text
+                )
+            }
+
+        case .links:
+            return clipboardStore.items.filter {
+                guard $0.kind == .normal else {
+                    return false
+                }
+
+                return ClipboardLinkClassificationService.isLink(
+                    $0.text
+                )
+            }
+
+        case .images, .files:
             return []
         }
     }
