@@ -22,13 +22,80 @@ enum SelectionClipboardTransactionResult {
 
 @MainActor
 final class SelectionClipboardTransactionService {
+    typealias AccessibilityCheck = () -> Bool
+    typealias CopyCommandPoster = @MainActor (
+        pid_t
+    ) -> Bool
+    typealias ClipboardChangeWaiter = (
+        NSPasteboard,
+        Int
+    ) async -> Bool
+    typealias SnapshotCapturer = @MainActor (
+        NSPasteboard
+    ) -> ClipboardSnapshot
+    typealias SnapshotRestorer = @MainActor (
+        ClipboardSnapshot,
+        NSPasteboard
+    ) -> Bool
+
     private let pasteboard: NSPasteboard
+    private let isAccessibilityGranted: AccessibilityCheck
+    private let postCopyCommand: CopyCommandPoster
+    private let waitForClipboardChange: ClipboardChangeWaiter
+    private let captureSnapshot: SnapshotCapturer
+    private let restoreSnapshot: SnapshotRestorer
+
     private var isRunning = false
 
     init(
-        pasteboard: NSPasteboard = .general
+        pasteboard: NSPasteboard = .general,
+        isAccessibilityGranted: @escaping AccessibilityCheck = {
+            AXIsProcessTrusted()
+        },
+        postCopyCommand: @escaping CopyCommandPoster = { @MainActor
+            processIdentifier in
+
+            SelectionClipboardTransactionService.postProductionCommandC(
+                to: processIdentifier
+            )
+        },
+        waitForClipboardChange: @escaping ClipboardChangeWaiter = {
+            pasteboard,
+            originalChangeCount in
+
+            await SelectionClipboardTransactionService.waitForProductionClipboardChange(
+                on: pasteboard,
+                after: originalChangeCount
+            )
+        },
+        captureSnapshot: @escaping SnapshotCapturer = { @MainActor
+            pasteboard in
+
+            ClipboardSnapshotService.capture(
+                from: pasteboard
+            )
+        },
+        restoreSnapshot: @escaping SnapshotRestorer = { @MainActor
+            snapshot,
+            pasteboard in
+
+            ClipboardSnapshotService.restore(
+                snapshot,
+                to: pasteboard
+            )
+        }
     ) {
         self.pasteboard = pasteboard
+        self.isAccessibilityGranted =
+            isAccessibilityGranted
+        self.postCopyCommand =
+            postCopyCommand
+        self.waitForClipboardChange =
+            waitForClipboardChange
+        self.captureSnapshot =
+            captureSnapshot
+        self.restoreSnapshot =
+            restoreSnapshot
     }
 
     func captureSelectedText(
@@ -41,7 +108,7 @@ final class SelectionClipboardTransactionService {
             return .transactionAlreadyRunning
         }
 
-        guard AXIsProcessTrusted() else {
+        guard isAccessibilityGranted() else {
             return .accessibilityNotGranted
         }
 
@@ -58,20 +125,18 @@ final class SelectionClipboardTransactionService {
         }
 
         let originalSnapshot =
-            ClipboardSnapshotService.capture(
-                from: pasteboard
-            )
+            captureSnapshot(pasteboard)
 
         let changeCountBeforeCopy =
             pasteboard.changeCount
 
-        guard postCommandC(
-            to: processIdentifier
+        guard postCopyCommand(
+            processIdentifier
         ) else {
             let restorationSucceeded =
-                ClipboardSnapshotService.restore(
+                restoreSnapshot(
                     originalSnapshot,
-                    to: pasteboard
+                    pasteboard
                 )
 
             return restorationSucceeded
@@ -81,14 +146,15 @@ final class SelectionClipboardTransactionService {
 
         let clipboardChanged =
             await waitForClipboardChange(
-                after: changeCountBeforeCopy
+                pasteboard,
+                changeCountBeforeCopy
             )
 
         guard clipboardChanged else {
             let restorationSucceeded =
-                ClipboardSnapshotService.restore(
+                restoreSnapshot(
                     originalSnapshot,
-                    to: pasteboard
+                    pasteboard
                 )
 
             return restorationSucceeded
@@ -104,9 +170,9 @@ final class SelectionClipboardTransactionService {
             !copiedText.isEmpty
         else {
             let restorationSucceeded =
-                ClipboardSnapshotService.restore(
+                restoreSnapshot(
                     originalSnapshot,
-                    to: pasteboard
+                    pasteboard
                 )
 
             return restorationSucceeded
@@ -119,9 +185,9 @@ final class SelectionClipboardTransactionService {
 
         guard captureOutcome == .captured else {
             let restorationSucceeded =
-                ClipboardSnapshotService.restore(
+                restoreSnapshot(
                     originalSnapshot,
-                    to: pasteboard
+                    pasteboard
                 )
 
             return restorationSucceeded
@@ -132,7 +198,7 @@ final class SelectionClipboardTransactionService {
         return .processed(captureOutcome)
     }
 
-    private func postCommandC(
+    private static func postProductionCommandC(
         to processIdentifier: pid_t
     ) -> Bool {
         let keyboardSource =
@@ -169,7 +235,8 @@ final class SelectionClipboardTransactionService {
         return true
     }
 
-    private func waitForClipboardChange(
+    private static func waitForProductionClipboardChange(
+        on pasteboard: NSPasteboard,
         after originalChangeCount: Int
     ) async -> Bool {
         let maximumAttempts = 20
@@ -190,4 +257,3 @@ final class SelectionClipboardTransactionService {
         return false
     }
 }
-
