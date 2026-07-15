@@ -9,7 +9,7 @@ import SwiftUI
 
 struct ClipboardRow: View {
     let item: ClipboardItem
-    let displayNumber: Int
+    let displayNumber: Int?
     let onCopy: () -> Void
     let onDelete: () -> Void
 
@@ -25,14 +25,20 @@ struct ClipboardRow: View {
         }
     }
     
+    @ViewBuilder
     private var numberView: some View {
-        Text("\(displayNumber)")
-            .font(.caption)
-            .fontWeight(.semibold)
-            .foregroundStyle(.secondary)
-            .monospacedDigit()
-            .frame(width: 28, alignment: .center)
-            .padding(.top, 10)
+        if let displayNumber {
+            Text("\(displayNumber)")
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+                .frame(width: 28, alignment: .center)
+                .padding(.top, 10)
+        } else {
+            Color.clear
+                .frame(width: 28)
+        }
     }
 
     private var normalRow: some View {

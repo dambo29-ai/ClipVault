@@ -161,7 +161,10 @@ struct ContentView: View {
                 ForEach(filteredItems) { item in
                     ClipboardRow(
                         item: item,
-                        displayNumber: displayNumber(for: item),
+                        displayNumber:
+                            item.kind == .normal
+                                ? displayNumber(for: item)
+                                : nil,
                         onCopy: {
                             clipboardStore.copyToClipboard(item)
                         },
@@ -181,12 +184,24 @@ struct ContentView: View {
         }
     }
     
-    private func displayNumber(for item: ClipboardItem) -> Int {
-        guard let index = clipboardStore.items.firstIndex(where: { $0.id == item.id }) else {
-            return 0
+    private func displayNumber(for item: ClipboardItem) -> Int? {
+        let normalItems =
+            clipboardStore.items.filter {
+                $0.kind == .normal
+            }
+
+        guard
+            let index =
+                normalItems.firstIndex(
+                    where: {
+                        $0.id == item.id
+                    }
+                )
+        else {
+            return nil
         }
-        
-        return clipboardStore.items.count - index
+
+        return normalItems.count - index
     }
 
     private func handleDroppedBackupProviders(_ providers: [NSItemProvider]) -> Bool {
