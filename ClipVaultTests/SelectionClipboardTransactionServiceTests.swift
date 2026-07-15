@@ -231,6 +231,380 @@ struct SelectionClipboardTransactionServiceTests {
         #expect(beginIgnoringCallCount == 1)
         #expect(endIgnoringCallCount == 1)
     }
+    
+    @Test
+    func copyEventFailureRestoresPreviousClipboard() async {
+        let pasteboard = makePasteboard()
+
+        pasteboard.clearContents()
+        pasteboard.setString(
+            "Original clipboard text",
+            forType: .string
+        )
+
+        let service =
+            SelectionClipboardTransactionService(
+                pasteboard: pasteboard,
+                isAccessibilityGranted: {
+                    true
+                },
+                postCopyCommand: { @MainActor
+                    _ in
+
+                    pasteboard.clearContents()
+                    pasteboard.setString(
+                        "Temporary changed text",
+                        forType: .string
+                    )
+
+                    return false
+                },
+                waitForClipboardChange: {
+                    _,
+                    _ in
+
+                    true
+                }
+            )
+
+        let result =
+            await service.captureSelectedText(
+                from: 123,
+                beginIgnoringClipboardChanges: {},
+                endIgnoringClipboardChanges: {},
+                processSelectedText: {
+                    _ in
+
+                    Issue.record(
+                        """
+                        processSelectedText should not run \
+                        after copy-event failure.
+                        """
+                    )
+
+                    return .captured
+                }
+            )
+
+        guard case .copyEventCouldNotBeCreated = result else {
+            Issue.record(
+                """
+                Expected copyEventCouldNotBeCreated.
+                """
+            )
+            return
+        }
+
+        #expect(
+            pasteboard.string(forType: .string) ==
+                "Original clipboard text"
+        )
+    }
+
+    @Test
+    func clipboardTimeoutRestoresPreviousClipboard() async {
+        let pasteboard = makePasteboard()
+
+        pasteboard.clearContents()
+        pasteboard.setString(
+            "Original clipboard text",
+            forType: .string
+        )
+
+        let service =
+            SelectionClipboardTransactionService(
+                pasteboard: pasteboard,
+                isAccessibilityGranted: {
+                    true
+                },
+                postCopyCommand: { @MainActor
+                    _ in
+
+                    pasteboard.clearContents()
+                    pasteboard.setString(
+                        "Temporary selected text",
+                        forType: .string
+                    )
+
+                    return true
+                },
+                waitForClipboardChange: {
+                    _,
+                    _ in
+
+                    false
+                }
+            )
+
+        let result =
+            await service.captureSelectedText(
+                from: 123,
+                beginIgnoringClipboardChanges: {},
+                endIgnoringClipboardChanges: {},
+                processSelectedText: {
+                    _ in
+
+                    Issue.record(
+                        """
+                        processSelectedText should not run \
+                        after a clipboard timeout.
+                        """
+                    )
+
+                    return .captured
+                }
+            )
+
+        guard case .clipboardDidNotChange = result else {
+            Issue.record(
+                "Expected clipboardDidNotChange."
+            )
+            return
+        }
+
+        #expect(
+            pasteboard.string(forType: .string) ==
+                "Original clipboard text"
+        )
+    }
+
+    @Test
+    func noReadableTextRestoresPreviousClipboard() async {
+        let pasteboard = makePasteboard()
+
+        pasteboard.clearContents()
+        pasteboard.setString(
+            "Original clipboard text",
+            forType: .string
+        )
+
+        let nonTextType =
+            NSPasteboard.PasteboardType(
+                "com.clipvault.tests.non-text"
+            )
+
+        let service =
+            SelectionClipboardTransactionService(
+                pasteboard: pasteboard,
+                isAccessibilityGranted: {
+                    true
+                },
+                postCopyCommand: { @MainActor
+                    _ in
+
+                    pasteboard.clearContents()
+
+                    return pasteboard.setData(
+                        Data([0x01, 0x02, 0x03]),
+                        forType: nonTextType
+                    )
+                },
+                waitForClipboardChange: {
+                    _,
+                    _ in
+
+                    true
+                }
+            )
+
+        let result =
+            await service.captureSelectedText(
+                from: 123,
+                beginIgnoringClipboardChanges: {},
+                endIgnoringClipboardChanges: {},
+                processSelectedText: {
+                    _ in
+
+                    Issue.record(
+                        """
+                        processSelectedText should not run \
+                        when no readable text was copied.
+                        """
+                    )
+
+                    return .captured
+                }
+            )
+
+        guard case .noTextCopied = result else {
+            Issue.record(
+                "Expected noTextCopied."
+            )
+            return
+        }
+
+        #expect(
+            pasteboard.string(forType: .string) ==
+                "Original clipboard text"
+        )
+    }
+
+    @Test
+    func restorationFailureReturnsClipboardRestoreFailed() async {
+        let pasteboard = makePasteboard()
+
+        pasteboard.clearContents()
+        pasteboard.setString(
+            "Original clipboard text",
+            forType: .string
+        )
+
+        var restorationCallCount = 0
+
+        let service =
+            SelectionClipboardTransactionService(
+                pasteboard: pasteboard,
+                isAccessibilityGranted: {
+                    true
+                },
+                postCopyCommand: { @MainActor
+                    _ in
+
+                    pasteboard.clearContents()
+                    pasteboard.setString(
+                        "Temporary changed text",
+                        forType: .string
+                    )
+
+                    return false
+                },
+                waitForClipboardChange: {
+                    _,
+                    _ in
+
+                    true
+                },
+                restoreSnapshot: { @MainActor
+                    _,
+                    _ in
+
+                    restorationCallCount += 1
+                    return false
+                }
+            )
+
+        let result =
+            await service.captureSelectedText(
+                from: 123,
+                beginIgnoringClipboardChanges: {},
+                endIgnoringClipboardChanges: {},
+                processSelectedText: {
+                    _ in
+
+                    .captured
+                }
+            )
+
+        guard case .clipboardRestoreFailed = result else {
+            Issue.record(
+                "Expected clipboardRestoreFailed."
+            )
+            return
+        }
+
+        #expect(restorationCallCount == 1)
+    }
+
+    @Test
+    func reentrantTransactionReturnsTransactionAlreadyRunning() async {
+        let pasteboard = makePasteboard()
+
+        pasteboard.clearContents()
+        pasteboard.setString(
+            "Original clipboard text",
+            forType: .string
+        )
+
+        var copyCommandWasPosted = false
+
+        let service =
+            SelectionClipboardTransactionService(
+                pasteboard: pasteboard,
+                isAccessibilityGranted: {
+                    true
+                },
+                postCopyCommand: { @MainActor
+                    _ in
+
+                    copyCommandWasPosted = true
+
+                    pasteboard.clearContents()
+
+                    return pasteboard.setString(
+                        "First selected text",
+                        forType: .string
+                    )
+                },
+                waitForClipboardChange: {
+                    _,
+                    _ in
+
+                    try? await Task.sleep(
+                        for: .milliseconds(200)
+                    )
+
+                    return true
+                }
+            )
+
+        let firstTransaction =
+            Task { @MainActor in
+                await service.captureSelectedText(
+                    from: 123,
+                    beginIgnoringClipboardChanges: {},
+                    endIgnoringClipboardChanges: {},
+                    processSelectedText: {
+                        _ in
+
+                        .captured
+                    }
+                )
+            }
+
+        while !copyCommandWasPosted {
+            await Task.yield()
+        }
+
+        let secondResult =
+            await service.captureSelectedText(
+                from: 456,
+                beginIgnoringClipboardChanges: {},
+                endIgnoringClipboardChanges: {},
+                processSelectedText: {
+                    _ in
+
+                    .captured
+                }
+            )
+
+        guard
+            case .transactionAlreadyRunning =
+                secondResult
+        else {
+            Issue.record(
+                """
+                Expected transactionAlreadyRunning \
+                for the second transaction.
+                """
+            )
+
+            _ = await firstTransaction.value
+            return
+        }
+
+        let firstResult =
+            await firstTransaction.value
+
+        guard case .processed(.captured) = firstResult else {
+            Issue.record(
+                """
+                Expected the first transaction \
+                to finish as captured.
+                """
+            )
+            return
+        }
+    }
 
     private func makeService(
         pasteboard: NSPasteboard,
