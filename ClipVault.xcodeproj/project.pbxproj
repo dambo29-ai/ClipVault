@@ -25,9 +25,22 @@
 		EC96DE163004106C0062B204 /* ClipVaultTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ClipVaultTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		ECBC616C300763E000490F3C /* Exceptions for "ClipVault" folder in "ClipVault" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				PRODUCT_DIRECTION.md,
+			);
+			target = EC8CB50E2FFE993B00383DB4 /* ClipVault */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		EC8CB5112FFE993B00383DB4 /* ClipVault */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				ECBC616C300763E000490F3C /* Exceptions for "ClipVault" folder in "ClipVault" target */,
+			);
 			path = ClipVault;
 			sourceTree = "<group>";
 		};
