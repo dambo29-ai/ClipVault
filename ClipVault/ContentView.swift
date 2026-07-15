@@ -78,22 +78,18 @@ struct ContentView: View {
 
     private var headerView: some View {
         HStack(alignment: .center, spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("ClipVault")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-
-                Text("Text clipboard history")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
             Spacer(minLength: 20)
 
             HStack(alignment: .center, spacing: 12) {
-                Toggle("Pause", isOn: $clipboardStore.isMonitoringPaused)
-                    .toggleStyle(.switch)
-                    .fixedSize(horizontal: true, vertical: false)
+                Toggle(
+                    "Pause",
+                    isOn: $clipboardStore.isMonitoringPaused
+                )
+                .toggleStyle(.switch)
+                .fixedSize(
+                    horizontal: true,
+                    vertical: false
+                )
 
                 Button("Clear") {
                     if ClearHistoryConfirmation.shouldClearHistory() {
@@ -104,7 +100,9 @@ struct ContentView: View {
 
                 Button {
                     openWindow(id: "settings-window")
-                    NSApplication.shared.activate(ignoringOtherApps: true)
+                    NSApplication.shared.activate(
+                        ignoringOtherApps: true
+                    )
                 } label: {
                     Image(systemName: "gearshape")
                         .font(.system(size: 14))
