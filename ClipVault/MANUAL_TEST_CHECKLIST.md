@@ -4,6 +4,22 @@ Use this checklist after structural changes, persistence changes, UI refactors, 
 
 Record the macOS and ClipVault build versions when performing a full regression test.
 
+## Automated Test Baseline
+
+Current automated baseline:
+
+* 66 total tests.
+* 12 `SelectionClipboardTransactionService` tests.
+* Accepted Option-select capture keeps the newly selected text active.
+* Blocked, sensitive, paused, and empty capture outcomes restore the previous clipboard.
+* Copy-event failure, clipboard timeout, and unreadable clipboard content restore the previous clipboard.
+* Restoration failure returns `clipboardRestoreFailed`.
+* Reentrant capture returns `transactionAlreadyRunning`.
+* Clipboard-monitoring suppression begins and ends exactly once.
+* Accepted capture does not invoke clipboard restoration.
+
+These automated tests supplement this checklist; they do not replace manual cross-application and user-interface testing.
+
 ---
 
 ## 1. Launch and Window Behavior
@@ -91,6 +107,16 @@ Record the macOS and ClipVault build versions when performing a full regression 
 * [ ] Option-select works in Microsoft Word.
 * [ ] Rapid repeated Option-select gestures do not crash ClipVault or corrupt clipboard history.
 * [ ] A gesture that produces no readable text does not replace the last valid clipboard item.
+
+### Option-Select Transaction Regression
+
+Run these checks after changing `SelectionClipboardTransactionService`, clipboard snapshot behavior, capture policy routing, or clipboard-monitoring suppression.
+
+* [ ] Accepted Option-selected text remains the active system clipboard item and appears once in ClipVault history.
+* [ ] Option-selecting text from a Blocked app restores the previous clipboard and does not save the blocked text.
+* [ ] A likely-sensitive Option-selection restores the previous clipboard and does not save the sensitive text.
+* [ ] Option-selecting while clipboard monitoring is paused restores the previous clipboard and does not save the selected text.
+* [ ] After each rejected Option-selection, normal clipboard monitoring resumes and the next ordinary `Command–C` is captured correctly.
 
 ---
 
