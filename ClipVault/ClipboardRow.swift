@@ -45,28 +45,17 @@ struct ClipboardRow: View {
     private var normalRow: some View {
         HStack(spacing: 8) {
             Button(action: onCopy) {
-                HStack(alignment: .top, spacing: 8) {
-                    if isLink {
-                        Image(systemName: "link")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 16, height: 18)
-                            .padding(.top, 1)
-                            .accessibilityHidden(true)
-                    }
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(item.text)
+                        .lineLimit(3)
+                        .multilineTextAlignment(.leading)
 
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(item.text)
-                            .lineLimit(3)
-                            .multilineTextAlignment(.leading)
-
-                        metadataView
-                    }
-                    .frame(
-                        maxWidth: .infinity,
-                        alignment: .leading
-                    )
+                    metadataView
                 }
+                .frame(
+                    maxWidth: .infinity,
+                    alignment: .leading
+                )
                 .padding(.vertical, 8)
                 .frame(
                     maxWidth: .infinity,
@@ -91,6 +80,10 @@ struct ClipboardRow: View {
                 Button("Delete", role: .destructive) {
                     onDelete()
                 }
+            }
+
+            if isLink {
+                openLinkButton
             }
 
             deleteButton
@@ -150,6 +143,18 @@ struct ClipboardRow: View {
                 .help("Delete this warning row")
                 .accessibilityLabel("Delete warning row")
         }
+    }
+    
+    private var openLinkButton: some View {
+        Button(action: openLink) {
+            Image(systemName: "link")
+                .foregroundStyle(.secondary)
+                .frame(width: 28, height: 28)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.borderless)
+        .help("Open link")
+        .accessibilityLabel("Open link")
     }
     
     private var deleteButton: some View {
