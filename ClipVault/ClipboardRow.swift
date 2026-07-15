@@ -5,6 +5,7 @@
 //  Created by Alejandro Mora on 7/10/26.
 //
 
+import AppKit
 import SwiftUI
 
 struct ClipboardRow: View {
@@ -44,23 +45,85 @@ struct ClipboardRow: View {
     private var normalRow: some View {
         HStack(spacing: 8) {
             Button(action: onCopy) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(item.text)
-                        .lineLimit(3)
-                        .multilineTextAlignment(.leading)
+                HStack(alignment: .top, spacing: 8) {
+                    if isLink {
+                        Image(systemName: "link")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 16, height: 18)
+                            .padding(.top, 1)
+                            .accessibilityHidden(true)
+                    }
 
-                    metadataView
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(item.text)
+                            .lineLimit(3)
+                            .multilineTextAlignment(.leading)
+
+                        metadataView
+                    }
+                    .frame(
+                        maxWidth: .infinity,
+                        alignment: .leading
+                    )
                 }
                 .padding(.vertical, 8)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(
+                    maxWidth: .infinity,
+                    alignment: .leading
+                )
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .contextMenu {
+                Button("Copy") {
+                    onCopy()
+                }
+
+                if isLink {
+                    Button("Open Link") {
+                        openLink()
+                    }
+                }
+
+                Divider()
+
+                Button("Delete", role: .destructive) {
+                    onDelete()
+                }
+            }
 
             deleteButton
                 .help("Delete this clipboard item")
                 .accessibilityLabel("Delete clipboard item")
         }
+    }
+    
+    private var isLink: Bool {
+        ClipboardLinkClassificationService.isLink(
+            item.text
+        )
+    }
+
+    private var linkURL: URL? {
+        guard isLink else {
+            return nil
+        }
+
+        let trimmedText =
+            item.text.trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
+
+        return URL(string: trimmedText)
+    }
+
+    private func openLink() {
+        guard let linkURL else {
+            return
+        }
+
+        NSWorkspace.shared.open(linkURL)
     }
 
     private var sensitiveSkippedRow: some View {
