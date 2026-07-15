@@ -147,6 +147,46 @@ final class ClipboardPersistenceServiceTests: XCTestCase {
             restoredItem.createdAt
         )
     }
+    
+    func testPinnedStateSurvivesPersistence() async throws {
+        let testStorage = try makeTestStorage()
+        defer {
+            removeTestStorage(testStorage)
+        }
+
+        let service = ClipboardPersistenceService(
+            storageURL: testStorage.fileURL
+        )
+
+        let pinDate = date(2026, 7, 15)
+
+        let pinnedItem = makeItem(
+            text: "Pinned clipboard item",
+            createdAt: date(2026, 7, 14),
+            isPinned: true,
+            pinnedAt: pinDate
+        )
+
+        try await service.saveItems([
+            pinnedItem
+        ])
+
+        let loadedItems = try await service.loadItems()
+
+        XCTAssertEqual(loadedItems.count, 1)
+        XCTAssertEqual(
+            loadedItems.first?.isPinned,
+            true
+        )
+        XCTAssertEqual(
+            loadedItems.first?.pinnedAt,
+            pinDate
+        )
+        XCTAssertEqual(
+            loadedItems.first,
+            pinnedItem
+        )
+    }
 
     func testLegacySavedItemWithoutOriginDecodesAsCaptured() throws {
         let testStorage = try makeTestStorage()
@@ -193,6 +233,59 @@ final class ClipboardPersistenceServiceTests: XCTestCase {
         XCTAssertEqual(
             loadedItems.first?.origin,
             .captured
+        )
+
+        XCTAssertEqual(
+            loadedItems.first?.isPinned,
+            false
+        )
+
+        XCTAssertNil(
+            loadedItems.first?.pinnedAt
+        )
+    }
+    
+    func testUnpinnedItemDiscardsStoredPinnedDate() throws {
+        let testStorage = try makeTestStorage()
+        defer {
+            removeTestStorage(testStorage)
+        }
+
+        let itemID = UUID()
+
+        let storedJSON = """
+        [
+          {
+            "id": "\(itemID.uuidString)",
+            "text": "Unpinned item with stale pin date",
+            "createdAt": 599572800,
+            "kind": "normal",
+            "sourceAppName": null,
+            "sourceBundleIdentifier": null,
+            "origin": "captured",
+            "isPinned": false,
+            "pinnedAt": 600000000
+          }
+        ]
+        """
+
+        try Data(storedJSON.utf8).write(
+            to: testStorage.fileURL,
+            options: .atomic
+        )
+
+        let loadedItems =
+            try ClipboardPersistenceService.loadItems(
+                from: testStorage.fileURL
+            )
+
+        XCTAssertEqual(loadedItems.count, 1)
+        XCTAssertEqual(
+            loadedItems.first?.isPinned,
+            false
+        )
+        XCTAssertNil(
+            loadedItems.first?.pinnedAt
         )
     }
 
@@ -255,13 +348,17 @@ final class ClipboardPersistenceServiceTests: XCTestCase {
         text: String,
         createdAt: Date = Date(),
         kind: ClipboardItemKind = .normal,
-        origin: ClipboardItemOrigin = .captured
+        origin: ClipboardItemOrigin = .captured,
+        isPinned: Bool = false,
+        pinnedAt: Date? = nil
     ) -> ClipboardItem {
         ClipboardItem(
             text: text,
             createdAt: createdAt,
             kind: kind,
-            origin: origin
+            origin: origin,
+            isPinned: isPinned,
+            pinnedAt: pinnedAt
         )
     }
 

@@ -25,6 +25,8 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
     let sourceAppName: String?
     let sourceBundleIdentifier: String?
     let origin: ClipboardItemOrigin
+    let isPinned: Bool
+    let pinnedAt: Date?
 
     init(
         id: UUID = UUID(),
@@ -33,7 +35,9 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
         kind: ClipboardItemKind = .normal,
         sourceAppName: String? = nil,
         sourceBundleIdentifier: String? = nil,
-        origin: ClipboardItemOrigin = .captured
+        origin: ClipboardItemOrigin = .captured,
+        isPinned: Bool = false,
+        pinnedAt: Date? = nil
     ) {
         self.id = id
         self.text = text
@@ -42,6 +46,8 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
         self.sourceAppName = sourceAppName
         self.sourceBundleIdentifier = sourceBundleIdentifier
         self.origin = origin
+        self.isPinned = isPinned
+        self.pinnedAt = isPinned ? pinnedAt : nil
     }
 
     func restoredCopy() -> ClipboardItem {
@@ -52,7 +58,9 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
             kind: kind,
             sourceAppName: sourceAppName,
             sourceBundleIdentifier: sourceBundleIdentifier,
-            origin: .restored
+            origin: .restored,
+            isPinned: isPinned,
+            pinnedAt: pinnedAt
         )
     }
 
@@ -64,6 +72,8 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
         case sourceAppName
         case sourceBundleIdentifier
         case origin
+        case isPinned
+        case pinnedAt
     }
 
     init(from decoder: Decoder) throws {
@@ -105,5 +115,19 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
             ClipboardItemOrigin.self,
             forKey: .origin
         ) ?? .captured
+
+        isPinned = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .isPinned
+        ) ?? false
+
+        if isPinned {
+            pinnedAt = try container.decodeIfPresent(
+                Date.self,
+                forKey: .pinnedAt
+            )
+        } else {
+            pinnedAt = nil
+        }
     }
 }
