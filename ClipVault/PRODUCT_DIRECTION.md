@@ -273,97 +273,156 @@ Duplicate behavior for unpinned items remains unchanged: the existing item moves
 
 ## Clear behavior
 
-Clear operates within the currently active content filter.
+Clear operates on the items currently represented by the active view scope.
+
+Before Spaces exist, the scope is:
+
+```text
+Active content filter
++ Active search
+```
+
+After Spaces exist, the scope becomes:
+
+```text
+Active Space
++ Active content filter
++ Active search
+```
 
 Examples:
 
-- Clear from Links affects Links only.
-- Clear from Text affects Text only.
-- Clear from All affects all supported content types.
-- Images and Files follow the same rule when implemented.
+- Links with no search clears Links in the current view.
+- Links with a search matching two items clears only those two matching Links.
+- Text with a search matching five items clears only those five matching Text items.
+- All with a search matching items across multiple content types clears only those matching items.
+- Images or Files with no matching results leaves Clear disabled.
 
-When Spaces exist, the active Space will also constrain Clear.
+Search therefore participates in destructive scope. Items hidden by the active search remain untouched.
 
-For example:
+### Pinned behavior
 
-```text
-Work + Links
-```
+The preferred Clear action removes only unpinned items in the active scope.
 
-means that Clear affects only items assigned to Work that are classified as Links.
+A separate stronger action removes pinned and unpinned items in the same scope.
+
+Examples:
+
+- `Clear Unpinned Links…`
+- `Clear All Links, Including Pinned…`
+- `Clear Matching Unpinned Links…`
+- `Clear All Matching Links, Including Pinned…`
+- `Clear Matching Unpinned Items…`
+- `Clear All Matching Items, Including Pinned…`
+
+Pinned items outside the active filter or search remain untouched.
 
 ### Native Clear menu
 
 The existing Clear control will become a native menu button.
 
-Its commands depend on the active filter.
+Its commands depend on the active filter, search state, and visible results.
 
-Example in Links:
+Example in Links with no search:
 
 ```text
 Clear Unpinned Links…
 Clear All Links, Including Pinned…
 ```
 
-Example in All:
+Example in Links with an active search:
 
 ```text
-Clear All Unpinned History…
-Clear All History, Including Pinned…
+Clear Matching Unpinned Links…
+Clear All Matching Links, Including Pinned…
 ```
 
-The normal and preferred action removes only unpinned items in the current scope.
+Example in All with an active search:
+
+```text
+Clear Matching Unpinned Items…
+Clear All Matching Items, Including Pinned…
+```
 
 The stronger action that includes pinned items is secondary and explicitly labeled.
 
-### Confirmations
+The Clear menu is disabled when the active view scope contains nothing removable.
 
-Clearing unpinned items uses a contextual confirmation.
+### Confirmation counts
 
-Example in Links:
+Confirmation titles and action labels should include the number of affected normal clipboard items where practical.
+
+Example:
 
 ```text
-Title: Clear Link History?
+Title: Clear 2 Matching Links?
 
-This will remove all unpinned links currently shown in the Links view.
+This will remove 2 unpinned links matching the current search.
 Pinned links will remain.
 
-[Cancel] [Clear Unpinned]
+[Cancel] [Clear 2 Links]
 ```
 
-Example in All:
+Stronger example:
 
 ```text
-Title: Clear All Clipboard History?
+Title: Clear 3 Matching Items, Including Pinned?
 
-This will remove all unpinned clipboard items.
-Pinned items will remain.
+This will permanently remove 3 matching clipboard items,
+including any pinned items in the current results.
 
-[Cancel] [Clear Unpinned]
+[Cancel] [Clear 3 Items]
 ```
 
-Clearing pinned and unpinned items requires stronger confirmation.
+Counts refer to normal clipboard items rather than warning rows.
 
-Example in Links:
+### Warning rows
+
+Matching warning rows are also removed when their current view scope is cleared.
+
+Warning rows:
+
+- do not count as clipboard items in confirmation counts,
+- do not count toward History Limit,
+- remain unpinned and temporary.
+
+If the active scope contains only warnings, the Clear menu should use warning-specific language such as:
 
 ```text
-Title: Clear Pinned and Unpinned Links?
-
-This will permanently remove all links in the current view, including
-items that were pinned for protection.
-
-[Cancel] [Clear Everything]
+Clear Matching Warnings…
 ```
 
-Example in All:
+rather than describing them as clips or clipboard items.
+
+### Clear scope examples
 
 ```text
-Title: Clear All Pinned and Unpinned History?
-
-This will permanently remove all clipboard history, including pinned items.
-
-[Cancel] [Clear Everything]
+All + no search
 ```
+
+affects every item represented by All.
+
+```text
+Links + "apple"
+```
+
+affects only Links matching `apple`.
+
+```text
+Text + "invoice"
+```
+
+affects only ordinary Text items matching `invoice`, plus matching warning rows if applicable.
+
+A future scope such as:
+
+```text
+Work + Links + "vendor"
+```
+
+will affect only matching Work Links.
+
+Clear must never silently affect items outside the active Space, content filter, or search.
 
 ---
 
