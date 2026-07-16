@@ -5,6 +5,7 @@
 //  Created by Alejandro Mora on 7/16/26.
 //
 
+import AppKit
 import Foundation
 
 struct ClipboardTextPayload:
@@ -50,9 +51,61 @@ enum ClipboardPayload:
             return payload.urlString
         }
     }
+    
+    var displayText: String {
+        switch self {
+        case let .text(payload):
+            return payload.text
+
+        case let .link(payload):
+            return payload.urlString
+        }
+    }
+
+    var linkURL: URL? {
+        guard
+            case let .link(payload) = self
+        else {
+            return nil
+        }
+
+        let trimmedURLString =
+            payload.urlString.trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
+
+        guard !trimmedURLString.isEmpty else {
+            return nil
+        }
+
+        return URL(
+            string: trimmedURLString
+        )
+    }
+
+    @discardableResult
+    func write(
+        to pasteboard: NSPasteboard
+    ) -> Bool {
+        pasteboard.clearContents()
+
+        switch self {
+        case let .text(payload):
+            return pasteboard.setString(
+                payload.text,
+                forType: .string
+            )
+
+        case let .link(payload):
+            return pasteboard.setString(
+                payload.urlString,
+                forType: .string
+            )
+        }
+    }
 
     var compatibilityText: String {
-        searchableText
+        displayText
     }
     
     var duplicateKey: String {

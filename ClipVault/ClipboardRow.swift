@@ -61,7 +61,7 @@ struct ClipboardRow: View {
         HStack(spacing: 8) {
             Button(action: onCopy) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(item.text)
+                    Text(item.displayText)
                         .lineLimit(3)
                         .multilineTextAlignment(.leading)
 
@@ -121,20 +121,15 @@ struct ClipboardRow: View {
     
     private var isLink: Bool {
         item.kind == .normal &&
-        item.contentKind == .link
+        item.linkURL != nil
     }
 
     private var linkURL: URL? {
-        guard isLink else {
+        guard item.kind == .normal else {
             return nil
         }
 
-        let trimmedText =
-            item.text.trimmingCharacters(
-                in: .whitespacesAndNewlines
-            )
-
-        return URL(string: trimmedText)
+        return item.linkURL
     }
 
     private func openLink() {
@@ -148,7 +143,7 @@ struct ClipboardRow: View {
     private var sensitiveSkippedRow: some View {
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 6) {
-                Text(item.text)
+                Text(item.displayText)
                     .fontWeight(.bold)
                     .foregroundStyle(.red)
                     .lineLimit(3)

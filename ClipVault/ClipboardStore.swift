@@ -224,16 +224,19 @@ final class ClipboardStore: ObservableObject {
         }
     }
     
-    func copyToClipboard(_ item: ClipboardItem) {
+    func copyToClipboard(
+        _ item: ClipboardItem
+    ) {
         guard item.kind == .normal else {
             return
         }
-        
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setString(item.text, forType: .string)
-        
-        clipboardMonitoringService.synchronizeChangeCount()
+
+        item.payload.write(
+            to: .general
+        )
+
+        clipboardMonitoringService
+            .synchronizeChangeCount()
     }
 
     func beginIgnoringClipboardMonitoringChanges() {

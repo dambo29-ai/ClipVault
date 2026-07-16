@@ -5,6 +5,7 @@
 //  Created by Alejandro Mora on 7/16/26.
 //
 
+import AppKit
 import Foundation
 import Testing
 @testable import ClipVault
@@ -26,6 +27,13 @@ struct ClipboardPayloadTests {
             payload.searchableText ==
                 "Ordinary clipboard text"
         )
+        
+        #expect(
+            payload.displayText ==
+                "Ordinary clipboard text"
+        )
+
+        #expect(payload.linkURL == nil)
 
         #expect(
             payload.duplicateKey ==
@@ -64,6 +72,19 @@ struct ClipboardPayloadTests {
         #expect(
             payload.searchableText ==
                 "https://example.com/path"
+        )
+        
+        #expect(
+            payload.displayText ==
+                "https://example.com/path"
+        )
+
+        #expect(
+            payload.linkURL ==
+                URL(
+                    string:
+                        "https://example.com/path"
+                )
         )
 
         #expect(
@@ -132,6 +153,62 @@ struct ClipboardPayloadTests {
 
         #expect(payload.contentKind == .text)
     }
+    
+    @Test
+    func textPayloadWritesTextToPasteboard() {
+        let pasteboard =
+            makePasteboard()
+
+        let payload =
+            ClipboardPayload.text(
+                ClipboardTextPayload(
+                    text:
+                        "Text pasteboard value"
+                )
+            )
+
+        let didWrite =
+            payload.write(
+                to: pasteboard
+            )
+
+        #expect(didWrite)
+
+        #expect(
+            pasteboard.string(
+                forType: .string
+            ) ==
+                "Text pasteboard value"
+        )
+    }
+
+    @Test
+    func linkPayloadWritesURLStringToPasteboard() {
+        let pasteboard =
+            makePasteboard()
+
+        let payload =
+            ClipboardPayload.link(
+                ClipboardLinkPayload(
+                    urlString:
+                        "https://example.com/copied"
+                )
+            )
+
+        let didWrite =
+            payload.write(
+                to: pasteboard
+            )
+
+        #expect(didWrite)
+
+        #expect(
+            pasteboard.string(
+                forType: .string
+            ) ==
+                "https://example.com/copied"
+        )
+    }
 
     @Test
     func payloadRoundTripPreservesAssociatedValue() throws {
@@ -157,6 +234,14 @@ struct ClipboardPayloadTests {
         #expect(
             decodedPayload ==
                 originalPayload
+        )
+    }
+    private func makePasteboard() -> NSPasteboard {
+        NSPasteboard(
+            name:
+                NSPasteboard.Name(
+                    "ClipboardPayloadTests-\(UUID().uuidString)"
+                )
         )
     }
 }

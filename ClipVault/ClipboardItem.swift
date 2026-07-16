@@ -43,6 +43,14 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
     var text: String {
         payload.compatibilityText
     }
+    
+    var displayText: String {
+        payload.displayText
+    }
+
+    var linkURL: URL? {
+        payload.linkURL
+    }
 
     var searchableText: String {
         payload.searchableText
