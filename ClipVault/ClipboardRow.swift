@@ -12,6 +12,8 @@ struct ClipboardRow: View {
     let item: ClipboardItem
     let displayNumber: Int?
     let onCopy: () -> Void
+    let onPin: () -> Void
+    let onUnpin: () -> Void
     let onDelete: () -> Void
 
     var body: some View {
@@ -75,6 +77,16 @@ struct ClipboardRow: View {
                     }
                 }
 
+                if item.isPinned {
+                    Button("Unpin") {
+                        onUnpin()
+                    }
+                } else {
+                    Button("Pin") {
+                        onPin()
+                    }
+                }
+
                 Divider()
 
                 Button("Delete", role: .destructive) {
@@ -85,6 +97,8 @@ struct ClipboardRow: View {
             if isLink {
                 openLinkButton
             }
+
+            pinButton
 
             deleteButton
                 .help("Delete this clipboard item")
@@ -143,6 +157,41 @@ struct ClipboardRow: View {
                 .help("Delete this warning row")
                 .accessibilityLabel("Delete warning row")
         }
+    }
+    
+    private var pinButton: some View {
+        Button {
+            if item.isPinned {
+                onUnpin()
+            } else {
+                onPin()
+            }
+        } label: {
+            Image(
+                systemName:
+                    item.isPinned
+                        ? "pin.fill"
+                        : "pin"
+            )
+            .foregroundStyle(
+                item.isPinned
+                    ? .primary
+                    : .secondary
+            )
+            .frame(width: 28, height: 28)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.borderless)
+        .help(
+            item.isPinned
+                ? "Unpin item"
+                : "Pin item"
+        )
+        .accessibilityLabel(
+            item.isPinned
+                ? "Unpin clipboard item"
+                : "Pin clipboard item"
+        )
     }
     
     private var openLinkButton: some View {

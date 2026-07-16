@@ -148,6 +148,128 @@ final class ClipboardPersistenceServiceTests: XCTestCase {
         )
     }
     
+    func testPinnedCopyPreservesItemMetadata() {
+        let itemID = UUID()
+        let createdAt = date(2026, 7, 10)
+        let pinnedAt = date(2026, 7, 15)
+
+        let item = ClipboardItem(
+            id: itemID,
+            text: "Reusable text",
+            createdAt: createdAt,
+            sourceAppName: "TextEdit",
+            sourceBundleIdentifier:
+                "com.apple.TextEdit",
+            origin: .restored
+        )
+
+        let pinnedItem =
+            item.pinnedCopy(
+                pinnedAt: pinnedAt
+            )
+
+        XCTAssertEqual(pinnedItem.id, itemID)
+        XCTAssertEqual(
+            pinnedItem.text,
+            "Reusable text"
+        )
+        XCTAssertEqual(
+            pinnedItem.createdAt,
+            createdAt
+        )
+        XCTAssertEqual(
+            pinnedItem.sourceAppName,
+            "TextEdit"
+        )
+        XCTAssertEqual(
+            pinnedItem.sourceBundleIdentifier,
+            "com.apple.TextEdit"
+        )
+        XCTAssertEqual(
+            pinnedItem.origin,
+            .restored
+        )
+        XCTAssertTrue(pinnedItem.isPinned)
+        XCTAssertEqual(
+            pinnedItem.pinnedAt,
+            pinnedAt
+        )
+    }
+
+    func testUnpinnedCopyPreservesItemMetadataAndClearsPinDate() {
+        let itemID = UUID()
+        let createdAt = date(2026, 7, 10)
+
+        let pinnedItem = ClipboardItem(
+            id: itemID,
+            text: "Pinned text",
+            createdAt: createdAt,
+            sourceAppName: "Notes",
+            sourceBundleIdentifier:
+                "com.apple.Notes",
+            origin: .captured,
+            isPinned: true,
+            pinnedAt: date(2026, 7, 15)
+        )
+
+        let unpinnedItem =
+            pinnedItem.unpinnedCopy()
+
+        XCTAssertEqual(
+            unpinnedItem.id,
+            itemID
+        )
+        XCTAssertEqual(
+            unpinnedItem.text,
+            "Pinned text"
+        )
+        XCTAssertEqual(
+            unpinnedItem.createdAt,
+            createdAt
+        )
+        XCTAssertEqual(
+            unpinnedItem.sourceAppName,
+            "Notes"
+        )
+        XCTAssertEqual(
+            unpinnedItem.sourceBundleIdentifier,
+            "com.apple.Notes"
+        )
+        XCTAssertEqual(
+            unpinnedItem.origin,
+            .captured
+        )
+        XCTAssertFalse(
+            unpinnedItem.isPinned
+        )
+        XCTAssertNil(
+            unpinnedItem.pinnedAt
+        )
+    }
+
+    func testWarningRowCannotBePinned() {
+        let warningItem = ClipboardItem(
+            text: "Warning",
+            kind: .sensitiveSkipped
+        )
+
+        let result =
+            warningItem.pinnedCopy(
+                pinnedAt: date(2026, 7, 15)
+            )
+
+        XCTAssertEqual(
+            result,
+            warningItem
+        )
+        XCTAssertFalse(
+            result.isPinned
+        )
+        XCTAssertNil(
+            result.pinnedAt
+        )
+    }
+    
     func testPinnedStateSurvivesPersistence() async throws {
         let testStorage = try makeTestStorage()
         defer {

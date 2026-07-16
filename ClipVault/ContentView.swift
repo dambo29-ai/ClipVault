@@ -9,6 +9,14 @@ import SwiftUI
 import AppKit
 import UniformTypeIdentifiers
 
+private struct ClipboardRowPresentationID:
+    Hashable
+{
+    let itemID: UUID
+    let isPinned: Bool
+    let displayNumber: Int?
+}
+
 private enum ClipboardContentFilter:
     String,
     CaseIterable,
@@ -30,7 +38,14 @@ struct ContentView: View {
     @Environment(\.openWindow) private var openWindow
     @State private var searchText = ""
     @State private var selectedContentFilter:
-    ClipboardContentFilter = .all
+        ClipboardContentFilter = .all
+
+    @AppStorage("isPinnedSectionExpanded")
+    private var isPinnedSectionExpanded = true
+
+    @AppStorage("isRecentSectionExpanded")
+    private var isRecentSectionExpanded = true
+
     @State private var isBackupDropTargeted = false
     @FocusState private var isSearchFocused: Bool
     
@@ -68,19 +83,66 @@ struct ContentView: View {
     
     private var filteredItems: [ClipboardItem] {
         let trimmedSearchText =
-        searchText.trimmingCharacters(
-            in: .whitespacesAndNewlines
-        )
-        
+            searchText.trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
+
         guard !trimmedSearchText.isEmpty else {
             return contentFilteredItems
         }
-        
+
         return contentFilteredItems.filter {
             $0.text.localizedCaseInsensitiveContains(
                 trimmedSearchText
             )
         }
+    }
+    
+    private var hasActiveSearch: Bool {
+        !searchText.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
+        .isEmpty
+    }
+
+    private var pinnedItems: [ClipboardItem] {
+        filteredItems
+            .filter {
+                $0.kind == .normal &&
+                $0.isPinned
+            }
+            .sorted {
+                ($0.pinnedAt ?? .distantPast) >
+                ($1.pinnedAt ?? .distantPast)
+            }
+    }
+
+    private var recentItems: [ClipboardItem] {
+        filteredItems.filter {
+            !$0.isPinned
+        }
+    }
+
+    private var pinnedItemCount: Int {
+        pinnedItems.filter {
+            $0.kind == .normal
+        }
+        .count
+    }
+
+    private var recentItemCount: Int {
+        recentItems.filter {
+            $0.kind == .normal
+        }
+        .count
+    }
+
+    private var shouldShowPinnedRows: Bool {
+        hasActiveSearch || isPinnedSectionExpanded
+    }
+
+    private var shouldShowRecentRows: Bool {
+        hasActiveSearch || isRecentSectionExpanded
     }
     
     var body: some View {
@@ -255,24 +317,57 @@ struct ContentView: View {
     
     private var clipboardListView: some View {
         ScrollView {
-            LazyVStack(spacing: 0) {
-                ForEach(filteredItems) { item in
-                    ClipboardRow(
-                        item: item,
-                        displayNumber:
-                            item.kind == .normal
-                        ? displayNumber(for: item)
-                        : nil,
-                        onCopy: {
-                            clipboardStore.copyToClipboard(item)
-                        },
-                        onDelete: {
-                            clipboardStore.deleteItem(item)
+            LazyVStack(
+                alignment: .leading,
+                spacing: 0
+            ) {
+                if !pinnedItems.isEmpty {
+                    listSectionHeader(
+                        title: "Pinned",
+                        itemCount: pinnedItemCount,
+                        isExpanded:
+                            shouldShowPinnedRows,
+                        toggleExpanded: {
+                            guard !hasActiveSearch else {
+                                return
+                            }
+
+                            isPinnedSectionExpanded.toggle()
                         }
                     )
-                    
-                    if item.id != filteredItems.last?.id {
-                        Divider()
+
+                    if shouldShowPinnedRows {
+                        clipboardRows(
+                            pinnedItems,
+                            displaysNumbers: false
+                        )
+                    }
+                }
+
+                if !recentItems.isEmpty {
+                    if !pinnedItems.isEmpty {
+                        sectionSpacing
+                    }
+
+                    listSectionHeader(
+                        title: "Recent",
+                        itemCount: recentItemCount,
+                        isExpanded:
+                            shouldShowRecentRows,
+                        toggleExpanded: {
+                            guard !hasActiveSearch else {
+                                return
+                            }
+
+                            isRecentSectionExpanded.toggle()
+                        }
+                    )
+
+                    if shouldShowRecentRows {
+                        clipboardRows(
+                            recentItems,
+                            displaysNumbers: true
+                        )
                     }
                 }
             }
@@ -282,17 +377,130 @@ struct ContentView: View {
         }
     }
     
+    private var sectionSpacing: some View {
+        VStack(spacing: 10) {
+            Divider()
+
+            Color.clear
+                .frame(height: 2)
+        }
+        .padding(.vertical, 8)
+    }
+    
+    @ViewBuilder
+    private func clipboardRows(
+        _ items: [ClipboardItem],
+        displaysNumbers: Bool
+    ) -> some View {
+        ForEach(Array(items.enumerated()), id: \.element.id) {
+            index,
+            item in
+
+            let rowDisplayNumber =
+                displaysNumbers &&
+                item.kind == .normal
+                    ? displayNumber(for: item)
+                    : nil
+
+            ClipboardRow(
+                item: item,
+                displayNumber: rowDisplayNumber,
+                onCopy: {
+                    clipboardStore.copyToClipboard(item)
+                },
+                onPin: {
+                    isPinnedSectionExpanded = true
+                    clipboardStore.pinItem(item)
+                },
+                onUnpin: {
+                    isRecentSectionExpanded = true
+                    clipboardStore.unpinItem(item)
+                },
+                onDelete: {
+                    clipboardStore.deleteItem(item)
+                }
+            )
+            .id(
+                ClipboardRowPresentationID(
+                    itemID: item.id,
+                    isPinned: item.isPinned,
+                    displayNumber: rowDisplayNumber
+                )
+            )
+
+            if index < items.count - 1 {
+                Divider()
+            }
+        }
+    }
+
+    private func listSectionHeader(
+        title: String,
+        itemCount: Int,
+        isExpanded: Bool,
+        toggleExpanded: @escaping () -> Void
+    ) -> some View {
+        Button(action: toggleExpanded) {
+            HStack(spacing: 6) {
+                Image(
+                    systemName:
+                        isExpanded
+                            ? "chevron.down"
+                            : "chevron.right"
+                )
+                .font(
+                    .system(
+                        size: 10,
+                        weight: .semibold
+                    )
+                )
+                .frame(width: 12)
+                .accessibilityHidden(true)
+
+                Text(title.uppercased())
+                    .font(.caption)
+                    .fontWeight(.semibold)
+
+                Spacer()
+
+                Text("\(itemCount)")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .monospacedDigit()
+            }
+            .foregroundStyle(.secondary)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.leading, 20)
+        .padding(.trailing, 8)
+        .padding(.vertical, 6)
+        .accessibilityLabel(
+            "\(title), \(itemCount) items"
+        )
+        .accessibilityValue(
+            isExpanded
+                ? "Expanded"
+                : "Collapsed"
+        )
+        .accessibilityHint(
+            hasActiveSearch
+                ? "Sections remain expanded while searching"
+                : "Toggle section visibility"
+        )
+    }
+    
     private func displayNumber(
         for item: ClipboardItem
     ) -> Int? {
-        let visibleNormalItems =
-        filteredItems.filter {
-            $0.kind == .normal
-        }
-        
+        let visibleRecentNormalItems =
+            recentItems.filter {
+                $0.kind == .normal
+            }
+
         guard
             let index =
-                visibleNormalItems.firstIndex(
+                visibleRecentNormalItems.firstIndex(
                     where: {
                         $0.id == item.id
                     }
@@ -300,8 +508,8 @@ struct ContentView: View {
         else {
             return nil
         }
-        
-        return visibleNormalItems.count - index
+
+        return visibleRecentNormalItems.count - index
     }
     
     private func handleDroppedBackupProviders(_ providers: [NSItemProvider]) -> Bool {
@@ -381,13 +589,7 @@ struct ContentView: View {
     }
     
     private var emptyStateView: some View {
-        let hasActiveSearch =
-        !searchText.trimmingCharacters(
-            in: .whitespacesAndNewlines
-        )
-        .isEmpty
-        
-        return VStack(spacing: 12) {
+        VStack(spacing: 12) {
             Image(
                 systemName:
                     hasActiveSearch

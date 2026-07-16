@@ -227,6 +227,63 @@ final class ClipboardStore: ObservableObject {
             .endIgnoringClipboardChanges()
     }
     
+    func pinItem(_ item: ClipboardItem) {
+        guard item.kind == .normal else {
+            return
+        }
+
+        guard
+            let index =
+                items.firstIndex(
+                    where: {
+                        $0.id == item.id
+                    }
+                )
+        else {
+            return
+        }
+
+        guard !items[index].isPinned else {
+            return
+        }
+
+        var updatedItems = items
+
+        updatedItems[index] =
+            updatedItems[index].pinnedCopy()
+
+        items = updatedItems
+
+        saveItems()
+    }
+
+    func unpinItem(_ item: ClipboardItem) {
+        guard
+            let index =
+                items.firstIndex(
+                    where: {
+                        $0.id == item.id
+                    }
+                )
+        else {
+            return
+        }
+
+        guard items[index].isPinned else {
+            return
+        }
+
+        var updatedItems = items
+
+        updatedItems[index] =
+            updatedItems[index].unpinnedCopy()
+
+        items = updatedItems
+
+        applyRetentionRules()
+        saveItems()
+    }
+    
     func deleteItem(_ item: ClipboardItem) {
         items.removeAll { $0.id == item.id }
         saveItems()
@@ -471,6 +528,19 @@ final class ClipboardStore: ObservableObject {
             )
 
             return .skippedSensitive
+        }
+
+        if items.contains(
+            where: {
+                $0.kind == .normal &&
+                $0.isPinned &&
+                $0.text == cleanedText
+            }
+        ) {
+            applyRetentionRules()
+            saveItems()
+
+            return .captured
         }
 
         let newItem = ClipboardItem(

@@ -50,6 +50,42 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
         self.pinnedAt = isPinned ? pinnedAt : nil
     }
 
+    func pinnedCopy(
+        pinnedAt: Date = Date()
+    ) -> ClipboardItem {
+        guard kind == .normal else {
+            return self
+        }
+
+        return ClipboardItem(
+            id: id,
+            text: text,
+            createdAt: createdAt,
+            kind: kind,
+            sourceAppName: sourceAppName,
+            sourceBundleIdentifier:
+                sourceBundleIdentifier,
+            origin: origin,
+            isPinned: true,
+            pinnedAt: pinnedAt
+        )
+    }
+
+    func unpinnedCopy() -> ClipboardItem {
+        ClipboardItem(
+            id: id,
+            text: text,
+            createdAt: createdAt,
+            kind: kind,
+            sourceAppName: sourceAppName,
+            sourceBundleIdentifier:
+                sourceBundleIdentifier,
+            origin: origin,
+            isPinned: false,
+            pinnedAt: nil
+        )
+    }
+    
     func restoredCopy() -> ClipboardItem {
         ClipboardItem(
             id: id,
