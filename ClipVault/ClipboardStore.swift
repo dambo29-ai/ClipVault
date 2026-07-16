@@ -285,10 +285,31 @@ final class ClipboardStore: ObservableObject {
     }
     
     func deleteItem(_ item: ClipboardItem) {
-        items.removeAll { $0.id == item.id }
+        removeItems(
+            withIDs: Set([item.id])
+        )
+    }
+
+    func removeItems(
+        withIDs itemIDs: Set<UUID>
+    ) {
+        guard !itemIDs.isEmpty else {
+            return
+        }
+
+        let originalItemCount = items.count
+
+        items.removeAll {
+            itemIDs.contains($0.id)
+        }
+
+        guard items.count != originalItemCount else {
+            return
+        }
+
         saveItems()
     }
-    
+
     func clearHistory() {
         items.removeAll()
         saveItems()

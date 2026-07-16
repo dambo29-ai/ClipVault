@@ -104,6 +104,59 @@ struct ContentView: View {
         )
         .isEmpty
     }
+    
+    private var clearContentScope:
+        ClipboardClearContentScope
+    {
+        switch selectedContentFilter {
+        case .all:
+            return .all
+
+        case .text:
+            return .text
+
+        case .links:
+            return .links
+
+        case .images:
+            return .images
+
+        case .files:
+            return .files
+        }
+    }
+
+    private var clearScopeResult:
+        ClipboardClearScopeResult
+    {
+        ClipboardClearScopeService.result(
+            from: clipboardStore.items,
+            contentScope: clearContentScope,
+            searchText: searchText
+        )
+    }
+
+    private var clearUnpinnedDescriptor:
+        ClipboardClearConfirmationDescriptor
+    {
+        ClearHistoryConfirmation.descriptor(
+            for: clearScopeResult,
+            contentScope: clearContentScope,
+            hasActiveSearch: hasActiveSearch,
+            mode: .unpinned
+        )
+    }
+
+    private var clearIncludingPinnedDescriptor:
+        ClipboardClearConfirmationDescriptor
+    {
+        ClearHistoryConfirmation.descriptor(
+            for: clearScopeResult,
+            contentScope: clearContentScope,
+            hasActiveSearch: hasActiveSearch,
+            mode: .includingPinned
+        )
+    }
 
     private var pinnedItems: [ClipboardItem] {
         filteredItems
@@ -212,12 +265,31 @@ struct ContentView: View {
                     vertical: false
                 )
                 
-                Button("Clear") {
-                    if ClearHistoryConfirmation.shouldClearHistory() {
-                        clipboardStore.clearHistory()
+                Menu("Clear") {
+                    Button(
+                        clearUnpinnedDescriptor.menuTitle
+                    ) {
+                        clearUnpinnedItemsInCurrentScope()
                     }
+                    .disabled(
+                        clearScopeResult
+                            .unpinnedItemIDsIncludingWarnings
+                            .isEmpty
+                    )
+
+                    Divider()
+
+                    Button(
+                        clearIncludingPinnedDescriptor.menuTitle,
+                        role: .destructive
+                    ) {
+                        clearAllItemsInCurrentScope()
+                    }
+                    .disabled(
+                        clearScopeResult.allItemIDs.isEmpty
+                    )
                 }
-                .disabled(clipboardStore.items.isEmpty)
+                .disabled(clearScopeResult.isEmpty)
                 
                 Button {
                     openWindow(id: "settings-window")
@@ -510,6 +582,45 @@ struct ContentView: View {
         }
 
         return visibleRecentNormalItems.count - index
+    }
+    
+    @MainActor
+    private func clearUnpinnedItemsInCurrentScope() {
+        let descriptor =
+            clearUnpinnedDescriptor
+
+        guard
+            ClearHistoryConfirmation.shouldClear(
+                descriptor: descriptor
+            )
+        else {
+            return
+        }
+
+        clipboardStore.removeItems(
+            withIDs:
+                clearScopeResult
+                    .unpinnedItemIDsIncludingWarnings
+        )
+    }
+
+    @MainActor
+    private func clearAllItemsInCurrentScope() {
+        let descriptor =
+            clearIncludingPinnedDescriptor
+
+        guard
+            ClearHistoryConfirmation.shouldClear(
+                descriptor: descriptor
+            )
+        else {
+            return
+        }
+
+        clipboardStore.removeItems(
+            withIDs:
+                clearScopeResult.allItemIDs
+        )
     }
     
     private func handleDroppedBackupProviders(_ providers: [NSItemProvider]) -> Bool {
