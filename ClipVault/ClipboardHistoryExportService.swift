@@ -266,7 +266,7 @@ enum ClipboardHistoryExportService {
             Copied: \(copiedAt)
             Source: \(source)
             
-            \(item.text)
+            \(item.displayText)
             """)
         }
         
