@@ -45,6 +45,41 @@ struct ClipboardBackupReplacementResult {
     let skippedDueToLimit: Int
 }
 
+enum ClipboardBackupImportMode:
+    Equatable,
+    Sendable
+{
+    case merge
+    case replace
+}
+
+struct ClipboardBackupImportPlan:
+    Equatable,
+    Sendable
+{
+    let mode: ClipboardBackupImportMode
+    let preparedItems: [ClipboardItem]
+    let importedItemIDs: Set<UUID>
+    let duplicateCount: Int
+    let requiredUnpinnedItemCount: Int
+
+    var importedCount: Int {
+        importedItemIDs.count
+    }
+}
+
+struct ClipboardBackupImportApplicationResult:
+    Equatable,
+    Sendable
+{
+    let mode: ClipboardBackupImportMode
+    let importedCount: Int
+    let duplicateCount: Int
+    let skippedDueToLimitCount: Int
+    let resultingHistoryLimit: Int
+    let didExpandHistoryLimit: Bool
+}
+
 @MainActor
 final class ClipboardStore: ObservableObject {
     static let minimumHistoryLimit = 10
@@ -317,6 +352,87 @@ final class ClipboardStore: ObservableObject {
         saveItems()
     }
     
+    func prepareBackupMerge(
+        _ backupItems: [ClipboardItem]
+    ) -> ClipboardBackupImportPlan {
+        let existingItemByID =
+            Dictionary(
+                uniqueKeysWithValues:
+                    items.map {
+                        ($0.id, $0)
+                    }
+            )
+
+        let preparation =
+            ClipboardImportService
+                .prepareCompleteMerge(
+                    existingItems: items,
+                    backupItems: backupItems
+                )
+
+        let importedItemIDs =
+            Set(
+                preparation.preparedItems.compactMap {
+                    preparedItem in
+
+                    guard
+                        let existingItem =
+                            existingItemByID[
+                                preparedItem.id
+                            ]
+                    else {
+                        return preparedItem.id
+                    }
+
+                    guard
+                        preparedItem != existingItem
+                    else {
+                        return nil
+                    }
+
+                    return preparedItem.id
+                }
+            )
+
+        return ClipboardBackupImportPlan(
+            mode: .merge,
+            preparedItems:
+                preparation.preparedItems,
+            importedItemIDs:
+                importedItemIDs,
+            duplicateCount:
+                preparation.duplicateCount,
+            requiredUnpinnedItemCount:
+                preparation.requiredUnpinnedItemCount
+        )
+    }
+
+    func prepareBackupReplacement(
+        _ backupItems: [ClipboardItem]
+    ) -> ClipboardBackupImportPlan {
+        let preparation =
+            ClipboardImportService
+                .prepareCompleteReplacement(
+                    backupItems: backupItems
+                )
+
+        return ClipboardBackupImportPlan(
+            mode: .replace,
+            preparedItems:
+                preparation.preparedItems,
+            importedItemIDs:
+                Set(
+                    preparation
+                        .preparedItems
+                        .map(\.id)
+                ),
+            duplicateCount:
+                preparation.duplicateCount,
+            requiredUnpinnedItemCount:
+                preparation.requiredUnpinnedItemCount
+        )
+    }
+    
     func importNormalItemsFromBackup(
         _ backupItems: [ClipboardItem]
     ) -> ClipboardBackupImportOutcome {
@@ -362,6 +478,68 @@ final class ClipboardStore: ObservableObject {
             duplicates: preparation.duplicateCount,
             skippedDueToLimit:
                 preparation.skippedDueToLimitCount
+        )
+    }
+    
+    func applyBackupImport(
+        plan: ClipboardBackupImportPlan,
+        decision: ClipboardImportLimitDecision
+    ) -> ClipboardBackupImportApplicationResult {
+        let previousHistoryLimit =
+            maxItemCount
+
+        let resolution =
+            ClipboardImportService
+                .resolveHistoryLimit(
+                    for: plan.preparedItems,
+                    currentHistoryLimit:
+                        previousHistoryLimit,
+                    maximumHistoryLimit:
+                        Self.maximumHistoryLimit,
+                    decision: decision
+                )
+
+        let resolvedHistoryLimit =
+            min(
+                max(
+                    resolution
+                        .resultingHistoryLimit,
+                    Self.minimumHistoryLimit
+                ),
+                Self.maximumHistoryLimit
+            )
+
+        maxItemCount =
+            resolvedHistoryLimit
+
+        UserDefaults.standard.set(
+            resolvedHistoryLimit,
+            forKey: maxItemCountKey
+        )
+
+        items =
+            resolution.resolvedItems
+
+        saveItems()
+
+        return ClipboardBackupImportApplicationResult(
+            mode: plan.mode,
+            importedCount:
+                importedItemCount(
+                    for: plan,
+                    resolvedItems:
+                        resolution.resolvedItems
+                ),
+            duplicateCount:
+                plan.duplicateCount,
+            skippedDueToLimitCount:
+                resolution
+                    .skippedUnpinnedItemCount,
+            resultingHistoryLimit:
+                resolvedHistoryLimit,
+            didExpandHistoryLimit:
+                resolvedHistoryLimit >
+                previousHistoryLimit
         )
     }
     
@@ -651,6 +829,21 @@ final class ClipboardStore: ObservableObject {
 
                 self?.highlightedPinnedItemID = nil
             }
+    }
+    
+    private func importedItemCount(
+        for plan: ClipboardBackupImportPlan,
+        resolvedItems: [ClipboardItem]
+    ) -> Int {
+        let resolvedItemIDs =
+            Set(
+                resolvedItems.map(\.id)
+            )
+
+        return plan.importedItemIDs.filter {
+            resolvedItemIDs.contains($0)
+        }
+        .count
     }
     
     private func applyRetentionRules() {

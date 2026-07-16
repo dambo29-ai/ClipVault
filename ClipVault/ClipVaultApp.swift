@@ -100,10 +100,7 @@ struct ClipVaultApp: App {
                             
                             BackupImportWorkflow.handle(
                                 backupItems: backupItems,
-                                clipboardStore: clipboardStore,
-                                openSettings: {
-                                    openWindow(id: "settings-window")
-                                }
+                                clipboardStore: clipboardStore
                             )
                         } catch {
                             OperationFailureAlert.show(

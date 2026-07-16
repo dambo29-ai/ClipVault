@@ -716,10 +716,7 @@ struct ContentView: View {
             
             BackupImportWorkflow.handle(
                 backupItems: backupItems,
-                clipboardStore: clipboardStore,
-                openSettings: {
-                    openWindow(id: "settings-window")
-                }
+                clipboardStore: clipboardStore
             )
         } catch {
             OperationFailureAlert.show(

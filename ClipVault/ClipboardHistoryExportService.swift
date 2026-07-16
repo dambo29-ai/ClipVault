@@ -134,30 +134,75 @@ enum ClipboardHistoryExportService {
     }
     
     private static func sortedJSONBackupURLsNewestFirst() throws -> [URL] {
-        let exportsFolderURL = try makeExportsFolderURL()
-        
-        let fileURLs = try FileManager.default.contentsOfDirectory(
-            at: exportsFolderURL,
-            includingPropertiesForKeys: [.contentModificationDateKey],
-            options: [.skipsHiddenFiles]
-        )
-        
-        let backupURLs = fileURLs.filter { url in
-            url.pathExtension.lowercased() == "json" &&
-            url.lastPathComponent.hasPrefix("ClipVault Backup")
-        }
-        
-        return try backupURLs.sorted { firstURL, secondURL in
-            let firstDate = try firstURL.resourceValues(
-                forKeys: [.contentModificationDateKey]
-            ).contentModificationDate ?? .distantPast
-            
-            let secondDate = try secondURL.resourceValues(
-                forKeys: [.contentModificationDateKey]
-            ).contentModificationDate ?? .distantPast
-            
-            return firstDate > secondDate
-        }
+        let exportsFolderURL =
+            try makeExportsFolderURL()
+
+        let fileURLs =
+            try FileManager.default.contentsOfDirectory(
+                at: exportsFolderURL,
+                includingPropertiesForKeys: nil,
+                options: [.skipsHiddenFiles]
+            )
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
+        let validBackups:
+            [(url: URL, exportedAt: Date)] =
+                fileURLs.compactMap {
+                    url in
+
+                    guard
+                        url.pathExtension
+                            .lowercased() == "json"
+                    else {
+                        return nil
+                    }
+
+                    guard
+                        let data = try? Data(
+                            contentsOf: url
+                        ),
+                        let backup =
+                            try? decoder.decode(
+                                ClipboardHistoryBackup.self,
+                                from: data
+                            ),
+                        backup.appName == "ClipVault",
+                        backup.formatVersion == 1
+                    else {
+                        return nil
+                    }
+
+                    return (
+                        url: url,
+                        exportedAt: backup.exportedAt
+                    )
+                }
+
+        return validBackups
+            .sorted {
+                firstBackup,
+                secondBackup in
+
+                if firstBackup.exportedAt !=
+                    secondBackup.exportedAt
+                {
+                    return
+                        firstBackup.exportedAt >
+                        secondBackup.exportedAt
+                }
+
+                return
+                    firstBackup.url.lastPathComponent
+                        .localizedStandardCompare(
+                            secondBackup
+                                .url
+                                .lastPathComponent
+                        ) ==
+                        .orderedDescending
+            }
+            .map(\.url)
     }
     
     private static func makeExportURL(

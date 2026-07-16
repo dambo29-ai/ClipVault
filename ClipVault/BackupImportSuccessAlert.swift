@@ -13,12 +13,16 @@ enum BackupImportSuccessAlert {
         importedCount: Int,
         duplicateCount: Int,
         skippedDueToLimitCount: Int,
-        replacedHistory: Bool
+        replacedHistory: Bool,
+        resultingHistoryLimit: Int? = nil,
+        didExpandHistoryLimit: Bool = false
     ) {
         let alert = NSAlert()
 
         let importedWord =
-            importedCount == 1 ? "clip" : "clips"
+            importedCount == 1
+                ? "clip"
+                : "clips"
 
         let duplicateWord =
             duplicateCount == 1
@@ -33,54 +37,60 @@ enum BackupImportSuccessAlert {
         var messageLines: [String] = []
 
         if replacedHistory {
-            alert.messageText = "Backup Imported"
+            alert.messageText =
+                "Backup Imported"
 
             messageLines.append(
                 "Replaced the current clipboard history with \(importedCount) \(importedWord)."
             )
-
-            if duplicateCount > 0 {
-                messageLines.append(
-                    "Skipped \(duplicateCount) \(duplicateWord) found within the backup."
-                )
-            }
-
-            if skippedDueToLimitCount > 0 {
-                messageLines.append(
-                    "Omitted \(skippedDueToLimitCount) \(limitWord) because of the current History Limit."
-                )
-            }
         } else if importedCount == 0 {
-            alert.messageText = "No New Clips Imported"
+            alert.messageText =
+                "No New Clips Imported"
 
             messageLines.append(
                 "The backup did not contain any new clips."
             )
-
-            if duplicateCount > 0 {
-                messageLines.append(
-                    "Skipped \(duplicateCount) \(duplicateWord)."
-                )
-            }
         } else {
-            alert.messageText = "Backup Imported"
+            alert.messageText =
+                "Backup Imported"
 
             messageLines.append(
                 "Imported \(importedCount) new \(importedWord)."
             )
+        }
 
-            if duplicateCount > 0 {
-                messageLines.append(
-                    "Skipped \(duplicateCount) \(duplicateWord)."
-                )
-            }
+        if duplicateCount > 0 {
+            messageLines.append(
+                "Skipped \(duplicateCount) \(duplicateWord)."
+            )
+        }
+
+        if skippedDueToLimitCount > 0 {
+            messageLines.append(
+                "Omitted \(skippedDueToLimitCount) of the oldest unpinned \(limitWord) because of the History Limit."
+            )
+        }
+
+        if didExpandHistoryLimit,
+           let resultingHistoryLimit
+        {
+            messageLines.append(
+                "The History Limit was increased to \(resultingHistoryLimit)."
+            )
         }
 
         alert.informativeText =
-            messageLines.joined(separator: "\n")
+            messageLines.joined(
+                separator: "\n"
+            )
 
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "OK")
+        alert.alertStyle =
+            .informational
+
+        alert.addButton(
+            withTitle: "OK"
+        )
+
         alert.runModal()
     }
 }

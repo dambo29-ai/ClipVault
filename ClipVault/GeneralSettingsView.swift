@@ -74,6 +74,12 @@ struct GeneralSettingsView: View {
 
             refreshAccessibilityPermission()
         }
+        .onChange(
+            of: clipboardStore.maxItemCount
+        ) { _, newValue in
+            historyLimitText =
+                "\(newValue)"
+        }
         .onReceive(
             NotificationCenter.default.publisher(
                 for: NSApplication.didBecomeActiveNotification

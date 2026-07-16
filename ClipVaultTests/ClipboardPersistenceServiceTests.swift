@@ -194,6 +194,10 @@ final class ClipboardPersistenceServiceTests: XCTestCase {
             pinnedItem.contentKind,
             .link
         )
+        XCTAssertEqual(
+            pinnedItem.payload,
+            item.payload
+        )
         XCTAssertTrue(pinnedItem.isPinned)
         XCTAssertEqual(
             pinnedItem.pinnedAt,
@@ -249,6 +253,10 @@ final class ClipboardPersistenceServiceTests: XCTestCase {
             unpinnedItem.contentKind,
             .link
         )
+        XCTAssertEqual(
+            unpinnedItem.payload,
+            pinnedItem.payload
+        )
         XCTAssertFalse(
             unpinnedItem.isPinned
         )
@@ -277,6 +285,163 @@ final class ClipboardPersistenceServiceTests: XCTestCase {
         )
         XCTAssertNil(
             result.pinnedAt
+        )
+    }
+    
+    func testTypedPayloadSurvivesPersistence() async throws {
+        let testStorage = try makeTestStorage()
+        defer {
+            removeTestStorage(testStorage)
+        }
+
+        let service =
+            ClipboardPersistenceService(
+                storageURL:
+                    testStorage.fileURL
+            )
+
+        let originalItem =
+            ClipboardItem(
+                payload:
+                    .link(
+                        ClipboardLinkPayload(
+                            urlString:
+                                "https://example.com/products"
+                        )
+                    ),
+                createdAt:
+                    date(2026, 7, 16)
+            )
+
+        try await service.saveItems([
+            originalItem
+        ])
+
+        let loadedItems =
+            try await service.loadItems()
+
+        XCTAssertEqual(
+            loadedItems,
+            [originalItem]
+        )
+
+        XCTAssertEqual(
+            loadedItems.first?.payload,
+            originalItem.payload
+        )
+
+        XCTAssertEqual(
+            loadedItems.first?.text,
+            "https://example.com/products"
+        )
+
+        XCTAssertEqual(
+            loadedItems.first?.searchableText,
+            "https://example.com/products"
+        )
+
+        XCTAssertEqual(
+            loadedItems.first?.contentKind,
+            .link
+        )
+    }
+
+    func testEncodedItemContainsPayloadAndLegacyTextFields() throws {
+        let item =
+            ClipboardItem(
+                payload:
+                    .text(
+                        ClipboardTextPayload(
+                            text:
+                                "Compatibility text"
+                        )
+                    )
+            )
+
+        let encodedData =
+            try JSONEncoder().encode(
+                item
+            )
+
+        let jsonObject =
+            try JSONSerialization.jsonObject(
+                with: encodedData
+            )
+
+        guard
+            let dictionary =
+                jsonObject as? [String: Any]
+        else {
+            XCTFail(
+                "Expected an encoded item dictionary."
+            )
+            return
+        }
+
+        XCTAssertNotNil(
+            dictionary["payload"]
+        )
+
+        XCTAssertEqual(
+            dictionary["text"] as? String,
+            "Compatibility text"
+        )
+
+        XCTAssertEqual(
+            dictionary["contentKind"] as? String,
+            "text"
+        )
+    }
+
+    func testPayloadTakesPriorityOverLegacyCompatibilityFields() throws {
+        let itemID = UUID()
+
+        let storedJSON = """
+        {
+          "id": "\(itemID.uuidString)",
+          "payload": {
+            "link": {
+              "_0": {
+                "urlString": "https://payload.example.com"
+              }
+            }
+          },
+          "text": "Legacy conflicting text",
+          "createdAt": 599572800,
+          "kind": "normal",
+          "sourceAppName": null,
+          "sourceBundleIdentifier": null,
+          "origin": "captured",
+          "contentKind": "text",
+          "isPinned": false,
+          "pinnedAt": null
+        }
+        """
+
+        let decodedItem =
+            try JSONDecoder().decode(
+                ClipboardItem.self,
+                from: Data(storedJSON.utf8)
+            )
+
+        XCTAssertEqual(
+            decodedItem.payload,
+            .link(
+                ClipboardLinkPayload(
+                    urlString:
+                        "https://payload.example.com"
+                )
+            )
+        )
+
+        XCTAssertEqual(
+            decodedItem.text,
+            "https://payload.example.com"
+        )
+
+        XCTAssertEqual(
+            decodedItem.contentKind,
+            .link
         )
     }
     

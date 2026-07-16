@@ -8,76 +8,117 @@
 import AppKit
 
 enum BackupImportLimitChoice {
-    case replace
-    case openSettings
+    case expandLimit
+    case keepLimit
     case cancel
 }
 
 enum BackupImportLimitConfirmation {
     @MainActor
     static func show(
-        itemsOverLimit: Int,
-        historyLimit: Int,
+        currentHistoryLimit: Int,
         requiredHistoryLimit: Int,
+        expandedHistoryLimit: Int,
         maximumAllowedHistoryLimit: Int
     ) -> BackupImportLimitChoice {
         let alert = NSAlert()
 
         alert.alertStyle = .warning
         alert.messageText =
-            "The backup does not fit in the current history limit."
+            "This backup exceeds the current History Limit."
 
-        let clipWord =
-            itemsOverLimit == 1 ? "clip" : "clips"
+        let itemsOverLimit =
+            max(
+                0,
+                requiredHistoryLimit -
+                currentHistoryLimit
+            )
 
-        if requiredHistoryLimit <= maximumAllowedHistoryLimit {
+        let omittedWord =
+            itemsOverLimit == 1
+                ? "clip"
+                : "clips"
+
+        if requiredHistoryLimit <=
+            maximumAllowedHistoryLimit
+        {
             alert.informativeText =
                 """
-                Importing this backup would exceed the current History Limit of \(historyLimit) by \(itemsOverLimit) \(clipWord).
+                The imported history requires space for \(requiredHistoryLimit) unpinned clips, but your current History Limit is \(currentHistoryLimit).
 
-                Replace the current clipboard history with the backup, or open Settings and increase the History Limit to at least \(requiredHistoryLimit).
+                Expand the History Limit to \(expandedHistoryLimit) to restore everything, or keep the current limit and omit the \(itemsOverLimit) oldest unpinned \(omittedWord).
+
+                Pinned clips will be restored either way and do not count toward the History Limit.
                 """
 
-            let openSettingsButton = alert.addButton(
-                withTitle: "Open Settings"
-            )
-            openSettingsButton.keyEquivalent = "\r"
+            let expandButton =
+                alert.addButton(
+                    withTitle:
+                        "Expand Limit to \(expandedHistoryLimit)"
+                )
+
+            expandButton.keyEquivalent = "\r"
 
             alert.addButton(
-                withTitle: "Replace"
+                withTitle:
+                    "Keep Limit at \(currentHistoryLimit)"
             )
 
-            let response = alert.runModal()
+            alert.addButton(
+                withTitle: "Cancel"
+            )
 
-            if response == .alertSecondButtonReturn {
-                return .replace
+            switch alert.runModal() {
+            case .alertFirstButtonReturn:
+                return .expandLimit
+
+            case .alertSecondButtonReturn:
+                return .keepLimit
+
+            default:
+                return .cancel
             }
-
-            return .openSettings
         }
+
+        let maximumOmittedCount =
+            max(
+                0,
+                requiredHistoryLimit -
+                maximumAllowedHistoryLimit
+            )
+
+        let maximumOmittedWord =
+            maximumOmittedCount == 1
+                ? "clip"
+                : "clips"
 
         alert.informativeText =
             """
-            Importing this backup would require a History Limit of \(requiredHistoryLimit), but ClipVault allows a maximum of \(maximumAllowedHistoryLimit).
+            The imported history requires space for \(requiredHistoryLimit) unpinned clips, but ClipVault allows a maximum History Limit of \(maximumAllowedHistoryLimit).
 
-            Replace the current clipboard history with the newest \(maximumAllowedHistoryLimit) clips from the backup, or cancel the import.
+            Continue with the maximum limit and omit the \(maximumOmittedCount) oldest unpinned \(maximumOmittedWord), or cancel the import.
+
+            Pinned clips will still be restored and do not count toward the History Limit.
             """
 
-        let cancelButton = alert.addButton(
-            withTitle: "Cancel"
-        )
-        cancelButton.keyEquivalent = "\r"
+        let keepButton =
+            alert.addButton(
+                withTitle:
+                    "Use Maximum Limit of \(maximumAllowedHistoryLimit)"
+            )
+
+        keepButton.keyEquivalent = "\r"
 
         alert.addButton(
-            withTitle: "Replace"
+            withTitle: "Cancel"
         )
 
-        let response = alert.runModal()
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:
+            return .expandLimit
 
-        if response == .alertSecondButtonReturn {
-            return .replace
+        default:
+            return .cancel
         }
-
-        return .cancel
     }
 }

@@ -11,99 +11,81 @@ enum BackupImportWorkflow {
     @MainActor
     static func handle(
         backupItems: [ClipboardItem],
-        clipboardStore: ClipboardStore,
-        openSettings: () -> Void
+        clipboardStore: ClipboardStore
     ) {
-        let outcome =
-            clipboardStore.importNormalItemsFromBackup(
+        let plan =
+            clipboardStore.prepareBackupMerge(
                 backupItems
             )
 
-        switch outcome {
-        case .imported(
-            let importedCount,
-            let duplicateCount
-        ):
-            BackupImportSuccessAlert.show(
-                importedCount: importedCount,
-                duplicateCount: duplicateCount,
-                skippedDueToLimitCount: 0,
-                replacedHistory: false
-            )
+        let currentHistoryLimit =
+            clipboardStore.maxItemCount
 
-        case .exceedsHistoryLimit(let itemsOverLimit):
-            let currentHistoryLimit =
-                clipboardStore.maxItemCount
+        let requiredHistoryLimit =
+            plan.requiredUnpinnedItemCount
 
-            let requiredHistoryLimit =
-                currentHistoryLimit + itemsOverLimit
+        let decision:
+            ClipboardImportLimitDecision
 
-            let choice = BackupImportLimitConfirmation.show(
-                itemsOverLimit: itemsOverLimit,
-                historyLimit: currentHistoryLimit,
-                requiredHistoryLimit:
-                    requiredHistoryLimit,
-                maximumAllowedHistoryLimit:
-                    ClipboardStore.maximumHistoryLimit
-            )
-
-            switch choice {
-            case .replace:
-                let replacementResult =
-                    clipboardStore
-                        .replaceHistoryWithBackupItems(
-                            backupItems
-                        )
-
-                BackupImportSuccessAlert.show(
-                    importedCount:
-                        replacementResult.imported,
-                    duplicateCount:
-                        replacementResult.duplicates,
-                    skippedDueToLimitCount:
-                        replacementResult.skippedDueToLimit,
-                    replacedHistory: true
+        if requiredHistoryLimit <=
+            currentHistoryLimit
+        {
+            decision = .keepLimit
+        } else {
+            let expandedHistoryLimit =
+                min(
+                    ClipboardImportService
+                        .roundedHistoryLimit(
+                            requiredItemCount:
+                                requiredHistoryLimit
+                        ),
+                    ClipboardStore
+                        .maximumHistoryLimit
                 )
 
-            case .openSettings:
-                openSettings()
-
-                NSApplication.shared.activate(
-                    ignoringOtherApps: true
-                )
-
-                showOpenSettingsInstructions(
+            let choice =
+                BackupImportLimitConfirmation.show(
                     currentHistoryLimit:
                         currentHistoryLimit,
                     requiredHistoryLimit:
-                        requiredHistoryLimit
+                        requiredHistoryLimit,
+                    expandedHistoryLimit:
+                        expandedHistoryLimit,
+                    maximumAllowedHistoryLimit:
+                        ClipboardStore
+                            .maximumHistoryLimit
                 )
+
+            switch choice {
+            case .expandLimit:
+                decision = .expandLimit
+
+            case .keepLimit:
+                decision = .keepLimit
 
             case .cancel:
                 return
             }
         }
-    }
 
-    @MainActor
-    private static func showOpenSettingsInstructions(
-        currentHistoryLimit: Int,
-        requiredHistoryLimit: Int
-    ) {
-        let alert = NSAlert()
+        let result =
+            clipboardStore.applyBackupImport(
+                plan: plan,
+                decision: decision
+            )
 
-        alert.messageText =
-            "Increase the History Limit"
-
-        alert.informativeText =
-            """
-            The backup has not been imported.
-
-            Increase the History Limit from \(currentHistoryLimit) to at least \(requiredHistoryLimit), then run the import again.
-            """
-
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "OK")
-        alert.runModal()
+        BackupImportSuccessAlert.show(
+            importedCount:
+                result.importedCount,
+            duplicateCount:
+                result.duplicateCount,
+            skippedDueToLimitCount:
+                result.skippedDueToLimitCount,
+            replacedHistory: false,
+            resultingHistoryLimit:
+                result.resultingHistoryLimit,
+            didExpandHistoryLimit:
+                result.didExpandHistoryLimit
+        )
     }
 }
