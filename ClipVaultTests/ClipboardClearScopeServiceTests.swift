@@ -351,6 +351,52 @@ struct ClipboardClearScopeServiceTests {
     }
 
     @Test
+    func textScopeUsesStoredContentKindInsteadOfReclassifyingText() {
+        let explicitlyTextItem =
+            ClipboardItem(
+                text: "https://example.com",
+                contentKind: .text
+            )
+
+        let result =
+            ClipboardClearScopeService.result(
+                from: [explicitlyTextItem],
+                contentScope: .text,
+                searchText: ""
+            )
+
+        #expect(
+            result.normalItems ==
+                [
+                    explicitlyTextItem
+                ]
+        )
+    }
+
+    @Test
+    func linksScopeUsesStoredContentKindInsteadOfReclassifyingText() {
+        let explicitlyLinkedItem =
+            ClipboardItem(
+                text: "Not visually formatted as a URL",
+                contentKind: .link
+            )
+
+        let result =
+            ClipboardClearScopeService.result(
+                from: [explicitlyLinkedItem],
+                contentScope: .links,
+                searchText: ""
+            )
+
+        #expect(
+            result.normalItems ==
+                [
+                    explicitlyLinkedItem
+                ]
+        )
+    }
+
+    @Test
     func imagesScopeIsEmptyUntilImageSupportExists() {
         let item =
             makeItem(

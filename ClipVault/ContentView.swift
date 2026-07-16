@@ -60,24 +60,26 @@ struct ContentView: View {
                     return true
                 }
 
-                return !ClipboardLinkClassificationService.isLink(
-                    $0.text
-                )
+                return $0.contentKind == .text
             }
 
         case .links:
             return clipboardStore.items.filter {
-                guard $0.kind == .normal else {
-                    return false
-                }
-
-                return ClipboardLinkClassificationService.isLink(
-                    $0.text
-                )
+                $0.kind == .normal &&
+                $0.contentKind == .link
             }
 
-        case .images, .files:
-            return []
+        case .images:
+            return clipboardStore.items.filter {
+                $0.kind == .normal &&
+                $0.contentKind == .image
+            }
+
+        case .files:
+            return clipboardStore.items.filter {
+                $0.kind == .normal &&
+                $0.contentKind == .files
+            }
         }
     }
     

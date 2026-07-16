@@ -17,6 +17,18 @@ enum ClipboardItemOrigin: String, Codable {
     case restored
 }
 
+enum ClipboardContentKind:
+    String,
+    Codable,
+    Equatable,
+    Sendable
+{
+    case text
+    case link
+    case image
+    case files
+}
+
 struct ClipboardItem: Identifiable, Equatable, Codable {
     let id: UUID
     let text: String
@@ -25,9 +37,10 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
     let sourceAppName: String?
     let sourceBundleIdentifier: String?
     let origin: ClipboardItemOrigin
+    let contentKind: ClipboardContentKind
     let isPinned: Bool
     let pinnedAt: Date?
-
+    
     init(
         id: UUID = UUID(),
         text: String,
@@ -36,6 +49,7 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
         sourceAppName: String? = nil,
         sourceBundleIdentifier: String? = nil,
         origin: ClipboardItemOrigin = .captured,
+        contentKind: ClipboardContentKind? = nil,
         isPinned: Bool = false,
         pinnedAt: Date? = nil
     ) {
@@ -46,6 +60,12 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
         self.sourceAppName = sourceAppName
         self.sourceBundleIdentifier = sourceBundleIdentifier
         self.origin = origin
+        self.contentKind =
+            contentKind ??
+            ClipboardItem.inferredContentKind(
+                text: text,
+                itemKind: kind
+            )
         self.isPinned = isPinned
         self.pinnedAt = isPinned ? pinnedAt : nil
     }
@@ -66,6 +86,7 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
             sourceBundleIdentifier:
                 sourceBundleIdentifier,
             origin: origin,
+            contentKind: contentKind,
             isPinned: true,
             pinnedAt: pinnedAt
         )
@@ -81,6 +102,7 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
             sourceBundleIdentifier:
                 sourceBundleIdentifier,
             origin: origin,
+            contentKind: contentKind,
             isPinned: false,
             pinnedAt: nil
         )
@@ -95,6 +117,7 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
             sourceAppName: sourceAppName,
             sourceBundleIdentifier: sourceBundleIdentifier,
             origin: .restored,
+            contentKind: contentKind,
             isPinned: isPinned,
             pinnedAt: pinnedAt
         )
@@ -108,6 +131,7 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
         case sourceAppName
         case sourceBundleIdentifier
         case origin
+        case contentKind
         case isPinned
         case pinnedAt
     }
@@ -152,6 +176,16 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
             forKey: .origin
         ) ?? .captured
 
+        contentKind =
+            try container.decodeIfPresent(
+                ClipboardContentKind.self,
+                forKey: .contentKind
+            ) ??
+            ClipboardItem.inferredContentKind(
+                text: text,
+                itemKind: kind
+            )
+
         isPinned = try container.decodeIfPresent(
             Bool.self,
             forKey: .isPinned
@@ -165,5 +199,20 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
         } else {
             pinnedAt = nil
         }
+    }
+
+    private static func inferredContentKind(
+        text: String,
+        itemKind: ClipboardItemKind
+    ) -> ClipboardContentKind {
+        guard itemKind == .normal else {
+            return .text
+        }
+
+        return ClipboardLinkClassificationService.isLink(
+            text
+        )
+            ? .link
+            : .text
     }
 }

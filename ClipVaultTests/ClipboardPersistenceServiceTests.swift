@@ -160,7 +160,8 @@ final class ClipboardPersistenceServiceTests: XCTestCase {
             sourceAppName: "TextEdit",
             sourceBundleIdentifier:
                 "com.apple.TextEdit",
-            origin: .restored
+            origin: .restored,
+            contentKind: .link
         )
 
         let pinnedItem =
@@ -189,6 +190,10 @@ final class ClipboardPersistenceServiceTests: XCTestCase {
             pinnedItem.origin,
             .restored
         )
+        XCTAssertEqual(
+            pinnedItem.contentKind,
+            .link
+        )
         XCTAssertTrue(pinnedItem.isPinned)
         XCTAssertEqual(
             pinnedItem.pinnedAt,
@@ -208,6 +213,7 @@ final class ClipboardPersistenceServiceTests: XCTestCase {
             sourceBundleIdentifier:
                 "com.apple.Notes",
             origin: .captured,
+            contentKind: .link,
             isPinned: true,
             pinnedAt: date(2026, 7, 15)
         )
@@ -239,6 +245,10 @@ final class ClipboardPersistenceServiceTests: XCTestCase {
             unpinnedItem.origin,
             .captured
         )
+        XCTAssertEqual(
+            unpinnedItem.contentKind,
+            .link
+        )
         XCTAssertFalse(
             unpinnedItem.isPinned
         )
@@ -267,6 +277,61 @@ final class ClipboardPersistenceServiceTests: XCTestCase {
         )
         XCTAssertNil(
             result.pinnedAt
+        )
+    }
+    
+    func testContentKindSurvivesPersistence() async throws {
+        let testStorage = try makeTestStorage()
+        defer {
+            removeTestStorage(testStorage)
+        }
+
+        let service = ClipboardPersistenceService(
+            storageURL: testStorage.fileURL
+        )
+
+        let linkItem = ClipboardItem(
+            text: "https://example.com",
+            contentKind: .link
+        )
+
+        try await service.saveItems([
+            linkItem
+        ])
+
+        let loadedItems =
+            try await service.loadItems()
+
+        XCTAssertEqual(loadedItems.count, 1)
+        XCTAssertEqual(
+            loadedItems.first?.contentKind,
+            .link
+        )
+        XCTAssertEqual(
+            loadedItems.first,
+            linkItem
+        )
+    }
+
+    func testNewNormalItemsInferLinkContentKind() {
+        let item = ClipboardItem(
+            text: "https://example.com/path"
+        )
+
+        XCTAssertEqual(
+            item.contentKind,
+            .link
+        )
+    }
+
+    func testNewNormalItemsInferTextContentKind() {
+        let item = ClipboardItem(
+            text: "Ordinary clipboard text"
+        )
+
+        XCTAssertEqual(
+            item.contentKind,
+            .text
         )
     }
     
@@ -358,12 +423,58 @@ final class ClipboardPersistenceServiceTests: XCTestCase {
         )
 
         XCTAssertEqual(
+            loadedItems.first?.contentKind,
+            .text
+        )
+
+        XCTAssertEqual(
             loadedItems.first?.isPinned,
             false
         )
 
         XCTAssertNil(
             loadedItems.first?.pinnedAt
+        )
+    }
+    
+    func testLegacySavedLinkWithoutContentKindDecodesAsLink() throws {
+        let testStorage = try makeTestStorage()
+        defer {
+            removeTestStorage(testStorage)
+        }
+
+        let itemID = UUID()
+
+        let storedJSON = """
+        [
+          {
+            "id": "\(itemID.uuidString)",
+            "text": "https://example.com",
+            "createdAt": 599572800,
+            "kind": "normal",
+            "sourceAppName": null,
+            "sourceBundleIdentifier": null,
+            "origin": "captured",
+            "isPinned": false,
+            "pinnedAt": null
+          }
+        ]
+        """
+
+        try Data(storedJSON.utf8).write(
+            to: testStorage.fileURL,
+            options: .atomic
+        )
+
+        let loadedItems =
+            try ClipboardPersistenceService.loadItems(
+                from: testStorage.fileURL
+            )
+
+        XCTAssertEqual(loadedItems.count, 1)
+        XCTAssertEqual(
+            loadedItems.first?.contentKind,
+            .link
         )
     }
     

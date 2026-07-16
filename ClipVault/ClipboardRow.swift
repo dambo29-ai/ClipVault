@@ -120,9 +120,8 @@ struct ClipboardRow: View {
     }
     
     private var isLink: Bool {
-        ClipboardLinkClassificationService.isLink(
-            item.text
-        )
+        item.kind == .normal &&
+        item.contentKind == .link
     }
 
     private var linkURL: URL? {

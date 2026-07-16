@@ -134,23 +134,22 @@ enum ClipboardClearScopeService {
                 return true
             }
 
-            return
-                !ClipboardLinkClassificationService.isLink(
-                    item.text
-                )
+            return item.contentKind == .text
 
         case .links:
-            guard item.kind == .normal else {
-                return false
-            }
-
             return
-                ClipboardLinkClassificationService.isLink(
-                    item.text
-                )
+                item.kind == .normal &&
+                item.contentKind == .link
 
-        case .images, .files:
-            return false
+        case .images:
+            return
+                item.kind == .normal &&
+                item.contentKind == .image
+
+        case .files:
+            return
+                item.kind == .normal &&
+                item.contentKind == .files
         }
     }
 }
