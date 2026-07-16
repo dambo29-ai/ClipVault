@@ -198,6 +198,19 @@ struct ContentView: View {
         hasActiveSearch || isRecentSectionExpanded
     }
     
+    private var highlightedPinnedItemIsVisible: Bool {
+        guard
+            let highlightedPinnedItemID =
+                clipboardStore.highlightedPinnedItemID
+        else {
+            return false
+        }
+
+        return pinnedItems.contains {
+            $0.id == highlightedPinnedItemID
+        }
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
             headerView
@@ -246,6 +259,20 @@ struct ContentView: View {
                 searchText = ""
             } else if isSearchFocused {
                 isSearchFocused = false
+            }
+        }
+        .onChange(
+            of: clipboardStore.highlightedPinnedItemID
+        ) {
+            _,
+            highlightedItemID in
+
+            guard highlightedItemID != nil else {
+                return
+            }
+
+            if highlightedPinnedItemIsVisible {
+                isPinnedSectionExpanded = true
             }
         }
     }
@@ -477,6 +504,9 @@ struct ContentView: View {
             ClipboardRow(
                 item: item,
                 displayNumber: rowDisplayNumber,
+                isHighlighted:
+                    clipboardStore.highlightedPinnedItemID ==
+                        item.id,
                 onCopy: {
                     clipboardStore.copyToClipboard(item)
                 },

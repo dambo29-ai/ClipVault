@@ -62,6 +62,7 @@ final class ClipboardStore: ObservableObject {
     @Published private(set) var knownAppRecords: [String: KnownAppRecord] = [:]
     @Published private(set) var appRuleModes: [String: AppRuleMode] = [:]
     @Published private(set) var isRefreshingAvailableApps = false
+    @Published private(set) var highlightedPinnedItemID: UUID?
     
     private let maxItemCountKey = "maxItemCount"
     private let historyRetentionOptionKey = "historyRetentionOption"
@@ -74,6 +75,7 @@ final class ClipboardStore: ObservableObject {
     private let clipboardMonitoringService = ClipboardMonitoringService()
 
     private var appDiscoveryTask: Task<Void, Never>?
+    private var pinnedHighlightTask: Task<Void, Never>?
     
     // Old key retained only so we can migrate existing Allowed/Blocked choices.
     private let legacyBlockedAppGroupIDsKey = "blockedAppGroupIDs"
@@ -551,13 +553,19 @@ final class ClipboardStore: ObservableObject {
             return .skippedSensitive
         }
 
-        if items.contains(
-            where: {
-                $0.kind == .normal &&
-                $0.isPinned &&
-                $0.text == cleanedText
-            }
-        ) {
+        if let pinnedItem =
+            items.first(
+                where: {
+                    $0.kind == .normal &&
+                        $0.isPinned &&
+                        $0.text == cleanedText
+                }
+            )
+        {
+            signalPinnedDuplicate(
+                itemID: pinnedItem.id
+            )
+
             applyRetentionRules()
             saveItems()
 
@@ -615,6 +623,34 @@ final class ClipboardStore: ObservableObject {
             
             return .allowed
         }
+    }
+    
+    private func signalPinnedDuplicate(
+        itemID: UUID
+    ) {
+        pinnedHighlightTask?.cancel()
+
+        highlightedPinnedItemID = itemID
+
+        pinnedHighlightTask =
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(
+                    for: .milliseconds(900)
+                )
+
+                guard !Task.isCancelled else {
+                    return
+                }
+
+                guard
+                    self?.highlightedPinnedItemID ==
+                        itemID
+                else {
+                    return
+                }
+
+                self?.highlightedPinnedItemID = nil
+            }
     }
     
     private func applyRetentionRules() {

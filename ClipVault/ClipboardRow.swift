@@ -11,6 +11,7 @@ import SwiftUI
 struct ClipboardRow: View {
     let item: ClipboardItem
     let displayNumber: Int?
+    let isHighlighted: Bool
     let onCopy: () -> Void
     let onPin: () -> Void
     let onUnpin: () -> Void
@@ -19,13 +20,25 @@ struct ClipboardRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             numberView
-            
+
             if item.kind == .sensitiveSkipped {
                 sensitiveSkippedRow
             } else {
                 normalRow
             }
         }
+        .background {
+            RoundedRectangle(cornerRadius: 6)
+                .fill(
+                    isHighlighted
+                        ? Color.accentColor.opacity(0.16)
+                        : Color.clear
+                )
+        }
+        .animation(
+            .easeInOut(duration: 0.22),
+            value: isHighlighted
+        )
     }
     
     @ViewBuilder
