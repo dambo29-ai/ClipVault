@@ -54,6 +54,12 @@ enum ClipboardPayload:
     var compatibilityText: String {
         searchableText
     }
+    
+    var duplicateKey: String {
+        searchableText.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
+    }
 
     static func inferred(
         from text: String,

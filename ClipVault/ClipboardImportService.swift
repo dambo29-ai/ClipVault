@@ -71,7 +71,7 @@ enum ClipboardImportService {
         let existingKeys = Set(
             existingItems
                 .filter { $0.kind == .normal }
-                .map { duplicateKey(for: $0.text) }
+                .map(\.duplicateKey)
         )
 
         var importedItems: [ClipboardItem] = []
@@ -79,7 +79,7 @@ enum ClipboardImportService {
         var seenBackupKeys = Set<String>()
 
         for item in backupItems where item.kind == .normal {
-            let key = duplicateKey(for: item.text)
+            let key = item.duplicateKey
 
             if existingKeys.contains(key) ||
                 seenBackupKeys.contains(key) {
@@ -144,7 +144,7 @@ enum ClipboardImportService {
         var duplicateCount = 0
 
         for item in backupItems where item.kind == .normal {
-            let key = duplicateKey(for: item.text)
+            let key = item.duplicateKey
 
             if seenKeys.contains(key) {
                 duplicateCount += 1
@@ -190,7 +190,7 @@ enum ClipboardImportService {
             preparedItems.enumerated()
         where item.kind == .normal {
             itemIndexByKey[
-                duplicateKey(for: item.text)
+                item.duplicateKey
             ] = index
         }
 
@@ -203,9 +203,7 @@ enum ClipboardImportService {
                 backupItem.restoredCopy()
 
             let key =
-                duplicateKey(
-                    for: restoredItem.text
-                )
+                restoredItem.duplicateKey
 
             if let existingIndex =
                 itemIndexByKey[key]
@@ -265,9 +263,7 @@ enum ClipboardImportService {
                 backupItem.restoredCopy()
 
             let key =
-                duplicateKey(
-                    for: restoredItem.text
-                )
+                restoredItem.duplicateKey
 
             if let existingIndex =
                 itemIndexByKey[key]
@@ -462,14 +458,6 @@ enum ClipboardImportService {
             remainingUnpinnedSlots -= 1
             return true
         }
-    }
-
-    private static func duplicateKey(
-        for text: String
-    ) -> String {
-        text.trimmingCharacters(
-            in: .whitespacesAndNewlines
-        )
     }
 }
 

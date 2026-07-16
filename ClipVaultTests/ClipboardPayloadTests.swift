@@ -28,11 +28,27 @@ struct ClipboardPayloadTests {
         )
 
         #expect(
-            payload.compatibilityText ==
+            payload.duplicateKey ==
                 "Ordinary clipboard text"
         )
     }
 
+    @Test
+    func duplicateKeyTrimsOnlySurroundingWhitespace() {
+        let payload =
+            ClipboardPayload.text(
+                ClipboardTextPayload(
+                    text:
+                        "  Multi word clipboard text \n"
+                )
+            )
+
+        #expect(
+            payload.duplicateKey ==
+                "Multi word clipboard text"
+        )
+    }
+    
     @Test
     func linkPayloadProvidesLinkClassificationAndSearchText() {
         let payload =

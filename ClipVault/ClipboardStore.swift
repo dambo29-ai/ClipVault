@@ -680,6 +680,15 @@ final class ClipboardStore: ObservableObject {
         guard !cleanedText.isEmpty else {
             return .skippedEmpty
         }
+        
+        let capturedPayload =
+            ClipboardPayload.inferred(
+                from: cleanedText,
+                itemKind: .normal
+            )
+
+        let capturedDuplicateKey =
+            capturedPayload.duplicateKey
 
         let sourceAppName =
             payload.sourceAppName
@@ -736,7 +745,8 @@ final class ClipboardStore: ObservableObject {
                 where: {
                     $0.kind == .normal &&
                         $0.isPinned &&
-                        $0.text == cleanedText
+                        $0.duplicateKey ==
+                            capturedDuplicateKey
                 }
             )
         {
@@ -751,7 +761,7 @@ final class ClipboardStore: ObservableObject {
         }
 
         let newItem = ClipboardItem(
-            text: cleanedText,
+            payload: capturedPayload,
             createdAt: Date(),
             sourceAppName: sourceAppName,
             sourceBundleIdentifier:
@@ -760,7 +770,8 @@ final class ClipboardStore: ObservableObject {
 
         items.removeAll {
             $0.kind == .normal &&
-                $0.text == cleanedText
+                $0.duplicateKey ==
+                    capturedDuplicateKey
         }
 
         items.insert(

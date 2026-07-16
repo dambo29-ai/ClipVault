@@ -103,9 +103,10 @@ enum ClipboardClearScopeService {
         } else {
             searchScopedItems =
                 contentScopedItems.filter {
-                    $0.text.localizedCaseInsensitiveContains(
-                        trimmedSearchText
-                    )
+                    $0.searchableText
+                        .localizedCaseInsensitiveContains(
+                            trimmedSearchText
+                        )
                 }
         }
 

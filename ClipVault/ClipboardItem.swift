@@ -47,6 +47,10 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
     var searchableText: String {
         payload.searchableText
     }
+    
+    var duplicateKey: String {
+        payload.duplicateKey
+    }
 
     var contentKind: ClipboardContentKind {
         payload.contentKind

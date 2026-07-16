@@ -94,9 +94,10 @@ struct ContentView: View {
         }
 
         return contentFilteredItems.filter {
-            $0.text.localizedCaseInsensitiveContains(
-                trimmedSearchText
-            )
+            $0.searchableText
+                .localizedCaseInsensitiveContains(
+                    trimmedSearchText
+                )
         }
     }
     
