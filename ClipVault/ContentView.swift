@@ -763,22 +763,9 @@ struct ContentView: View {
                     .orderedSame
             }
 
-        let legacyJSONBackupURLs =
-            fileURLs.filter {
-                $0.pathExtension
-                    .localizedCaseInsensitiveCompare(
-                        "json"
-                    ) ==
-                    .orderedSame
-            }
-
-        let backupURLs =
-            packageBackupURLs +
-            legacyJSONBackupURLs
-
-        if !backupURLs.isEmpty {
+        if !packageBackupURLs.isEmpty {
             guard
-                backupURLs.count == 1,
+                packageBackupURLs.count == 1,
                 fileURLs.count == 1,
                 failedProviderCount == 0
             else {
@@ -787,7 +774,7 @@ struct ContentView: View {
                         "Import Failed",
                     message:
                         """
-                        A ClipVault backup must be dropped by itself. Drop one .clipvaultbackup package, one legacy JSON backup, or only image files.
+                        A ClipVault backup must be dropped by itself. Drop one .clipvaultbackup package or only image files.
                         """
                 )
 
@@ -796,7 +783,7 @@ struct ContentView: View {
 
             importDroppedBackup(
                 from:
-                    backupURLs[0]
+                    packageBackupURLs[0]
             )
 
             return
@@ -865,66 +852,52 @@ struct ContentView: View {
     ) {
         Task { @MainActor in
             do {
-                let pathExtension =
+                guard
                     backupURL
                         .pathExtension
-                        .lowercased()
-
-                if pathExtension ==
-                    ClipboardBackupPackageService
-                        .packageExtension
-                {
-                    let packageContents =
-                        try ClipboardBackupPackageImportService
-                            .shared
-                            .readPackage(
-                                at:
-                                    backupURL
-                            )
-
-                    let restoration =
-                        try await ClipboardBackupPackageImportService
-                            .shared
-                            .restorePackage(
-                                packageContents
-                            )
-
-                    await BackupImportWorkflow
-                        .handlePackageRestoration(
-                            restoration,
-                            clipboardStore:
-                                clipboardStore
-                        )
-                } else if pathExtension ==
-                            "json"
-                {
-                    let backupItems =
-                        try ClipboardImportService
-                            .itemsFromJSONBackup(
-                                at:
-                                    backupURL
-                            )
-
-                    BackupImportWorkflow.handle(
-                        backupItems:
-                            backupItems,
-                        clipboardStore:
-                            clipboardStore
-                    )
-                } else {
+                        .localizedCaseInsensitiveCompare(
+                            ClipboardBackupPackageService
+                                .packageExtension
+                        ) ==
+                        .orderedSame
+                else {
                     OperationFailureAlert.show(
                         title:
                             "Backup Import Failed",
                         message:
-                            "Drop a .clipvaultbackup package or a legacy ClipVault JSON backup."
+                            "Drop a .clipvaultbackup package."
                     )
+
+                    return
                 }
+
+                let packageContents =
+                    try ClipboardBackupPackageImportService
+                        .shared
+                        .readPackage(
+                            at:
+                                backupURL
+                        )
+
+                let restoration =
+                    try await ClipboardBackupPackageImportService
+                        .shared
+                        .restorePackage(
+                            packageContents
+                        )
+
+                await BackupImportWorkflow
+                    .handlePackageRestoration(
+                        restoration,
+                        clipboardStore:
+                            clipboardStore
+                    )
             } catch {
                 OperationFailureAlert.show(
                     title:
                         "Backup Import Failed",
                     message:
-                        "ClipVault could not import the dropped backup.",
+                        "ClipVault could not import the dropped backup package.",
                     error:
                         error
                 )

@@ -383,7 +383,7 @@ Confirm the intended defaults where installed:
 Expected filename format:
 
 ```text
-ClipVault Backup yyyy-MM-dd HH-mm-ss.json
+ClipVault Backup yyyy-MM-dd HH-mm-ss.clipvaultbackup
 
 ---
 
@@ -392,7 +392,7 @@ ClipVault Backup yyyy-MM-dd HH-mm-ss.json
 ### Import Entry Points
 
 * [ ] Import Latest Backup works.
-* [ ] Dragging a valid ClipVault JSON backup into the main window works.
+* [ ] Dragging a valid .clipvaultbackup package into the main window works.
 * [ ] Both import entry points produce consistent results and alerts.
 * [ ] Both import entry points use the same duplicate, limit, and replacement behavior.
 

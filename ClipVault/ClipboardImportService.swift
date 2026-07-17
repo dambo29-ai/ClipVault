@@ -8,62 +8,7 @@
 import Foundation
 
 enum ClipboardImportService {
-    static func itemsFromLatestJSONBackup() throws -> [ClipboardItem] {
-        let backupURL = try ClipboardHistoryExportService.latestJSONBackupURL()
-
-        return try itemsFromJSONBackup(
-            at: backupURL
-        )
-    }
-
-    static func itemsFromJSONBackup(
-        at backupURL: URL
-    ) throws -> [ClipboardItem] {
-        guard backupURL.pathExtension.lowercased() == "json" else {
-            throw ClipboardImportError.invalidFileType
-        }
-
-        let didStartAccessing =
-            backupURL.startAccessingSecurityScopedResource()
-
-        defer {
-            if didStartAccessing {
-                backupURL.stopAccessingSecurityScopedResource()
-            }
-        }
-
-        let data = try Data(
-            contentsOf: backupURL
-        )
-
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-
-        let backup: ClipboardHistoryBackup
-
-        do {
-            backup = try decoder.decode(
-                ClipboardHistoryBackup.self,
-                from: data
-            )
-        } catch {
-            throw ClipboardImportError.invalidClipVaultBackup
-        }
-
-        guard backup.appName == "ClipVault" else {
-            throw ClipboardHistoryExportError.invalidBackupAppName
-        }
-
-        guard backup.formatVersion == 1 else {
-            throw ClipboardHistoryExportError.unsupportedBackupFormat
-        }
-
-        return backup.items.filter {
-            $0.kind == .normal
-        }
-    }
-
-    static func prepareImport(
+        static func prepareImport(
         existingItems: [ClipboardItem],
         backupItems: [ClipboardItem],
         maximumItemCount: Int
@@ -457,21 +402,6 @@ enum ClipboardImportService {
 
             remainingUnpinnedSlots -= 1
             return true
-        }
-    }
-}
-
-enum ClipboardImportError: LocalizedError, Equatable {
-    case invalidFileType
-    case invalidClipVaultBackup
-
-    var errorDescription: String? {
-        switch self {
-        case .invalidFileType:
-            return "Please select a ClipVault JSON backup file."
-
-        case .invalidClipVaultBackup:
-            return "This JSON file is not a valid ClipVault backup."
         }
     }
 }

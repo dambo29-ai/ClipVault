@@ -8,31 +8,19 @@
 import AppKit
 import Foundation
 
-enum ClipboardHistoryExportError: LocalizedError, Equatable {
+enum ClipboardHistoryExportError:
+    LocalizedError,
+    Equatable
+{
     case noHistory
-    case noBackupsFound
-    case unsupportedBackupFormat
-    case invalidBackupAppName
-    
+
     var errorDescription: String? {
         switch self {
         case .noHistory:
-            return "ClipVault does not have any saved clipboard history yet."
-        case .noBackupsFound:
-            return "ClipVault could not find any JSON backup files in the Exports folder."
-        case .unsupportedBackupFormat:
-            return "This backup file uses an unsupported format version."
-        case .invalidBackupAppName:
-            return "This file does not appear to be a ClipVault backup."
+            return
+                "ClipVault does not have any saved clipboard history yet."
         }
     }
-}
-
-struct ClipboardHistoryBackup: Codable {
-    let appName: String
-    let formatVersion: Int
-    let exportedAt: Date
-    let items: [ClipboardItem]
 }
 
 struct BackupCleanupResult {
@@ -59,150 +47,9 @@ enum ClipboardHistoryExportService {
         return exportURL
     }
     
-    static func exportJSONBackup(_ items: [ClipboardItem]) throws -> URL {
-        let normalItems = items.filter { $0.kind == .normal }
-        
-        guard !normalItems.isEmpty else {
-            throw ClipboardHistoryExportError.noHistory
-        }
-        
-        let backup = ClipboardHistoryBackup(
-            appName: "ClipVault",
-            formatVersion: 1,
-            exportedAt: Date(),
-            items: normalItems
-        )
-        
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [
-            .prettyPrinted,
-            .sortedKeys
-        ]
-        encoder.dateEncodingStrategy = .iso8601
-        
-        let data = try encoder.encode(backup)
-        
-        let exportURL = try makeExportURL(
-            prefix: "ClipVault Backup",
-            fileExtension: "json"
-        )
-        
-        try data.write(to: exportURL, options: .atomic)
-        
-        return exportURL
-    }
-    
-    static func latestJSONBackupURL() throws -> URL {
-        let backupURLs = try sortedJSONBackupURLsNewestFirst()
-        
-        guard let latestBackupURL = backupURLs.first else {
-            throw ClipboardHistoryExportError.noBackupsFound
-        }
-        
-        return latestBackupURL
-    }
-    
-    static func revealLatestJSONBackup() throws {
-        let latestBackupURL = try latestJSONBackupURL()
-        NSWorkspace.shared.activateFileViewerSelecting([latestBackupURL])
-    }
-    
     static func revealExportsFolder() throws {
         let exportsFolderURL = try makeExportsFolderURL()
         NSWorkspace.shared.open(exportsFolderURL)
-    }
-    
-    static func deleteOldJSONBackups(keepingMostRecent keepCount: Int) throws -> BackupCleanupResult {
-        let safeKeepCount = max(keepCount, 1)
-        let backupURLs = try sortedJSONBackupURLsNewestFirst()
-        
-        guard !backupURLs.isEmpty else {
-            throw ClipboardHistoryExportError.noBackupsFound
-        }
-        
-        let backupURLsToKeep = Array(backupURLs.prefix(safeKeepCount))
-        let backupURLsToDelete = Array(backupURLs.dropFirst(safeKeepCount))
-        
-        for backupURL in backupURLsToDelete {
-            try FileManager.default.removeItem(at: backupURL)
-        }
-        
-        return BackupCleanupResult(
-            deletedCount: backupURLsToDelete.count,
-            keptCount: backupURLsToKeep.count
-        )
-    }
-    
-    private static func sortedJSONBackupURLsNewestFirst() throws -> [URL] {
-        let exportsFolderURL =
-            try makeExportsFolderURL()
-
-        let fileURLs =
-            try FileManager.default.contentsOfDirectory(
-                at: exportsFolderURL,
-                includingPropertiesForKeys: nil,
-                options: [.skipsHiddenFiles]
-            )
-
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-
-        let validBackups:
-            [(url: URL, exportedAt: Date)] =
-                fileURLs.compactMap {
-                    url in
-
-                    guard
-                        url.pathExtension
-                            .lowercased() == "json"
-                    else {
-                        return nil
-                    }
-
-                    guard
-                        let data = try? Data(
-                            contentsOf: url
-                        ),
-                        let backup =
-                            try? decoder.decode(
-                                ClipboardHistoryBackup.self,
-                                from: data
-                            ),
-                        backup.appName == "ClipVault",
-                        backup.formatVersion == 1
-                    else {
-                        return nil
-                    }
-
-                    return (
-                        url: url,
-                        exportedAt: backup.exportedAt
-                    )
-                }
-
-        return validBackups
-            .sorted {
-                firstBackup,
-                secondBackup in
-
-                if firstBackup.exportedAt !=
-                    secondBackup.exportedAt
-                {
-                    return
-                        firstBackup.exportedAt >
-                        secondBackup.exportedAt
-                }
-
-                return
-                    firstBackup.url.lastPathComponent
-                        .localizedStandardCompare(
-                            secondBackup
-                                .url
-                                .lastPathComponent
-                        ) ==
-                        .orderedDescending
-            }
-            .map(\.url)
     }
     
     private static func makeExportURL(
