@@ -88,6 +88,12 @@ struct ClipboardRow: View {
                     }
                 }
 
+                if item.imagePayload != nil {
+                    Button("Preview") {
+                        previewImage()
+                    }
+                }
+
                 if item.isPinned {
                     Button("Unpin") {
                         onUnpin()
@@ -110,6 +116,10 @@ struct ClipboardRow: View {
 
             if isLink {
                 openLinkButton
+            }
+
+            if item.imagePayload != nil {
+                previewImageButton
             }
 
             pinButton
@@ -213,6 +223,35 @@ struct ClipboardRow: View {
 
         NSWorkspace.shared.open(linkURL)
     }
+    
+    private func previewImage() {
+        guard
+            let imagePayload =
+                item.imagePayload
+        else {
+            return
+        }
+
+        Task { @MainActor in
+            do {
+                try await
+                    ClipboardImageQuickLookService
+                        .shared
+                        .showPreview(
+                            for:
+                                imagePayload
+                        )
+            } catch {
+                OperationFailureAlert.show(
+                    title:
+                        "Image Could Not Be Previewed",
+                    message:
+                        "The stored image could not be opened in Quick Look.",
+                    error: error
+                )
+            }
+        }
+    }
 
     private var sensitiveSkippedRow: some View {
         HStack(spacing: 8) {
@@ -272,6 +311,33 @@ struct ClipboardRow: View {
             item.isPinned
                 ? "Unpin clipboard item"
                 : "Pin clipboard item"
+        )
+    }
+    
+    private var previewImageButton:
+        some View
+    {
+        Button(
+            action: previewImage
+        ) {
+            Image(
+                systemName: "eye"
+            )
+            .foregroundStyle(
+                .secondary
+            )
+            .frame(
+                width: 28,
+                height: 28
+            )
+            .contentShape(
+                Rectangle()
+            )
+        }
+        .buttonStyle(.borderless)
+        .help("Preview image")
+        .accessibilityLabel(
+            "Preview image"
         )
     }
     
