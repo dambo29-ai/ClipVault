@@ -121,20 +121,34 @@ struct ClipVaultApp: App {
                 )
                 
                 Button("Import Latest Backup") {
-                    DispatchQueue.main.async {
+                    Task { @MainActor in
                         do {
-                            let backupItems =
-                                try ClipboardImportService.itemsFromLatestJSONBackup()
-                            
-                            BackupImportWorkflow.handle(
-                                backupItems: backupItems,
-                                clipboardStore: clipboardStore
-                            )
+                            let packageContents =
+                                try ClipboardBackupPackageImportService
+                                    .shared
+                                    .readLatestPackage()
+
+                            let restoration =
+                                try await ClipboardBackupPackageImportService
+                                    .shared
+                                    .restorePackage(
+                                        packageContents
+                                    )
+
+                            await BackupImportWorkflow
+                                .handlePackageRestoration(
+                                    restoration,
+                                    clipboardStore:
+                                        clipboardStore
+                                )
                         } catch {
                             OperationFailureAlert.show(
-                                title: "Backup Import Failed",
-                                message: "ClipVault could not import the latest backup.",
-                                error: error
+                                title:
+                                    "Backup Import Failed",
+                                message:
+                                    "ClipVault could not import the latest backup package.",
+                                error:
+                                    error
                             )
                         }
                     }
@@ -374,7 +388,7 @@ private func showClipVaultHelpAlert(backupKeepCount: Int) {
     appendSection(
         to: helpText,
         heading: "Backups",
-        body: "Export Backup creates a .clipvaultbackup package containing the history manifest and managed image files, then automatically keeps only the newest \(backupKeepCount) package(s).\nImport Latest Backup temporarily continues to import the newest legacy ClipVault JSON backup from the Exports folder until package restoration is added.\nYou can also continue dragging a legacy ClipVault JSON backup file onto the main ClipVault window.\nReveal Latest Backup opens the newest .clipvaultbackup package in Finder.\nDelete Old Backups applies the package cleanup rule.",
+        body: "Export Backup creates a .clipvaultbackup package containing the history manifest and managed image files, then automatically keeps only the newest \(backupKeepCount) package(s).\nImport Latest Backup restores the newest .clipvaultbackup package from the Exports folder, including its managed image files.\nDragging a legacy ClipVault JSON backup onto the main window remains available temporarily.\nReveal Latest Backup opens the newest .clipvaultbackup package in Finder.\nDelete Old Backups applies the package cleanup rule.",
         headingAttributes: boldAttributes,
         bodyAttributes: regularAttributes
     )
