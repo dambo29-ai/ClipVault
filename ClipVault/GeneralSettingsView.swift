@@ -200,7 +200,9 @@ struct GeneralSettingsView: View {
                     .font(.subheadline)
                     .fontWeight(.medium)
                 
-                Text("Delete Old Backups will keep the newest \(clipboardStore.backupKeepCount) JSON backup file(s).")
+                Text(
+                    "Delete Old Backups will keep the newest \(clipboardStore.backupKeepCount) .clipvaultbackup package(s)."
+                )
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

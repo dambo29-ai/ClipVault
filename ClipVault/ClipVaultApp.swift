@@ -71,26 +71,54 @@ struct ClipVaultApp: App {
 
             Menu("Backups") {
                 Button("Export Backup") {
-                    DispatchQueue.main.async {
+                    Task { @MainActor in
                         do {
-                            let exportURL = try ClipboardHistoryExportService.exportJSONBackup(clipboardStore.items)
-                            
-                            let cleanupResult = try? ClipboardHistoryExportService.deleteOldJSONBackups(
-                                keepingMostRecent: clipboardStore.backupKeepCount
+                            let exportURL =
+                                try await ClipboardBackupPackageService
+                                    .shared
+                                    .exportBackup(
+                                        items:
+                                            clipboardStore
+                                                .items
+                                    )
+
+                            let cleanupResult =
+                                try? ClipboardBackupPackageService
+                                    .shared
+                                    .deleteOldBackups(
+                                        keepingMostRecent:
+                                            clipboardStore
+                                                .backupKeepCount
+                                    )
+
+                            NSWorkspace.shared
+                                .activateFileViewerSelecting([
+                                    exportURL
+                                ])
+
+                            showBackupExportSucceededAlert(
+                                cleanupResult:
+                                    cleanupResult
                             )
-                            
-                            NSWorkspace.shared.activateFileViewerSelecting([exportURL])
-                            showBackupExportSucceededAlert(cleanupResult: cleanupResult)
                         } catch {
                             OperationFailureAlert.show(
-                                title: "Backup Export Failed",
-                                message: "ClipVault could not export a backup.",
-                                error: error
+                                title:
+                                    "Backup Export Failed",
+                                message:
+                                    "ClipVault could not export a backup.",
+                                error:
+                                    error
                             )
                         }
                     }
                 }
-                .disabled(clipboardStore.items.filter { $0.kind == .normal }.isEmpty)
+                .disabled(
+                    clipboardStore.items
+                        .filter {
+                            $0.kind == .normal
+                        }
+                        .isEmpty
+                )
                 
                 Button("Import Latest Backup") {
                     DispatchQueue.main.async {
@@ -115,14 +143,19 @@ struct ClipVaultApp: App {
                 Divider()
                 
                 Button("Reveal Latest Backup") {
-                    DispatchQueue.main.async {
+                    Task { @MainActor in
                         do {
-                            try ClipboardHistoryExportService.revealLatestJSONBackup()
+                            try ClipboardBackupPackageService
+                                .shared
+                                .revealLatestBackup()
                         } catch {
                             OperationFailureAlert.show(
-                                title: "Reveal Backup Failed",
-                                message: "ClipVault could not reveal the latest backup.",
-                                error: error
+                                title:
+                                    "Reveal Backup Failed",
+                                message:
+                                    "ClipVault could not reveal the latest backup.",
+                                error:
+                                    error
                             )
                         }
                     }
@@ -137,9 +170,13 @@ struct ClipVaultApp: App {
                         }
                         
                         do {
-                            let result = try ClipboardHistoryExportService.deleteOldJSONBackups(
-                                keepingMostRecent: keepCount
-                            )
+                            let result =
+                                try ClipboardBackupPackageService
+                                    .shared
+                                    .deleteOldBackups(
+                                        keepingMostRecent:
+                                            keepCount
+                                    )
                             
                             showOldBackupsDeletedAlert(result: result)
                         } catch {
@@ -337,7 +374,7 @@ private func showClipVaultHelpAlert(backupKeepCount: Int) {
     appendSection(
         to: helpText,
         heading: "Backups",
-        body: "Export Backup creates a JSON backup and automatically keeps only the newest \(backupKeepCount) backup file(s).\nImport Latest Backup imports the newest ClipVault backup from the Exports folder.\nYou can also drag a ClipVault JSON backup file onto the main ClipVault window to import that specific file.\nReveal Latest Backup opens the newest backup in Finder.\nDelete Old Backups manually applies the same backup cleanup rule.",
+        body: "Export Backup creates a .clipvaultbackup package containing the history manifest and managed image files, then automatically keeps only the newest \(backupKeepCount) package(s).\nImport Latest Backup temporarily continues to import the newest legacy ClipVault JSON backup from the Exports folder until package restoration is added.\nYou can also continue dragging a legacy ClipVault JSON backup file onto the main ClipVault window.\nReveal Latest Backup opens the newest .clipvaultbackup package in Finder.\nDelete Old Backups applies the package cleanup rule.",
         headingAttributes: boldAttributes,
         bodyAttributes: regularAttributes
     )
@@ -416,41 +453,80 @@ private func showExportSucceededAlert() {
 }
 
 @MainActor
-private func showBackupExportSucceededAlert(cleanupResult: BackupCleanupResult?) {
-    let alert = NSAlert()
-    alert.messageText = "Backup Exported"
-    
+private func showBackupExportSucceededAlert(
+    cleanupResult:
+        BackupCleanupResult?
+) {
+    let alert =
+        NSAlert()
+
+    alert.messageText =
+        "Backup Exported"
+
     if let cleanupResult {
         if cleanupResult.deletedCount == 0 {
-            alert.informativeText = "ClipVault exported a JSON backup and opened it in Finder.\n\nNo old backups needed to be deleted."
+            alert.informativeText =
+                "ClipVault exported a .clipvaultbackup package and opened it in Finder.\n\nNo old backup packages needed to be deleted."
         } else {
-            alert.informativeText = "ClipVault exported a JSON backup and opened it in Finder.\n\nDeleted \(cleanupResult.deletedCount) old backup file(s). Kept \(cleanupResult.keptCount) newest backup file(s)."
+            alert.informativeText =
+                "ClipVault exported a .clipvaultbackup package and opened it in Finder.\n\nDeleted \(cleanupResult.deletedCount) old backup package(s). Kept \(cleanupResult.keptCount) newest backup package(s)."
         }
     } else {
-        alert.informativeText = "ClipVault exported a JSON backup and opened it in Finder."
+        alert.informativeText =
+            "ClipVault exported a .clipvaultbackup package and opened it in Finder."
     }
-    
-    alert.alertStyle = .informational
-    alert.addButton(withTitle: "OK")
+
+    alert.alertStyle =
+        .informational
+
+    alert.addButton(
+        withTitle:
+            "OK"
+    )
+
     alert.runModal()
 }
 
 @MainActor
-private func shouldDeleteOldBackups(keepingMostRecent keepCount: Int) -> Bool {
-    let alert = NSAlert()
-    alert.messageText = "Delete Old Backups?"
-    alert.informativeText = "ClipVault will keep the newest \(keepCount) JSON backups and delete older backup files from its Exports folder.\n\nThis will not delete your current clipboard history."
-    alert.alertStyle = .warning
-    
-    let deleteButton = alert.addButton(withTitle: "Delete Old Backups")
-    deleteButton.keyEquivalent = "\r"
-    
-    let cancelButton = alert.addButton(withTitle: "Cancel")
-    cancelButton.keyEquivalent = "\u{1b}"
-    
-    let response = alert.runModal()
-    
-    return response == .alertFirstButtonReturn
+private func shouldDeleteOldBackups(
+    keepingMostRecent keepCount: Int
+) -> Bool {
+    let alert =
+        NSAlert()
+
+    alert.messageText =
+        "Delete Old Backups?"
+
+    alert.informativeText =
+        "ClipVault will keep the newest \(keepCount) .clipvaultbackup package(s) and delete older backup packages from its Exports folder.\n\nThis will not delete your current clipboard history."
+
+    alert.alertStyle =
+        .warning
+
+    let deleteButton =
+        alert.addButton(
+            withTitle:
+                "Delete Old Backups"
+        )
+
+    deleteButton.keyEquivalent =
+        "\r"
+
+    let cancelButton =
+        alert.addButton(
+            withTitle:
+                "Cancel"
+        )
+
+    cancelButton.keyEquivalent =
+        "\u{1b}"
+
+    let response =
+        alert.runModal()
+
+    return
+        response ==
+        .alertFirstButtonReturn
 }
 
 @MainActor
