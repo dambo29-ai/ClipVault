@@ -31,6 +31,7 @@ enum ClipboardPayload:
 {
     case text(ClipboardTextPayload)
     case link(ClipboardLinkPayload)
+    case image(ClipboardImagePayload)
 
     var contentKind: ClipboardContentKind {
         switch self {
@@ -39,6 +40,9 @@ enum ClipboardPayload:
 
         case .link:
             return .link
+
+        case .image:
+            return .image
         }
     }
 
@@ -49,9 +53,12 @@ enum ClipboardPayload:
 
         case let .link(payload):
             return payload.urlString
+
+        case let .image(payload):
+            return payload.searchableText
         }
     }
-    
+
     var displayText: String {
         switch self {
         case let .text(payload):
@@ -59,6 +66,9 @@ enum ClipboardPayload:
 
         case let .link(payload):
             return payload.urlString
+
+        case let .image(payload):
+            return payload.displayTitle
         }
     }
 
@@ -83,35 +93,65 @@ enum ClipboardPayload:
         )
     }
 
+    var imagePayload: ClipboardImagePayload? {
+        guard
+            case let .image(payload) = self
+        else {
+            return nil
+        }
+
+        return payload
+    }
+
     @discardableResult
     func write(
         to pasteboard: NSPasteboard
     ) -> Bool {
-        pasteboard.clearContents()
-
         switch self {
         case let .text(payload):
+            pasteboard.clearContents()
+
             return pasteboard.setString(
                 payload.text,
                 forType: .string
             )
 
         case let .link(payload):
+            pasteboard.clearContents()
+
             return pasteboard.setString(
                 payload.urlString,
                 forType: .string
             )
+
+        case .image:
+            /*
+             Image data is stored in the managed Images
+             directory rather than inside this payload.
+
+             Pasteboard restoration will be connected after
+             ClipboardImageStorageService is integrated into
+             ClipboardStore.
+             */
+            return false
         }
     }
 
     var compatibilityText: String {
         displayText
     }
-    
+
     var duplicateKey: String {
-        searchableText.trimmingCharacters(
-            in: .whitespacesAndNewlines
-        )
+        switch self {
+        case .text, .link:
+            return searchableText
+                .trimmingCharacters(
+                    in: .whitespacesAndNewlines
+                )
+
+        case let .image(payload):
+            return payload.duplicateKey
+        }
     }
 
     static func inferred(

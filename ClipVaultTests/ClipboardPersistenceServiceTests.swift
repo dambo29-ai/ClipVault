@@ -345,6 +345,101 @@ final class ClipboardPersistenceServiceTests: XCTestCase {
             .link
         )
     }
+    
+    func testImagePayloadSurvivesPersistence()
+        async throws
+    {
+        let testStorage =
+            try makeTestStorage()
+
+        defer {
+            removeTestStorage(
+                testStorage
+            )
+        }
+
+        let service =
+            ClipboardPersistenceService(
+                storageURL:
+                    testStorage.fileURL
+            )
+
+        let imagePayload =
+            ClipboardImagePayload(
+                storageIdentifier:
+                    UUID(
+                        uuidString:
+                            "B10C1331-D322-42C6-9254-B488A5262900"
+                    )!,
+                format:
+                    ClipboardImageFormat(
+                        uniformTypeIdentifier:
+                            "public.png",
+                        filenameExtension:
+                            "png",
+                        displayName:
+                            "PNG"
+                    ),
+                pixelWidth: 1440,
+                pixelHeight: 900,
+                byteCount: 842_000,
+                contentHash:
+                    "abcdef123456",
+                originalFilename:
+                    "source-image.png",
+                wasConverted: false
+            )
+
+        let originalItem =
+            ClipboardItem(
+                payload:
+                    .image(
+                        imagePayload
+                    ),
+                createdAt:
+                    date(
+                        2026,
+                        7,
+                        16
+                    ),
+                sourceAppName:
+                    "Safari",
+                sourceBundleIdentifier:
+                    "com.apple.Safari"
+            )
+
+        try await service.saveItems([
+            originalItem
+        ])
+
+        let loadedItems =
+            try await service.loadItems()
+
+        XCTAssertEqual(
+            loadedItems,
+            [originalItem]
+        )
+
+        XCTAssertEqual(
+            loadedItems.first?.contentKind,
+            .image
+        )
+
+        XCTAssertEqual(
+            loadedItems.first?.imagePayload,
+            imagePayload
+        )
+
+        XCTAssertEqual(
+            loadedItems.first?.displayText,
+            "Copied Image"
+        )
+
+        XCTAssertEqual(
+            loadedItems.first?.duplicateKey,
+            "image:abcdef123456"
+        )
+    }
 
     func testEncodedItemContainsPayloadAndLegacyTextFields() throws {
         let item =
