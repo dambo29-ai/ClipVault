@@ -362,23 +362,34 @@ Confirm the intended defaults where installed:
 
 ---
 
-## 19. JSON Backups
+## 19. Backup Packages
 
-* [ ] Export Backup creates a JSON file.
+* [ ] Export Backup creates a `.clipvaultbackup` package.
 * [ ] The filename follows the expected timestamp format.
-* [ ] The backup format version is `1`.
+* [ ] The package contains `manifest.json`.
+* [ ] The package contains an `Images` directory.
+* [ ] The backup manifest uses the current supported format version.
 * [ ] The backup contains normal clipboard items.
 * [ ] Skipped-warning rows are excluded.
-* [ ] Captured clips include `"origin" : "captured"`.
-* [ ] Restored clips include `"origin" : "restored"`.
+* [ ] Image items include their managed image assets.
+* [ ] Shared image assets are written only once.
+* [ ] Missing managed image assets cause export to fail safely.
 * [ ] Restored clips preserve their original `createdAt` timestamps.
 * [ ] Backups to Keep is respected.
 * [ ] Backups to Keep values below 1 are corrected to 1 after loading.
 * [ ] Backups to Keep values above 50 are corrected to 50 after loading.
 * [ ] The Backups to Keep Stepper stops at 1 and 50.
-* [ ] Automatic cleanup removes only backups beyond the configured limit.
+* [ ] Automatic cleanup removes only packages beyond the configured limit.
+* [ ] Automatic cleanup uses the manifest export date rather than only the filename.
+* [ ] Malformed packages are ignored when finding the latest valid backup.
 * [ ] Manual Delete Old Backups works.
-* [ ] Backup creation does not crash.
+* [ ] Reveal Latest Backup selects the newest valid package.
+* [ ] Backup creation does not freeze or crash.
+
+Expected filename format:
+
+```text
+ClipVault Backup yyyy-MM-dd HH-mm-ss.clipvaultbackup
 
 Expected filename format:
 
@@ -458,17 +469,27 @@ ClipVault Backup yyyy-MM-dd HH-mm-ss.clipvaultbackup
 * [ ] Replace does not display zero-count result lines.
 * [ ] Replacement results survive relaunch.
 
-### Compatibility and Failure Handling
+### Package Validation and Failure Handling
 
-* [ ] A version-1 backup created before the `origin` property existed still imports.
-* [ ] Older backup items without an `origin` property are treated as restored during import.
-* [ ] Invalid JSON is rejected safely.
-* [ ] Malformed JSON displays **This JSON file is not a valid ClipVault backup.**
-* [ ] A non-ClipVault JSON file is rejected safely.
-* [ ] A backup with an invalid application name is rejected safely.
-* [ ] An unsupported backup format version is rejected safely.
-* [ ] Dragging a non-JSON file does not crash the app.
-* [ ] Import failure alerts do not expose low-level JSON decoder messages.
+* [ ] A package with the wrong extension is rejected safely.
+* [ ] A missing package is rejected safely.
+* [ ] A `.clipvaultbackup` item that is not a directory is rejected safely.
+* [ ] A package without `manifest.json` is rejected safely.
+* [ ] An unreadable or malformed manifest is rejected safely.
+* [ ] A package with an invalid application name is rejected safely.
+* [ ] An unsupported package format version is rejected safely.
+* [ ] A package with no importable normal items is rejected safely.
+* [ ] A package with a missing image asset is rejected safely.
+* [ ] A package with a damaged or hash-mismatched image asset is rejected safely.
+* [ ] A package with conflicting image metadata is rejected safely.
+* [ ] A failed image restoration removes assets already written during that attempt.
+* [ ] Cancelling an import removes newly restored assets.
+* [ ] Image assets omitted by duplicate or History Limit resolution are removed.
+* [ ] Existing managed image assets are never deleted by failed package restoration.
+* [ ] Import failure alerts do not expose low-level decoder or filesystem messages.
+* [ ] Dropping a normal `.json` file does not import it as a backup.
+* [ ] Dropping multiple packages together is rejected.
+* [ ] Dropping a package together with an image is rejected.
 
 ---
 
