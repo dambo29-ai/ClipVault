@@ -29,6 +29,28 @@ struct ClipboardImagePayloadTests {
             payload.dimensionsText ==
                 "1440 × 900"
         )
+        
+        #expect(
+            !payload.byteCountText.isEmpty
+        )
+
+        #expect(
+            payload.rowMetadataText.contains(
+                "1440 × 900"
+            )
+        )
+
+        #expect(
+            payload.rowMetadataText.contains(
+                "PNG"
+            )
+        )
+
+        #expect(
+            payload.rowMetadataText.contains(
+                payload.byteCountText
+            )
+        )
 
         #expect(
             payload.searchableText.contains(

@@ -16,7 +16,7 @@ struct ClipboardImageFormat:
     let filenameExtension: String
     let displayName: String
 
-    init(
+    nonisolated init(
         uniformTypeIdentifier: String,
         filenameExtension: String,
         displayName: String
@@ -52,7 +52,7 @@ struct ClipboardImagePayload:
     let originalFilename: String?
     let wasConverted: Bool
 
-    init(
+    nonisolated init(
         storageIdentifier: UUID = UUID(),
         format: ClipboardImageFormat,
         pixelWidth: Int,
@@ -114,6 +114,30 @@ struct ClipboardImagePayload:
 
     var dimensionsText: String {
         "\(pixelWidth) × \(pixelHeight)"
+    }
+    
+    var byteCountText: String {
+        let formatter =
+            ByteCountFormatter()
+
+        formatter.countStyle = .file
+        formatter.includesUnit = true
+        formatter.includesCount = true
+        formatter.isAdaptive = true
+
+        return formatter.string(
+            fromByteCount:
+                Int64(byteCount)
+        )
+    }
+
+    var rowMetadataText: String {
+        [
+            dimensionsText,
+            format.displayName,
+            byteCountText
+        ]
+        .joined(separator: " • ")
     }
 
     var storedFilename: String {

@@ -60,27 +60,25 @@ struct ClipboardRow: View {
     private var normalRow: some View {
         HStack(spacing: 8) {
             Button(action: onCopy) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(item.displayText)
-                        .lineLimit(3)
-                        .multilineTextAlignment(.leading)
-
-                    metadataView
-                }
-                .frame(
-                    maxWidth: .infinity,
-                    alignment: .leading
-                )
-                .padding(.vertical, 8)
-                .frame(
-                    maxWidth: .infinity,
-                    alignment: .leading
-                )
-                .contentShape(Rectangle())
+                normalRowContent
+                    .frame(
+                        maxWidth: .infinity,
+                        alignment: .leading
+                    )
+                    .padding(.vertical, 8)
+                    .frame(
+                        maxWidth: .infinity,
+                        alignment: .leading
+                    )
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .contextMenu {
-                Button("Copy") {
+                Button(
+                    item.imagePayload == nil
+                        ? "Copy"
+                        : "Copy Image"
+                ) {
                     onCopy()
                 }
 
@@ -102,7 +100,10 @@ struct ClipboardRow: View {
 
                 Divider()
 
-                Button("Delete", role: .destructive) {
+                Button(
+                    "Delete",
+                    role: .destructive
+                ) {
                     onDelete()
                 }
             }
@@ -114,8 +115,81 @@ struct ClipboardRow: View {
             pinButton
 
             deleteButton
-                .help("Delete this clipboard item")
-                .accessibilityLabel("Delete clipboard item")
+                .help(
+                    "Delete this clipboard item"
+                )
+                .accessibilityLabel(
+                    "Delete clipboard item"
+                )
+        }
+    }
+
+    @ViewBuilder
+    private var normalRowContent:
+        some View
+    {
+        if let imagePayload =
+            item.imagePayload
+        {
+            imageRowContent(
+                imagePayload
+            )
+        } else {
+            textRowContent
+        }
+    }
+
+    private var textRowContent:
+        some View
+    {
+        VStack(
+            alignment: .leading,
+            spacing: 6
+        ) {
+            Text(item.displayText)
+                .lineLimit(3)
+                .multilineTextAlignment(
+                    .leading
+                )
+
+            metadataView
+        }
+    }
+
+    private func imageRowContent(
+        _ imagePayload:
+            ClipboardImagePayload
+    ) -> some View {
+        HStack(
+            alignment: .center,
+            spacing: 12
+        ) {
+            ClipboardImageThumbnailView(
+                payload: imagePayload
+            )
+
+            VStack(
+                alignment: .leading,
+                spacing: 5
+            ) {
+                Text(
+                    imagePayload.displayTitle
+                )
+                .fontWeight(.medium)
+                .lineLimit(1)
+
+                Text(
+                    imagePayload
+                        .rowMetadataText
+                )
+                .lineLimit(1)
+
+                imageSourceMetadataView
+            }
+            .frame(
+                maxWidth: .infinity,
+                alignment: .leading
+            )
         }
     }
     
@@ -221,6 +295,37 @@ struct ClipboardRow: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.borderless)
+    }
+    
+    private var imageSourceMetadataView:
+        some View
+    {
+        HStack(spacing: 6) {
+            if let sourceAppName =
+                item.sourceAppName,
+               !sourceAppName
+                    .trimmingCharacters(
+                        in:
+                            .whitespacesAndNewlines
+                    )
+                    .isEmpty
+            {
+                Text(sourceAppName)
+                    .lineLimit(1)
+
+                Text("•")
+            }
+
+            Text(
+                ClipboardTimestampFormatter
+                    .string(
+                        for:
+                            item.createdAt
+                    )
+            )
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
     }
     
     private var metadataView: some View {
