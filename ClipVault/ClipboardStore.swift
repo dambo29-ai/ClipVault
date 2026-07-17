@@ -245,7 +245,21 @@ final class ClipboardStore: ObservableObject {
         loadKnownAppRecords()
         loadAppRuleModes()
         loadItems()
-        applyRetentionRules()
+
+        let loadedItems =
+            items
+
+        items =
+            retainedItems(
+                from: items
+            )
+
+        if items != loadedItems {
+            finalizeHistoryMutation(
+                previousItems:
+                    loadedItems
+            )
+        }
 
         clipboardMonitoringService.start {
             [weak self] payload in
@@ -396,7 +410,10 @@ final class ClipboardStore: ObservableObject {
         let itemsBeforeRetention =
             items
 
-        applyRetentionRules()
+        items =
+            retainedItems(
+                from: items
+            )
 
         let retainedItemIDs =
             Set(
@@ -572,7 +589,9 @@ final class ClipboardStore: ObservableObject {
         saveItems()
     }
 
-    func unpinItem(_ item: ClipboardItem) {
+    func unpinItem(
+        _ item: ClipboardItem
+    ) {
         guard
             let index =
                 items.firstIndex(
@@ -588,15 +607,25 @@ final class ClipboardStore: ObservableObject {
             return
         }
 
-        var updatedItems = items
+        let previousItems =
+            items
+
+        var updatedItems =
+            items
 
         updatedItems[index] =
-            updatedItems[index].unpinnedCopy()
+            updatedItems[index]
+                .unpinnedCopy()
 
-        items = updatedItems
+        items =
+            retainedItems(
+                from: updatedItems
+            )
 
-        applyRetentionRules()
-        saveItems()
+        finalizeHistoryMutation(
+            previousItems:
+                previousItems
+        )
     }
     
     func deleteItem(_ item: ClipboardItem) {
@@ -612,22 +641,42 @@ final class ClipboardStore: ObservableObject {
             return
         }
 
-        let originalItemCount = items.count
+        let previousItems =
+            items
 
         items.removeAll {
-            itemIDs.contains($0.id)
+            itemIDs.contains(
+                $0.id
+            )
         }
 
-        guard items.count != originalItemCount else {
+        guard
+            items.count !=
+                previousItems.count
+        else {
             return
         }
 
-        saveItems()
+        finalizeHistoryMutation(
+            previousItems:
+                previousItems
+        )
     }
 
     func clearHistory() {
+        guard !items.isEmpty else {
+            return
+        }
+
+        let previousItems =
+            items
+
         items.removeAll()
-        saveItems()
+
+        finalizeHistoryMutation(
+            previousItems:
+                previousItems
+        )
     }
     
     func prepareBackupMerge(
@@ -729,8 +778,16 @@ final class ClipboardStore: ObservableObject {
         }
 
         if preparation.importedCount > 0 {
-            items = preparation.mergedItems
-            saveItems()
+            let previousItems =
+                items
+
+            items =
+                preparation.mergedItems
+
+            finalizeHistoryMutation(
+                previousItems:
+                    previousItems
+            )
         }
 
         return .imported(
@@ -748,8 +805,16 @@ final class ClipboardStore: ObservableObject {
                 maximumItemCount: maxItemCount
             )
 
-        items = preparation.replacementItems
-        saveItems()
+        let previousItems =
+            items
+
+        items =
+            preparation.replacementItems
+
+        finalizeHistoryMutation(
+            previousItems:
+                previousItems
+        )
 
         return ClipboardBackupReplacementResult(
             imported: preparation.replacementItems.count,
@@ -795,10 +860,16 @@ final class ClipboardStore: ObservableObject {
             forKey: maxItemCountKey
         )
 
+        let previousItems =
+            items
+
         items =
             resolution.resolvedItems
 
-        saveItems()
+        finalizeHistoryMutation(
+            previousItems:
+                previousItems
+        )
 
         return ClipboardBackupImportApplicationResult(
             mode: plan.mode,
@@ -821,31 +892,65 @@ final class ClipboardStore: ObservableObject {
         )
     }
     
-    func setMaxItemCount(_ newValue: Int) {
-        let clampedValue = min(
-            max(
-                newValue,
-                Self.minimumHistoryLimit
-            ),
-            Self.maximumHistoryLimit
-        )
+    func setMaxItemCount(
+        _ newValue: Int
+    ) {
+        let clampedValue =
+            min(
+                max(
+                    newValue,
+                    Self.minimumHistoryLimit
+                ),
+                Self.maximumHistoryLimit
+            )
 
-        maxItemCount = clampedValue
+        let previousItems =
+            items
+
+        maxItemCount =
+            clampedValue
+
         UserDefaults.standard.set(
             clampedValue,
             forKey: maxItemCountKey
         )
 
-        applyRetentionRules()
-        saveItems()
+        items =
+            retainedItems(
+                from: items
+            )
+
+        finalizeHistoryMutation(
+            previousItems:
+                previousItems
+        )
     }
     
-    func setHistoryRetentionOption(_ newValue: HistoryRetentionOption) {
-        historyRetentionOption = newValue
-        UserDefaults.standard.set(newValue.rawValue, forKey: historyRetentionOptionKey)
-        
-        applyRetentionRules()
-        saveItems()
+    func setHistoryRetentionOption(
+        _ newValue:
+            HistoryRetentionOption
+    ) {
+        let previousItems =
+            items
+
+        historyRetentionOption =
+            newValue
+
+        UserDefaults.standard.set(
+            newValue.rawValue,
+            forKey:
+                historyRetentionOptionKey
+        )
+
+        items =
+            retainedItems(
+                from: items
+            )
+
+        finalizeHistoryMutation(
+            previousItems:
+                previousItems
+        )
     }
 
     func setShowsSkippedClipWarnings(_ newValue: Bool) {
@@ -1116,8 +1221,18 @@ final class ClipboardStore: ObservableObject {
                 itemID: pinnedItem.id
             )
 
-            applyRetentionRules()
-            saveItems()
+            let previousItems =
+                items
+
+            items =
+                retainedItems(
+                    from: items
+                )
+
+            finalizeHistoryMutation(
+                previousItems:
+                    previousItems
+            )
 
             return .captured
         }
@@ -1130,19 +1245,32 @@ final class ClipboardStore: ObservableObject {
                 sourceBundleIdentifier
         )
 
-        items.removeAll {
+        let previousItems =
+            items
+
+        var updatedItems =
+            items
+
+        updatedItems.removeAll {
             $0.kind == .normal &&
                 $0.duplicateKey ==
                     capturedDuplicateKey
         }
 
-        items.insert(
+        updatedItems.insert(
             newItem,
             at: 0
         )
 
-        applyRetentionRules()
-        saveItems()
+        items =
+            retainedItems(
+                from: updatedItems
+            )
+
+        finalizeHistoryMutation(
+            previousItems:
+                previousItems
+        )
 
         return .captured
     }
@@ -1204,6 +1332,52 @@ final class ClipboardStore: ObservableObject {
             }
     }
     
+    private func finalizeHistoryMutation(
+        previousItems: [ClipboardItem]
+    ) {
+        saveItems()
+
+        let imagePayloadsToDelete =
+            ClipboardImageAssetCleanupService
+                .unreferencedImagePayloads(
+                    previousItems:
+                        previousItems,
+                    remainingItems:
+                        items
+                )
+
+        guard
+            !imagePayloadsToDelete.isEmpty
+        else {
+            return
+        }
+
+        Task {
+            for imagePayload in
+                imagePayloadsToDelete
+            {
+                try? await imageStorageService
+                    .deleteImage(
+                        for: imagePayload
+                    )
+            }
+        }
+    }
+
+    private func retainedItems(
+        from candidateItems:
+            [ClipboardItem]
+    ) -> [ClipboardItem] {
+        ClipboardRetentionService
+            .applyingRules(
+                to: candidateItems,
+                retentionOption:
+                    historyRetentionOption,
+                maximumNormalItemCount:
+                    maxItemCount
+            )
+    }
+    
     private func importedItemCount(
         for plan: ClipboardBackupImportPlan,
         resolvedItems: [ClipboardItem]
@@ -1217,14 +1391,6 @@ final class ClipboardStore: ObservableObject {
             resolvedItemIDs.contains($0)
         }
         .count
-    }
-    
-    private func applyRetentionRules() {
-        items = ClipboardRetentionService.applyingRules(
-            to: items,
-            retentionOption: historyRetentionOption,
-            maximumNormalItemCount: maxItemCount
-        )
     }
     
     private func rememberDefaultAppGroups() {
