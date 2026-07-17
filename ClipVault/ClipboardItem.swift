@@ -51,6 +51,10 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
     var linkURL: URL? {
         payload.linkURL
     }
+    
+    var imagePayload: ClipboardImagePayload? {
+        payload.imagePayload
+    }
 
     var searchableText: String {
         payload.searchableText
