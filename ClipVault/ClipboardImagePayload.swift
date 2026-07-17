@@ -109,7 +109,8 @@ struct ClipboardImagePayload:
     }
 
     var displayTitle: String {
-        "Copied Image"
+        originalFilename ??
+            "Copied Image"
     }
 
     var dimensionsText: String {

@@ -107,12 +107,12 @@ struct ClipboardPayloadTests {
 
         #expect(
             payload.displayText ==
-                "Copied Image"
+                "source-image.png"
         )
 
         #expect(
             payload.searchableText.contains(
-                "Copied Image"
+                "source-image.png"
             )
         )
 

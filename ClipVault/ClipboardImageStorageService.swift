@@ -26,6 +26,24 @@ actor ClipboardImageStorageService {
         customImagesDirectoryURL =
             imagesDirectoryURL
     }
+    
+    func storeImage(
+        at fileURL: URL,
+        wasConverted: Bool = false
+    ) throws -> ClipboardImagePayload {
+        let imageData =
+            try Data(
+                contentsOf: fileURL
+            )
+
+        return try storeImage(
+            data: imageData,
+            originalFilename:
+                fileURL.lastPathComponent,
+            wasConverted:
+                wasConverted
+        )
+    }
 
     func storeImage(
         data: Data,

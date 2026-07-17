@@ -80,6 +80,12 @@ struct ClipboardBackupImportApplicationResult:
     let didExpandHistoryLimit: Bool
 }
 
+struct ClipboardImageBatchImportResult {
+    let importedCount: Int
+    let pinnedDuplicateCount: Int
+    let failedFilenames: [String]
+}
+
 @MainActor
 final class ClipboardStore: ObservableObject {
     static let minimumHistoryLimit = 10
@@ -111,6 +117,9 @@ final class ClipboardStore: ObservableObject {
 
     private let clipboardMonitoringService =
         ClipboardMonitoringService()
+
+    private let imageStorageService:
+        ClipboardImageStorageService
 
     private let imagePasteboardService:
         ClipboardImagePasteboardService
@@ -220,6 +229,9 @@ final class ClipboardStore: ObservableObject {
             ClipboardImageStorageService =
                 .shared
     ) {
+        self.imageStorageService =
+            imageStorageService
+
         imagePasteboardService =
             ClipboardImagePasteboardService(
                 imageStorageService:
@@ -242,6 +254,193 @@ final class ClipboardStore: ObservableObject {
                 payload
             )
         }
+    }
+    
+    func importImageFiles(
+        at fileURLs: [URL]
+    ) async -> ClipboardImageBatchImportResult {
+        guard !fileURLs.isEmpty else {
+            return ClipboardImageBatchImportResult(
+                importedCount: 0,
+                pinnedDuplicateCount: 0,
+                failedFilenames: []
+            )
+        }
+
+        var workingItems = items
+        var importedItems: [ClipboardItem] = []
+        var importedItemIDs: Set<UUID> = []
+
+        var imagePayloadsToDelete:
+            [ClipboardImagePayload] = []
+
+        var pinnedDuplicateItemIDs:
+            [UUID] = []
+
+        var failedFilenames:
+            [String] = []
+
+        for fileURL in fileURLs {
+            let didAccessSecurityScopedResource =
+                fileURL
+                    .startAccessingSecurityScopedResource()
+
+            defer {
+                if didAccessSecurityScopedResource {
+                    fileURL
+                        .stopAccessingSecurityScopedResource()
+                }
+            }
+
+            do {
+                let imagePayload =
+                    try await imageStorageService
+                        .storeImage(
+                            at: fileURL
+                        )
+
+                let duplicateKey =
+                    imagePayload.duplicateKey
+
+                if let pinnedItem =
+                    workingItems.first(
+                        where: {
+                            $0.kind == .normal &&
+                            $0.isPinned &&
+                            $0.duplicateKey ==
+                                duplicateKey
+                        }
+                    )
+                {
+                    imagePayloadsToDelete.append(
+                        imagePayload
+                    )
+
+                    pinnedDuplicateItemIDs.append(
+                        pinnedItem.id
+                    )
+
+                    continue
+                }
+
+                let duplicateItems =
+                    workingItems.filter {
+                        $0.kind == .normal &&
+                        !$0.isPinned &&
+                        $0.duplicateKey ==
+                            duplicateKey
+                    }
+
+                let duplicateItemIDs =
+                    Set(
+                        duplicateItems.map(\.id)
+                    )
+
+                workingItems.removeAll {
+                    duplicateItemIDs.contains(
+                        $0.id
+                    )
+                }
+
+                importedItems.removeAll {
+                    duplicateItemIDs.contains(
+                        $0.id
+                    )
+                }
+
+                for duplicateItem in duplicateItems {
+                    if let duplicateImagePayload =
+                        duplicateItem.imagePayload
+                    {
+                        imagePayloadsToDelete.append(
+                            duplicateImagePayload
+                        )
+                    }
+                }
+
+                let newItem =
+                    ClipboardItem(
+                        payload:
+                            .image(
+                                imagePayload
+                            ),
+                        createdAt: Date(),
+                        sourceAppName:
+                            "Manual Import"
+                    )
+
+                importedItems.append(
+                    newItem
+                )
+
+                importedItemIDs.insert(
+                    newItem.id
+                )
+            } catch {
+                failedFilenames.append(
+                    fileURL.lastPathComponent
+                )
+            }
+        }
+
+        items =
+            importedItems +
+            workingItems
+
+        let itemsBeforeRetention =
+            items
+
+        applyRetentionRules()
+
+        let retainedItemIDs =
+            Set(
+                items.map(\.id)
+            )
+
+        for removedItem in itemsBeforeRetention
+        where !retainedItemIDs.contains(
+            removedItem.id
+        ) {
+            if let removedImagePayload =
+                removedItem.imagePayload
+            {
+                imagePayloadsToDelete.append(
+                    removedImagePayload
+                )
+            }
+        }
+
+        let survivingImportedCount =
+            importedItemIDs.filter {
+                retainedItemIDs.contains($0)
+            }
+            .count
+
+        saveItems()
+
+        for imagePayload in imagePayloadsToDelete {
+            try? await imageStorageService
+                .deleteImage(
+                    for: imagePayload
+                )
+        }
+
+        if let highlightedItemID =
+            pinnedDuplicateItemIDs.last
+        {
+            signalPinnedDuplicate(
+                itemID: highlightedItemID
+            )
+        }
+
+        return ClipboardImageBatchImportResult(
+            importedCount:
+                survivingImportedCount,
+            pinnedDuplicateCount:
+                pinnedDuplicateItemIDs.count,
+            failedFilenames:
+                failedFilenames
+        )
     }
     
     func copyToClipboard(

@@ -100,6 +100,150 @@ struct ClipboardImageStorageServiceTests {
                 payload.storedFilename
         )
     }
+    
+    @Test
+    func storingImageFilePreservesFilenameAndBytes()
+        async throws
+    {
+        let testDirectory =
+            makeTestDirectory()
+
+        defer {
+            removeTestDirectory(
+                testDirectory
+            )
+        }
+
+        let sourceDirectory =
+            makeTestDirectory()
+
+        defer {
+            removeTestDirectory(
+                sourceDirectory
+            )
+        }
+
+        try FileManager.default
+            .createDirectory(
+                at: sourceDirectory,
+                withIntermediateDirectories:
+                    true
+            )
+
+        let imageData =
+            try makePNGData(
+                width: 9,
+                height: 7
+            )
+
+        let sourceURL =
+            sourceDirectory
+                .appendingPathComponent(
+                    "family-photo.png"
+                )
+
+        try imageData.write(
+            to: sourceURL,
+            options: [.atomic]
+        )
+
+        let service =
+            ClipboardImageStorageService(
+                imagesDirectoryURL:
+                    testDirectory
+            )
+
+        let payload =
+            try await service.storeImage(
+                at: sourceURL
+            )
+
+        #expect(
+            payload.originalFilename ==
+                "family-photo.png"
+        )
+
+        let storedData =
+            try await service.loadImageData(
+                for: payload
+            )
+
+        #expect(
+            storedData ==
+                imageData
+        )
+    }
+
+    @Test
+    func storingNonImageFileIsRejected()
+        async throws
+    {
+        let testDirectory =
+            makeTestDirectory()
+
+        defer {
+            removeTestDirectory(
+                testDirectory
+            )
+        }
+
+        let sourceDirectory =
+            makeTestDirectory()
+
+        defer {
+            removeTestDirectory(
+                sourceDirectory
+            )
+        }
+
+        try FileManager.default
+            .createDirectory(
+                at: sourceDirectory,
+                withIntermediateDirectories:
+                    true
+            )
+
+        let sourceURL =
+            sourceDirectory
+                .appendingPathComponent(
+                    "document.txt"
+                )
+
+        try Data(
+            "Not an image".utf8
+        )
+        .write(
+            to: sourceURL,
+            options: [.atomic]
+        )
+
+        let service =
+            ClipboardImageStorageService(
+                imagesDirectoryURL:
+                    testDirectory
+            )
+
+        do {
+            _ = try await service.storeImage(
+                at: sourceURL
+            )
+
+            Issue.record(
+                "Expected the non-image file to be rejected."
+            )
+        } catch let error
+            as ClipboardImageStorageError
+        {
+            #expect(
+                error ==
+                    .invalidImageData
+            )
+        } catch {
+            Issue.record(
+                "Unexpected error: \(error)"
+            )
+        }
+    }
 
     @Test
     func loadingStoredImageReturnsOriginalBytes()

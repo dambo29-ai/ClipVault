@@ -187,6 +187,10 @@ struct ClipboardRow: View {
                 )
                 .fontWeight(.medium)
                 .lineLimit(1)
+                .truncationMode(.middle)
+                .help(
+                    imagePayload.displayTitle
+                )
 
                 Text(
                     imagePayload

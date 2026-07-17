@@ -243,7 +243,7 @@ struct ContentView: View {
                             Image(systemName: "tray.and.arrow.down")
                                 .font(.system(size: 32))
                             
-                            Text("Drop ClipVault Backup to Import")
+                            Text("Drop Backup or Image to Import")
                                 .font(.headline)
                         }
                         .padding(20)
@@ -656,55 +656,190 @@ struct ContentView: View {
         )
     }
     
-    private func handleDroppedBackupProviders(_ providers: [NSItemProvider]) -> Bool {
-        guard let provider = providers.first(where: {
-            $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier)
-        }) else {
+    private func handleDroppedBackupProviders(
+        _ providers: [NSItemProvider]
+    ) -> Bool {
+        let fileProviders =
+            providers.filter {
+                $0.hasItemConformingToTypeIdentifier(
+                    UTType.fileURL.identifier
+                )
+            }
+
+        guard !fileProviders.isEmpty else {
             return false
         }
-        
-        provider.loadItem(
-            forTypeIdentifier: UTType.fileURL.identifier,
-            options: nil
-        ) { item, error in
-            if let error {
-                Task { @MainActor in
-                    OperationFailureAlert.show(
-                        title: "Backup Import Failed",
-                        message:
-                            "ClipVault could not import the dropped backup file.",
-                        error: error
-                    )
+
+        let collector =
+            DroppedFileBatchCollector(
+                expectedCount:
+                    fileProviders.count
+            )
+
+        for (index, provider) in
+            fileProviders.enumerated()
+        {
+            provider.loadItem(
+                forTypeIdentifier:
+                    UTType.fileURL.identifier,
+                options: nil
+            ) {
+                item,
+                error in
+
+                let droppedURL: URL?
+
+                if error != nil {
+                    droppedURL = nil
+                } else if let data =
+                    item as? Data
+                {
+                    droppedURL =
+                        URL(
+                            dataRepresentation:
+                                data,
+                            relativeTo: nil
+                        )
+                } else if let url =
+                    item as? URL
+                {
+                    droppedURL = url
+                } else {
+                    droppedURL = nil
                 }
-                return
-            }
-            
-            let droppedURL: URL?
-            
-            if let data = item as? Data {
-                droppedURL = URL(dataRepresentation: data, relativeTo: nil)
-            } else if let url = item as? URL {
-                droppedURL = url
-            } else {
-                droppedURL = nil
-            }
-            
-            guard let droppedURL else {
-                Task { @MainActor in
-                    OperationFailureAlert.show(
-                        title: "Backup Import Failed",
-                        message: "Only JSON backup files can be imported."
-                    )
+
+                Task {
+                    guard
+                        let result =
+                            await collector.record(
+                                index: index,
+                                fileURL:
+                                    droppedURL
+                            )
+                    else {
+                        return
+                    }
+
+                    await MainActor.run {
+                        importDroppedFiles(
+                            result.fileURLs,
+                            failedProviderCount:
+                                result
+                                    .failedProviderCount
+                        )
+                    }
                 }
-                return
-            }
-            
-            Task { @MainActor in
-                importDroppedBackup(from: droppedURL)
             }
         }
-        
+
         return true
+    }
+    
+    @MainActor
+    private func importDroppedFiles(
+        _ fileURLs: [URL],
+        failedProviderCount: Int
+    ) {
+        guard !fileURLs.isEmpty else {
+            OperationFailureAlert.show(
+                title:
+                    "Import Failed",
+                message:
+                    "ClipVault could not read the dropped files."
+            )
+
+            return
+        }
+
+        let backupURLs =
+            fileURLs.filter {
+                $0.pathExtension
+                    .localizedCaseInsensitiveCompare(
+                        "json"
+                    ) ==
+                    .orderedSame
+            }
+
+        if !backupURLs.isEmpty {
+            guard
+                backupURLs.count == 1,
+                fileURLs.count == 1,
+                failedProviderCount == 0
+            else {
+                OperationFailureAlert.show(
+                    title:
+                        "Import Failed",
+                    message:
+                        """
+                        A ClipVault backup must be dropped by itself. Drop one backup file, or drop only image files.
+                        """
+                )
+
+                return
+            }
+
+            importDroppedBackup(
+                from: backupURLs[0]
+            )
+
+            return
+        }
+
+        Task { @MainActor in
+            let result =
+                await clipboardStore
+                    .importImageFiles(
+                        at: fileURLs
+                    )
+
+            if result.importedCount > 0 {
+                selectedContentFilter =
+                    .images
+
+                isRecentSectionExpanded =
+                    true
+            }
+
+            let totalFailedCount =
+                result.failedFilenames.count +
+                failedProviderCount
+
+            guard totalFailedCount > 0 else {
+                return
+            }
+
+            let failedWord =
+                totalFailedCount == 1
+                    ? "file"
+                    : "files"
+
+            var message =
+                "\(totalFailedCount) \(failedWord) could not be imported as an image."
+
+            if !result.failedFilenames.isEmpty {
+                message +=
+                    "\n\n" +
+                    result.failedFilenames
+                        .map {
+                            "• \($0)"
+                        }
+                        .joined(
+                            separator: "\n"
+                        )
+            }
+
+            message +=
+                "\n\nPDFs and unsupported or invalid files are not accepted as images."
+
+            OperationFailureAlert.show(
+                title:
+                    result.importedCount > 0
+                        ? "Some Images Were Not Imported"
+                        : "Image Import Failed",
+                message:
+                    message
+            )
+        }
     }
     
     @MainActor
@@ -833,8 +968,8 @@ struct ContentView: View {
         case .images:
             return
                 """
-                Copied images will appear here once \
-                image support is enabled.
+                Drag an image into ClipVault to add it \
+                to your image history.
                 """
             
         case .files:
@@ -850,4 +985,60 @@ struct ContentView: View {
 #Preview {
     ContentView()
         .environmentObject(ClipboardStore())
+}
+
+private actor DroppedFileBatchCollector {
+    struct Result {
+        let fileURLs: [URL]
+        let failedProviderCount: Int
+    }
+
+    private let expectedCount: Int
+
+    private var fileURLsByIndex:
+        [Int: URL] = [:]
+
+    private var failedProviderCount = 0
+    private var completedCount = 0
+
+    init(
+        expectedCount: Int
+    ) {
+        self.expectedCount =
+            expectedCount
+    }
+
+    func record(
+        index: Int,
+        fileURL: URL?
+    ) -> Result? {
+        completedCount += 1
+
+        if let fileURL {
+            fileURLsByIndex[index] =
+                fileURL
+        } else {
+            failedProviderCount += 1
+        }
+
+        guard
+            completedCount ==
+                expectedCount
+        else {
+            return nil
+        }
+
+        let orderedFileURLs =
+            (0..<expectedCount)
+                .compactMap {
+                    fileURLsByIndex[$0]
+                }
+
+        return Result(
+            fileURLs:
+                orderedFileURLs,
+            failedProviderCount:
+                failedProviderCount
+        )
+    }
 }

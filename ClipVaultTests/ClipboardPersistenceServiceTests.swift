@@ -432,7 +432,7 @@ final class ClipboardPersistenceServiceTests: XCTestCase {
 
         XCTAssertEqual(
             loadedItems.first?.displayText,
-            "Copied Image"
+            "source-image.png"
         )
 
         XCTAssertEqual(

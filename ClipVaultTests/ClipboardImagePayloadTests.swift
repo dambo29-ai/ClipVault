@@ -146,6 +146,24 @@ struct ClipboardImagePayloadTests {
                 "family-photo.tiff"
             )
         )
+        
+        #expect(
+            payload.displayTitle ==
+                "family-photo.tiff"
+        )
+    }
+    
+    @Test
+    func payloadUsesGenericTitleWithoutOriginalFilename() {
+        let payload =
+            makePayload(
+                originalFilename: nil
+            )
+
+        #expect(
+            payload.displayTitle ==
+                "Copied Image"
+        )
     }
 
     @Test
