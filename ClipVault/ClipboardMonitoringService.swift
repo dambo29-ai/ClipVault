@@ -9,7 +9,7 @@ import AppKit
 import Foundation
 
 struct ClipboardChangePayload {
-    let text: String
+    let content: ClipboardChangeContent
     let sourceAppName: String?
     let sourceBundleIdentifier: String?
     let sourceAppPath: String?
@@ -100,18 +100,29 @@ final class ClipboardMonitoringService {
 
         lastChangeCount = pasteboard.changeCount
 
-        guard let copiedText = pasteboard.string(forType: .string) else {
+        guard
+            let clipboardContent =
+                ClipboardPasteboardClassificationService
+                    .content(
+                        from: pasteboard
+                    )
+        else {
             return
         }
 
         let sourceApp = NSWorkspace.shared.frontmostApplication
 
-        let payload = ClipboardChangePayload(
-            text: copiedText,
-            sourceAppName: sourceApp?.localizedName,
-            sourceBundleIdentifier: sourceApp?.bundleIdentifier,
-            sourceAppPath: sourceApp?.bundleURL?.path
-        )
+        let payload =
+            ClipboardChangePayload(
+                content:
+                    clipboardContent,
+                sourceAppName:
+                    sourceApp?.localizedName,
+                sourceBundleIdentifier:
+                    sourceApp?.bundleIdentifier,
+                sourceAppPath:
+                    sourceApp?.bundleURL?.path
+            )
 
         onClipboardChange(payload)
     }

@@ -257,7 +257,11 @@ final class ClipboardStore: ObservableObject {
     }
     
     func importImageFiles(
-        at fileURLs: [URL]
+        at fileURLs: [URL],
+        sourceAppName:
+            String = "Manual Import",
+        sourceBundleIdentifier:
+            String? = nil
     ) async -> ClipboardImageBatchImportResult {
         guard !fileURLs.isEmpty else {
             return ClipboardImageBatchImportResult(
@@ -366,7 +370,9 @@ final class ClipboardStore: ObservableObject {
                             ),
                         createdAt: Date(),
                         sourceAppName:
-                            "Manual Import"
+                            sourceAppName,
+                        sourceBundleIdentifier:
+                            sourceBundleIdentifier
                     )
 
                 importedItems.append(
@@ -518,11 +524,14 @@ final class ClipboardStore: ObservableObject {
     ) -> ClipboardCaptureOutcome {
         processClipboardCapture(
             ClipboardChangePayload(
-                text: text,
-                sourceAppName: sourceAppName,
+                content:
+                    .text(text),
+                sourceAppName:
+                    sourceAppName,
                 sourceBundleIdentifier:
                     sourceBundleIdentifier,
-                sourceAppPath: sourceAppPath
+                sourceAppPath:
+                    sourceAppPath
             ),
             captureSource: .optionSelect
         )
@@ -926,10 +935,87 @@ final class ClipboardStore: ObservableObject {
     private func handleClipboardChange(
         _ payload: ClipboardChangePayload
     ) {
-        _ = processClipboardCapture(
-            payload,
-            captureSource: .nativeClipboard
-        )
+        switch payload.content {
+        case .text:
+            _ = processClipboardCapture(
+                payload,
+                captureSource:
+                    .nativeClipboard
+            )
+
+        case let .fileURLs(fileURLs):
+            handleCopiedFileURLs(
+                fileURLs,
+                payload: payload
+            )
+        }
+    }
+    
+    private func handleCopiedFileURLs(
+        _ fileURLs: [URL],
+        payload: ClipboardChangePayload
+    ) {
+        guard !isMonitoringPaused else {
+            return
+        }
+
+        let sourceAppName =
+            payload.sourceAppName
+
+        let sourceBundleIdentifier =
+            payload.sourceBundleIdentifier
+
+        if let sourceAppName,
+           let sourceBundleIdentifier
+        {
+            rememberApp(
+                displayName:
+                    sourceAppName,
+                bundleIdentifier:
+                    sourceBundleIdentifier,
+                appPath:
+                    payload.sourceAppPath,
+                shouldSave:
+                    true
+            )
+        }
+
+        let sourceRuleMode =
+            ruleModeForSourceApp(
+                sourceAppName:
+                    sourceAppName,
+                bundleIdentifier:
+                    sourceBundleIdentifier
+            )
+
+        guard
+            sourceRuleMode != .blocked
+        else {
+            addBlockedAppSkippedPlaceholder(
+                sourceAppName:
+                    sourceAppName,
+                captureSource:
+                    .nativeClipboard
+            )
+
+            return
+        }
+
+        Task { @MainActor [weak self] in
+            guard let self else {
+                return
+            }
+
+            _ =
+                await importImageFiles(
+                    at: fileURLs,
+                    sourceAppName:
+                        sourceAppName ??
+                        "Finder",
+                    sourceBundleIdentifier:
+                        sourceBundleIdentifier
+                )
+        }
     }
 
     @discardableResult
@@ -941,8 +1027,15 @@ final class ClipboardStore: ObservableObject {
             return .skippedMonitoringPaused
         }
 
+        guard
+            case let .text(text) =
+                payload.content
+        else {
+            return .skippedEmpty
+        }
+
         let cleanedText =
-            payload.text.trimmingCharacters(
+            text.trimmingCharacters(
                 in: .whitespacesAndNewlines
             )
 
