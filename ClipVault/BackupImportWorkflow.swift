@@ -15,9 +15,14 @@ enum BackupImportWorkflow {
         clipboardStore:
             ClipboardStore,
         packageImportService:
-            ClipboardBackupPackageImportService =
-                .shared
+            ClipboardBackupPackageImportService? =
+                nil
     ) async {
+        let packageImportService =
+            packageImportService ??
+            ClipboardBackupPackageImportService
+                .shared
+        
         let plan =
             clipboardStore
                 .prepareBackupMerge(

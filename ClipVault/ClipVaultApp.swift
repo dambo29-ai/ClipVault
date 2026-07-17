@@ -388,7 +388,7 @@ private func showClipVaultHelpAlert(backupKeepCount: Int) {
     appendSection(
         to: helpText,
         heading: "Backups",
-        body: "Export Backup creates a .clipvaultbackup package containing the history manifest and managed image files, then automatically keeps only the newest \(backupKeepCount) package(s).\nImport Latest Backup restores the newest .clipvaultbackup package from the Exports folder, including its managed image files.\nDragging a legacy ClipVault JSON backup onto the main window remains available temporarily.\nReveal Latest Backup opens the newest .clipvaultbackup package in Finder.\nDelete Old Backups applies the package cleanup rule.",
+        body: "Export Backup creates a .clipvaultbackup package containing the history manifest and managed image files, then automatically keeps only the newest \(backupKeepCount) package(s).\nImport Latest Backup restores the newest .clipvaultbackup package from the Exports folder, including its managed image files.\nYou can drag one .clipvaultbackup package onto the main window to import it directly. Legacy ClipVault JSON backup drops remain available temporarily.\nReveal Latest Backup opens the newest .clipvaultbackup package in Finder.\nDelete Old Backups applies the package cleanup rule.",
         headingAttributes: boldAttributes,
         bodyAttributes: regularAttributes
     )

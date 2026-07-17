@@ -243,7 +243,9 @@ struct ContentView: View {
                             Image(systemName: "tray.and.arrow.down")
                                 .font(.system(size: 32))
                             
-                            Text("Drop Backup or Image to Import")
+                            Text(
+                                "Drop a ClipVault Backup or Image to Import"
+                            )
                                 .font(.headline)
                         }
                         .padding(20)
@@ -751,7 +753,17 @@ struct ContentView: View {
             return
         }
 
-        let backupURLs =
+        let packageBackupURLs =
+            fileURLs.filter {
+                $0.pathExtension
+                    .localizedCaseInsensitiveCompare(
+                        ClipboardBackupPackageService
+                            .packageExtension
+                    ) ==
+                    .orderedSame
+            }
+
+        let legacyJSONBackupURLs =
             fileURLs.filter {
                 $0.pathExtension
                     .localizedCaseInsensitiveCompare(
@@ -759,6 +771,10 @@ struct ContentView: View {
                     ) ==
                     .orderedSame
             }
+
+        let backupURLs =
+            packageBackupURLs +
+            legacyJSONBackupURLs
 
         if !backupURLs.isEmpty {
             guard
@@ -771,7 +787,7 @@ struct ContentView: View {
                         "Import Failed",
                     message:
                         """
-                        A ClipVault backup must be dropped by itself. Drop one backup file, or drop only image files.
+                        A ClipVault backup must be dropped by itself. Drop one .clipvaultbackup package, one legacy JSON backup, or only image files.
                         """
                 )
 
@@ -779,7 +795,8 @@ struct ContentView: View {
             }
 
             importDroppedBackup(
-                from: backupURLs[0]
+                from:
+                    backupURLs[0]
             )
 
             return
@@ -843,24 +860,75 @@ struct ContentView: View {
     }
     
     @MainActor
-    private func importDroppedBackup(from backupURL: URL) {
-        do {
-            let backupItems =
-            try ClipboardImportService.itemsFromJSONBackup(
-                at: backupURL
-            )
-            
-            BackupImportWorkflow.handle(
-                backupItems: backupItems,
-                clipboardStore: clipboardStore
-            )
-        } catch {
-            OperationFailureAlert.show(
-                title: "Backup Import Failed",
-                message:
-                    "ClipVault could not import the dropped backup file.",
-                error: error
-            )
+    private func importDroppedBackup(
+        from backupURL: URL
+    ) {
+        Task { @MainActor in
+            do {
+                let pathExtension =
+                    backupURL
+                        .pathExtension
+                        .lowercased()
+
+                if pathExtension ==
+                    ClipboardBackupPackageService
+                        .packageExtension
+                {
+                    let packageContents =
+                        try ClipboardBackupPackageImportService
+                            .shared
+                            .readPackage(
+                                at:
+                                    backupURL
+                            )
+
+                    let restoration =
+                        try await ClipboardBackupPackageImportService
+                            .shared
+                            .restorePackage(
+                                packageContents
+                            )
+
+                    await BackupImportWorkflow
+                        .handlePackageRestoration(
+                            restoration,
+                            clipboardStore:
+                                clipboardStore
+                        )
+                } else if pathExtension ==
+                            "json"
+                {
+                    let backupItems =
+                        try ClipboardImportService
+                            .itemsFromJSONBackup(
+                                at:
+                                    backupURL
+                            )
+
+                    BackupImportWorkflow.handle(
+                        backupItems:
+                            backupItems,
+                        clipboardStore:
+                            clipboardStore
+                    )
+                } else {
+                    OperationFailureAlert.show(
+                        title:
+                            "Backup Import Failed",
+                        message:
+                            "Drop a .clipvaultbackup package or a legacy ClipVault JSON backup."
+                    )
+                }
+            } catch {
+                OperationFailureAlert.show(
+                    title:
+                        "Backup Import Failed",
+                    message:
+                        "ClipVault could not import the dropped backup.",
+                    error:
+                        error
+                )
+            }
         }
     }
     
