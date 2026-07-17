@@ -106,8 +106,14 @@ final class ClipboardStore: ObservableObject {
     private let knownAppRecordsKey = "knownAppRecords"
     private let appRuleModesKey = "appRuleModes"
     
-    private let appDiscoveryService = AppDiscoveryService()
-    private let clipboardMonitoringService = ClipboardMonitoringService()
+    private let appDiscoveryService =
+        AppDiscoveryService()
+
+    private let clipboardMonitoringService =
+        ClipboardMonitoringService()
+
+    private let imagePasteboardService:
+        ClipboardImagePasteboardService
 
     private var appDiscoveryTask: Task<Void, Never>?
     private var pinnedHighlightTask: Task<Void, Never>?
@@ -209,7 +215,17 @@ final class ClipboardStore: ObservableObject {
         return result
     }
     
-    init() {
+    init(
+        imageStorageService:
+            ClipboardImageStorageService =
+                .shared
+    ) {
+        imagePasteboardService =
+            ClipboardImagePasteboardService(
+                imageStorageService:
+                    imageStorageService
+            )
+
         loadMaxItemCount()
         loadHistoryRetentionOption()
         loadSkippedClipWarningPreference()
@@ -219,8 +235,12 @@ final class ClipboardStore: ObservableObject {
         loadItems()
         applyRetentionRules()
 
-        clipboardMonitoringService.start { [weak self] payload in
-            self?.handleClipboardChange(payload)
+        clipboardMonitoringService.start {
+            [weak self] payload in
+
+            self?.handleClipboardChange(
+                payload
+            )
         }
     }
     
@@ -231,12 +251,59 @@ final class ClipboardStore: ObservableObject {
             return
         }
 
-        item.payload.write(
-            to: .general
-        )
+        switch item.payload {
+        case .text, .link:
+            let didWrite =
+                item.payload.write(
+                    to: .general
+                )
 
-        clipboardMonitoringService
-            .synchronizeChangeCount()
+            guard didWrite else {
+                return
+            }
+
+            clipboardMonitoringService
+                .synchronizeChangeCount()
+
+        case let .image(imagePayload):
+            Task { @MainActor [weak self] in
+                guard let self else {
+                    return
+                }
+
+                do {
+                    let didWrite =
+                        try await
+                            imagePasteboardService
+                                .writeImage(
+                                    imagePayload,
+                                    to: .general
+                                )
+
+                    guard didWrite else {
+                        OperationFailureAlert.show(
+                            title:
+                                "Image Could Not Be Copied",
+                            message:
+                                "ClipVault could not write the stored image to the clipboard."
+                        )
+
+                        return
+                    }
+
+                    clipboardMonitoringService
+                        .synchronizeChangeCount()
+                } catch {
+                    OperationFailureAlert.show(
+                        title:
+                            "Image Could Not Be Copied",
+                        message:
+                            "The stored image could not be loaded.",
+                        error: error
+                    )
+                }
+            }
+        }
     }
 
     func beginIgnoringClipboardMonitoringChanges() {
