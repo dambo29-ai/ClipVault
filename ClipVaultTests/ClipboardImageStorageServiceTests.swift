@@ -336,6 +336,129 @@ struct ClipboardImageStorageServiceTests {
                 secondPayload.duplicateKey
         )
     }
+    
+    @Test
+    func opaqueClipboardTIFFIsConvertedToJPEG()
+        async throws
+    {
+        let testDirectory =
+            makeTestDirectory()
+
+        defer {
+            removeTestDirectory(
+                testDirectory
+            )
+        }
+
+        let service =
+            ClipboardImageStorageService(
+                imagesDirectoryURL:
+                    testDirectory
+            )
+
+        let tiffData =
+            try makeTIFFData(
+                width:
+                    500,
+                height:
+                    500,
+                alpha:
+                    1.0
+            )
+
+        let payload =
+            try await service
+                .storeClipboardImage(
+                    data:
+                        tiffData
+                )
+
+        #expect(
+            payload.format
+                .uniformTypeIdentifier ==
+                UTType.jpeg.identifier
+        )
+
+        #expect(
+            payload.format
+                .filenameExtension ==
+                "jpeg"
+        )
+
+        #expect(
+            payload.format.displayName ==
+                "JPEG"
+        )
+
+        #expect(payload.wasConverted)
+
+        let storedData =
+            try await service.loadImageData(
+                for:
+                    payload
+            )
+
+        #expect(
+            storedData.count <
+                tiffData.count
+        )
+    }
+
+    @Test
+    func transparentClipboardTIFFIsConvertedToPNG()
+        async throws
+    {
+        let testDirectory =
+            makeTestDirectory()
+
+        defer {
+            removeTestDirectory(
+                testDirectory
+            )
+        }
+
+        let service =
+            ClipboardImageStorageService(
+                imagesDirectoryURL:
+                    testDirectory
+            )
+
+        let tiffData =
+            try makeTIFFData(
+                width:
+                    20,
+                height:
+                    20,
+                alpha:
+                    0.5
+            )
+
+        let payload =
+            try await service
+                .storeClipboardImage(
+                    data:
+                        tiffData
+                )
+
+        #expect(
+            payload.format
+                .uniformTypeIdentifier ==
+                UTType.png.identifier
+        )
+
+        #expect(
+            payload.format
+                .filenameExtension ==
+                "png"
+        )
+
+        #expect(
+            payload.format.displayName ==
+                "PNG"
+        )
+
+        #expect(payload.wasConverted)
+    }
 
     @Test
     func storingImageRecordsConversionFlag()
@@ -598,6 +721,80 @@ struct ClipboardImageStorageServiceTests {
                     for: payload
                 ))
         )
+    }
+    
+    private func makeTIFFData(
+        width: Int,
+        height: Int,
+        alpha: CGFloat
+    ) throws -> Data {
+        guard
+            let bitmap =
+                NSBitmapImageRep(
+                    bitmapDataPlanes:
+                        nil,
+                    pixelsWide:
+                        width,
+                    pixelsHigh:
+                        height,
+                    bitsPerSample:
+                        8,
+                    samplesPerPixel:
+                        4,
+                    hasAlpha:
+                        true,
+                    isPlanar:
+                        false,
+                    colorSpaceName:
+                        .deviceRGB,
+                    bytesPerRow:
+                        0,
+                    bitsPerPixel:
+                        0
+                )
+        else {
+            throw TestImageError
+                .couldNotCreateImage
+        }
+
+        let fillColor =
+            NSColor(
+                calibratedRed:
+                    0.25,
+                green:
+                    0.55,
+                blue:
+                    0.85,
+                alpha:
+                    alpha
+            )
+
+        for y in 0..<height {
+            for x in 0..<width {
+                bitmap.setColor(
+                    fillColor,
+                    atX:
+                        x,
+                    y:
+                        y
+                )
+            }
+        }
+
+        guard
+            let data =
+                bitmap.representation(
+                    using:
+                        .tiff,
+                    properties:
+                        [:]
+                )
+        else {
+            throw TestImageError
+                .couldNotCreateImage
+        }
+
+        return data
     }
 
     private func makePNGData(

@@ -48,6 +48,46 @@ actor ClipboardImageStorageService {
                 originalFileReference
         )
     }
+    
+    func storeClipboardImage(
+        data: Data
+    ) throws -> ClipboardImagePayload {
+        guard !data.isEmpty else {
+            throw ClipboardImageStorageError
+                .emptyImageData
+        }
+
+        let inspectedImage =
+            try Self.inspectImageData(
+                data
+            )
+
+        do {
+            let normalizedImage =
+                try Self.normalizedClipboardImage(
+                    data:
+                        data,
+                    inspectedImage:
+                        inspectedImage
+                )
+
+            return try storeImage(
+                data:
+                    normalizedImage.data,
+                wasConverted:
+                    normalizedImage.wasConverted
+            )
+        } catch {
+            /*
+             A valid clipboard image should still be stored
+             when adaptive conversion unexpectedly fails.
+             */
+            return try storeImage(
+                data:
+                    data
+            )
+        }
+    }
 
     func storeImage(
         data: Data,
@@ -182,6 +222,90 @@ actor ClipboardImageStorageService {
             at: fileURL
         )
     }
+    
+    func stagedImageFileURL(
+        for payload:
+            ClipboardImagePayload,
+        preferredFilenameStem:
+            String
+    ) throws -> URL {
+        let imageData =
+            try loadImageData(
+                for:
+                    payload
+            )
+
+        let safeExtension =
+            try Self.validatedFilenameExtension(
+                payload
+                    .format
+                    .filenameExtension
+            )
+
+        let safeFilenameStem =
+            Self.sanitizedFilenameStem(
+                preferredFilenameStem
+            )
+
+        let stagingDirectoryURL =
+            try resolvedImagesDirectoryURL()
+                .appendingPathComponent(
+                    "Paste Exports",
+                    isDirectory:
+                        true
+                )
+                .appendingPathComponent(
+                    payload
+                        .storageIdentifier
+                        .uuidString,
+                    isDirectory:
+                        true
+                )
+
+        try FileManager.default
+            .createDirectory(
+                at:
+                    stagingDirectoryURL,
+                withIntermediateDirectories:
+                    true
+            )
+
+        let existingURLs =
+            try FileManager.default
+                .contentsOfDirectory(
+                    at:
+                        stagingDirectoryURL,
+                    includingPropertiesForKeys:
+                        nil
+                )
+
+        for existingURL in
+            existingURLs
+        {
+            try? FileManager.default
+                .removeItem(
+                    at:
+                        existingURL
+                )
+        }
+
+        let stagedFileURL =
+            stagingDirectoryURL
+                .appendingPathComponent(
+                    "\(safeFilenameStem).\(safeExtension)",
+                    isDirectory:
+                        false
+                )
+
+        try imageData.write(
+            to:
+                stagedFileURL,
+            options:
+                [.atomic]
+        )
+
+        return stagedFileURL
+    }
 
     func imageFileURL(
         for payload: ClipboardImagePayload
@@ -251,6 +375,267 @@ actor ClipboardImageStorageService {
                 "Images",
                 isDirectory: true
             )
+    }
+    
+    private nonisolated static func sanitizedFilenameStem(
+        _ value:
+            String
+    ) -> String {
+        let invalidCharacters =
+            CharacterSet(
+                charactersIn:
+                    "/:"
+            )
+            .union(
+                .controlCharacters
+            )
+
+        let components =
+            value.components(
+                separatedBy:
+                    invalidCharacters
+            )
+
+        let sanitizedValue =
+            components
+                .joined(
+                    separator:
+                        "-"
+                )
+                .trimmingCharacters(
+                    in:
+                        .whitespacesAndNewlines
+                )
+
+        let filenameStem =
+            sanitizedValue.isEmpty
+                ? "Copied Image"
+                : sanitizedValue
+
+        return String(
+            filenameStem
+                .prefix(
+                    180
+                )
+        )
+    }
+    
+    private nonisolated static func normalizedClipboardImage(
+        data: Data,
+        inspectedImage:
+            InspectedImage
+    ) throws -> NormalizedClipboardImage {
+        guard
+            let imageSource =
+                CGImageSourceCreateWithData(
+                    data as CFData,
+                    nil
+                ),
+            let image =
+                CGImageSourceCreateImageAtIndex(
+                    imageSource,
+                    0,
+                    nil
+                )
+        else {
+            throw ClipboardImageStorageError
+                .invalidImageData
+        }
+
+        let hasTransparency =
+            imageHasMeaningfulTransparency(
+                image
+            )
+
+        let targetType:
+            UTType =
+                hasTransparency
+                    ? .png
+                    : .jpeg
+
+        if inspectedImage
+            .format
+            .uniformTypeIdentifier ==
+            targetType.identifier
+        {
+            return NormalizedClipboardImage(
+                data:
+                    data,
+                wasConverted:
+                    false
+            )
+        }
+
+        let destinationData =
+            NSMutableData()
+
+        guard
+            let destination =
+                CGImageDestinationCreateWithData(
+                    destinationData,
+                    targetType.identifier
+                        as CFString,
+                    1,
+                    nil
+                )
+        else {
+            throw ClipboardImageStorageError
+                .unsupportedImageFormat
+        }
+
+        let properties:
+            CFDictionary?
+
+        if targetType == .jpeg {
+            properties =
+                [
+                    kCGImageDestinationLossyCompressionQuality:
+                        0.88
+                ] as CFDictionary
+        } else {
+            properties = nil
+        }
+
+        CGImageDestinationAddImage(
+            destination,
+            image,
+            properties
+        )
+
+        guard
+            CGImageDestinationFinalize(
+                destination
+            )
+        else {
+            throw ClipboardImageStorageError
+                .unsupportedImageFormat
+        }
+
+        let normalizedData =
+            destinationData as Data
+
+        guard !normalizedData.isEmpty else {
+            throw ClipboardImageStorageError
+                .emptyImageData
+        }
+
+        return NormalizedClipboardImage(
+            data:
+                normalizedData,
+            wasConverted:
+                true
+        )
+    }
+
+    private nonisolated static func imageHasMeaningfulTransparency(
+        _ image:
+            CGImage
+    ) -> Bool {
+        switch image.alphaInfo {
+        case .none,
+             .noneSkipFirst,
+             .noneSkipLast:
+            return false
+
+        default:
+            break
+        }
+
+        let width =
+            image.width
+
+        let height =
+            image.height
+
+        guard
+            width > 0,
+            height > 0,
+            width <=
+                Int.max / height,
+            width * height <=
+                Int.max / 4
+        else {
+            return true
+        }
+
+        let bytesPerPixel = 4
+        let bytesPerRow =
+            width * bytesPerPixel
+
+        var pixelData =
+            Data(
+                count:
+                    bytesPerRow * height
+            )
+
+        let didFindTransparency =
+            pixelData.withUnsafeMutableBytes {
+                rawBuffer -> Bool in
+
+                guard
+                    let baseAddress =
+                        rawBuffer.baseAddress,
+                    let context =
+                        CGContext(
+                            data:
+                                baseAddress,
+                            width:
+                                width,
+                            height:
+                                height,
+                            bitsPerComponent:
+                                8,
+                            bytesPerRow:
+                                bytesPerRow,
+                            space:
+                                CGColorSpaceCreateDeviceRGB(),
+                            bitmapInfo:
+                                CGImageAlphaInfo
+                                    .premultipliedLast
+                                    .rawValue
+                        )
+                else {
+                    return true
+                }
+
+                context.draw(
+                    image,
+                    in:
+                        CGRect(
+                            x: 0,
+                            y: 0,
+                            width:
+                                width,
+                            height:
+                                height
+                        )
+                )
+
+                let pixels =
+                    rawBuffer.bindMemory(
+                        to:
+                            UInt8.self
+                    )
+
+                for alphaIndex in
+                    stride(
+                        from: 3,
+                        to:
+                            pixels.count,
+                        by: 4
+                    )
+                {
+                    if pixels[alphaIndex] <
+                        255
+                    {
+                        return true
+                    }
+                }
+
+                return false
+            }
+
+        return didFindTransparency
     }
 
     private nonisolated static func inspectImageData(
@@ -423,6 +808,11 @@ actor ClipboardImageStorageService {
 
         return normalizedExtension
     }
+}
+
+private struct NormalizedClipboardImage {
+    let data: Data
+    let wasConverted: Bool
 }
 
 private struct InspectedImage {

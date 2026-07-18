@@ -440,6 +440,172 @@ final class ClipboardPersistenceServiceTests: XCTestCase {
             "image:abcdef123456"
         )
     }
+    
+    func testCustomTitleSurvivesPersistence()
+        async throws
+    {
+        let testStorage =
+            try makeTestStorage()
+
+        defer {
+            removeTestStorage(
+                testStorage
+            )
+        }
+
+        let service =
+            ClipboardPersistenceService(
+                storageURL:
+                    testStorage.fileURL
+            )
+
+        let originalItem =
+            ClipboardItem(
+                text:
+                    "https://www.youtube.com/watch?v=example",
+                contentKind:
+                    .link,
+                customTitle:
+                    "Video - Dance Choreography"
+            )
+
+        try await service.saveItems([
+            originalItem
+        ])
+
+        let loadedItems =
+            try await service.loadItems()
+
+        XCTAssertEqual(
+            loadedItems,
+            [originalItem]
+        )
+
+        XCTAssertEqual(
+            loadedItems.first?
+                .customTitle,
+            "Video - Dance Choreography"
+        )
+    }
+
+    func testRenamedCopyPreservesUnderlyingPayload()
+    {
+        let originalItem =
+            ClipboardItem(
+                text:
+                    "https://www.adidas.com/product",
+                contentKind:
+                    .link
+            )
+
+        let renamedItem =
+            originalItem.renamedCopy(
+                customTitle:
+                    "Sambas in Black"
+            )
+
+        XCTAssertEqual(
+            renamedItem.customTitle,
+            "Sambas in Black"
+        )
+
+        XCTAssertEqual(
+            renamedItem.payload,
+            originalItem.payload
+        )
+
+        XCTAssertEqual(
+            renamedItem.text,
+            originalItem.text
+        )
+
+        XCTAssertEqual(
+            renamedItem.duplicateKey,
+            originalItem.duplicateKey
+        )
+    }
+
+    func testEmptyCustomTitleRestoresAutomaticTitle()
+    {
+        let originalItem =
+            ClipboardItem(
+                text:
+                    "https://example.com",
+                contentKind:
+                    .link,
+                customTitle:
+                    "Example Website"
+            )
+
+        let renamedItem =
+            originalItem.renamedCopy(
+                customTitle:
+                    "   \n "
+            )
+
+        XCTAssertNil(
+            renamedItem.customTitle
+        )
+
+        XCTAssertEqual(
+            renamedItem.displayText,
+            "https://example.com"
+        )
+    }
+
+    func testCustomTitleIsSearchableAlongsidePayload()
+    {
+        let item =
+            ClipboardItem(
+                text:
+                    "https://www.youtube.com/watch?v=example",
+                contentKind:
+                    .link,
+                customTitle:
+                    "Britain's Got Talent"
+            )
+
+        XCTAssertTrue(
+            item.searchableText
+                .localizedCaseInsensitiveContains(
+                    "Britain"
+                )
+        )
+
+        XCTAssertTrue(
+            item.searchableText
+                .localizedCaseInsensitiveContains(
+                    "youtube"
+                )
+        )
+    }
+
+    func testPinAndUnpinPreserveCustomTitle()
+    {
+        let item =
+            ClipboardItem(
+                text:
+                    "Original content",
+                customTitle:
+                    "My Useful Clip"
+            )
+
+        let pinnedItem =
+            item.pinnedCopy()
+
+        let unpinnedItem =
+            pinnedItem.unpinnedCopy()
+
+        XCTAssertEqual(
+            pinnedItem.customTitle,
+            "My Useful Clip"
+        )
+
+        XCTAssertEqual(
+            unpinnedItem.customTitle,
+            "My Useful Clip"
+        )
+    }
 
     func testEncodedItemContainsPayloadAndLegacyTextFields() throws {
         let item =

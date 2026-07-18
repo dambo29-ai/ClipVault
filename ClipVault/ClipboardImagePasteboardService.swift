@@ -36,6 +36,8 @@ struct ClipboardImagePasteboardService {
     func writeImage(
         _ payload:
             ClipboardImagePayload,
+        customTitle:
+            String? = nil,
         to pasteboard:
             NSPasteboard
     ) async throws -> Bool {
@@ -76,10 +78,28 @@ struct ClipboardImagePasteboardService {
         var resolvedFileReference:
             ResolvedClipboardFileReference?
 
+        let normalizedCustomTitle =
+            customTitle?
+                .trimmingCharacters(
+                    in:
+                        .whitespacesAndNewlines
+                )
+
         var fileURLForPasteboard =
             managedImageFileURL
 
-        if let originalFileReference =
+        if let normalizedCustomTitle,
+           !normalizedCustomTitle.isEmpty
+        {
+            fileURLForPasteboard =
+                try await imageStorageService
+                    .stagedImageFileURL(
+                        for:
+                            payload,
+                        preferredFilenameStem:
+                            normalizedCustomTitle
+                    )
+        } else if let originalFileReference =
             payload.originalFileReference
         {
             resolvedFileReference =

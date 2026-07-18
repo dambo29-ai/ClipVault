@@ -13,124 +13,277 @@ struct ClipboardRow: View {
     let displayNumber: Int?
     let isHighlighted: Bool
     let onCopy: () -> Void
+    let onRename: (String?) -> Void
     let onPin: () -> Void
     let onUnpin: () -> Void
     let onDelete: () -> Void
 
+    @State private var isRenaming = false
+    @State private var renameDraft = ""
+
+    @FocusState
+    private var isRenameFieldFocused:
+        Bool
+
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(
+            alignment: .top,
+            spacing: 10
+        ) {
             numberView
 
-            if item.kind == .sensitiveSkipped {
+            if item.kind ==
+                .sensitiveSkipped
+            {
                 sensitiveSkippedRow
             } else {
                 normalRow
             }
         }
         .background {
-            RoundedRectangle(cornerRadius: 6)
-                .fill(
-                    isHighlighted
-                        ? Color.accentColor.opacity(0.16)
-                        : Color.clear
-                )
+            RoundedRectangle(
+                cornerRadius: 6
+            )
+            .fill(
+                isHighlighted
+                    ? Color.accentColor
+                        .opacity(0.16)
+                    : Color.clear
+            )
         }
         .animation(
-            .easeInOut(duration: 0.22),
-            value: isHighlighted
+            .easeInOut(
+                duration: 0.22
+            ),
+            value:
+                isHighlighted
         )
+        .onExitCommand {
+            guard isRenaming else {
+                return
+            }
+
+            cancelRenaming()
+        }
+        .onChange(
+            of:
+                isRenameFieldFocused
+        ) {
+            _,
+            isFocused in
+
+            if isRenaming &&
+                !isFocused
+            {
+                saveRename()
+            }
+        }
     }
-    
+
     @ViewBuilder
-    private var numberView: some View {
+    private var numberView:
+        some View
+    {
         if let displayNumber {
-            Text("\(displayNumber)")
-                .font(.caption)
-                .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-                .frame(width: 28, alignment: .center)
-                .padding(.top, 10)
+            Text(
+                "\(displayNumber)"
+            )
+            .font(.caption)
+            .fontWeight(.semibold)
+            .foregroundStyle(
+                .secondary
+            )
+            .monospacedDigit()
+            .frame(
+                width: 28,
+                alignment: .center
+            )
+            .padding(.top, 10)
         } else {
             Color.clear
                 .frame(width: 28)
         }
     }
 
-    private var normalRow: some View {
+    private var normalRow:
+        some View
+    {
         HStack(spacing: 8) {
-            Button(action: onCopy) {
-                normalRowContent
-                    .frame(
-                        maxWidth: .infinity,
-                        alignment: .leading
-                    )
-                    .padding(.vertical, 8)
-                    .frame(
-                        maxWidth: .infinity,
-                        alignment: .leading
-                    )
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .contextMenu {
+            if isRenaming {
+                renameEditor
+            } else {
                 Button(
-                    item.imagePayload == nil
-                        ? "Copy"
-                        : "Copy Image"
+                    action:
+                        onCopy
                 ) {
-                    onCopy()
+                    normalRowContent
+                        .frame(
+                            maxWidth:
+                                .infinity,
+                            alignment:
+                                .leading
+                        )
+                        .padding(
+                            .vertical,
+                            8
+                        )
+                        .frame(
+                            maxWidth:
+                                .infinity,
+                            alignment:
+                                .leading
+                        )
+                        .contentShape(
+                            Rectangle()
+                        )
                 }
+                .buttonStyle(.plain)
+                .contextMenu {
+                    copyContextMenuButton
 
-                if isLink {
-                    Button("Open Link") {
-                        openLink()
+                    Button(
+                        "Rename Clip"
+                    ) {
+                        beginRenaming()
                     }
+
+                    if isLink {
+                        Button(
+                            "Open Link"
+                        ) {
+                            openLink()
+                        }
+                    }
+
+                    if item.imagePayload !=
+                        nil
+                    {
+                        Button(
+                            "Preview"
+                        ) {
+                            previewImage()
+                        }
+                    }
+
+                    if item.isPinned {
+                        Button(
+                            "Unpin"
+                        ) {
+                            onUnpin()
+                        }
+                    } else {
+                        Button(
+                            "Pin"
+                        ) {
+                            onPin()
+                        }
+                    }
+
+                    Divider()
+
+                    Button(
+                        "Delete",
+                        role:
+                            .destructive
+                    ) {
+                        onDelete()
+                    }
+                }
+            }
+
+            if !isRenaming {
+                if isLink {
+                    openLinkButton
                 }
 
                 if item.imagePayload != nil {
-                    Button("Preview") {
-                        previewImage()
-                    }
+                    previewImageButton
                 }
 
-                if item.isPinned {
-                    Button("Unpin") {
-                        onUnpin()
-                    }
-                } else {
-                    Button("Pin") {
-                        onPin()
-                    }
-                }
+                renameButton
 
-                Divider()
+                pinButton
 
-                Button(
-                    "Delete",
-                    role: .destructive
-                ) {
-                    onDelete()
-                }
+                deleteButton
+                    .help(
+                        "Delete this clipboard item"
+                    )
+                    .accessibilityLabel(
+                        "Delete clipboard item"
+                    )
+            }
+        }
+    }
+
+    private var renameEditor:
+        some View
+    {
+        HStack(spacing: 8) {
+            TextField(
+                "Clip title",
+                text:
+                    $renameDraft
+            )
+            .textFieldStyle(
+                .roundedBorder
+            )
+            .focused(
+                $isRenameFieldFocused
+            )
+            .onSubmit {
+                saveRename()
             }
 
-            if isLink {
-                openLinkButton
-            }
-
-            if item.imagePayload != nil {
-                previewImageButton
-            }
-
-            pinButton
-
-            deleteButton
-                .help(
-                    "Delete this clipboard item"
+            Button {
+                saveRename()
+            } label: {
+                Image(
+                    systemName:
+                        "checkmark"
                 )
-                .accessibilityLabel(
-                    "Delete clipboard item"
+                .frame(
+                    width: 24,
+                    height: 24
                 )
+            }
+            .buttonStyle(
+                .borderless
+            )
+            .help("Save title")
+
+            Button {
+                cancelRenaming()
+            } label: {
+                Image(
+                    systemName:
+                        "xmark"
+                )
+                .frame(
+                    width: 24,
+                    height: 24
+                )
+            }
+            .buttonStyle(
+                .borderless
+            )
+            .help("Cancel renaming")
+        }
+        .padding(.vertical, 8)
+        .frame(
+            maxWidth: .infinity,
+            alignment: .leading
+        )
+    }
+
+    private var copyContextMenuButton:
+        some View
+    {
+        Button(
+            item.imagePayload == nil
+                ? "Copy"
+                : "Copy Image"
+        ) {
+            onCopy()
         }
     }
 
@@ -162,11 +315,36 @@ struct ClipboardRow: View {
             alignment: .leading,
             spacing: 6
         ) {
-            Text(item.displayText)
-                .lineLimit(3)
+            Text(
+                item.displayText
+            )
+            .fontWeight(
+                item.hasCustomTitle
+                    ? .medium
+                    : .regular
+            )
+            .lineLimit(
+                item.hasCustomTitle
+                    ? 1
+                    : 3
+            )
+            .multilineTextAlignment(
+                .leading
+            )
+
+            if item.hasCustomTitle {
+                Text(
+                    item.automaticDisplayText
+                )
+                .font(.caption)
+                .foregroundStyle(
+                    .secondary
+                )
+                .lineLimit(2)
                 .multilineTextAlignment(
                     .leading
                 )
+            }
 
             metadataView
         }
@@ -181,7 +359,8 @@ struct ClipboardRow: View {
             spacing: 12
         ) {
             ClipboardImageThumbnailView(
-                payload: imagePayload
+                payload:
+                    imagePayload
             )
 
             VStack(
@@ -189,14 +368,31 @@ struct ClipboardRow: View {
                 spacing: 5
             ) {
                 Text(
-                    imagePayload.displayTitle
+                    item.displayText
                 )
                 .fontWeight(.medium)
                 .lineLimit(1)
-                .truncationMode(.middle)
-                .help(
-                    imagePayload.displayTitle
+                .truncationMode(
+                    .middle
                 )
+                .help(
+                    item.displayText
+                )
+
+                if item.hasCustomTitle {
+                    Text(
+                        imagePayload
+                            .displayTitle
+                    )
+                    .font(.caption)
+                    .foregroundStyle(
+                        .secondary
+                    )
+                    .lineLimit(1)
+                    .truncationMode(
+                        .middle
+                    )
+                }
 
                 Text(
                     imagePayload
@@ -207,12 +403,14 @@ struct ClipboardRow: View {
                 imageSourceMetadataView
             }
             .frame(
-                maxWidth: .infinity,
-                alignment: .leading
+                maxWidth:
+                    .infinity,
+                alignment:
+                    .leading
             )
         }
     }
-    
+
     private func filesRowContent(
         _ filesPayload:
             ClipboardFilesPayload
@@ -231,16 +429,31 @@ struct ClipboardRow: View {
                 spacing: 5
             ) {
                 Text(
-                    filesPayload
-                        .displayTitle
+                    item.displayText
                 )
                 .fontWeight(.medium)
                 .lineLimit(1)
-                .truncationMode(.middle)
-                .help(
-                    filesPayload
-                        .displayTitle
+                .truncationMode(
+                    .middle
                 )
+                .help(
+                    item.displayText
+                )
+
+                if item.hasCustomTitle {
+                    Text(
+                        filesPayload
+                            .displayTitle
+                    )
+                    .font(.caption)
+                    .foregroundStyle(
+                        .secondary
+                    )
+                    .lineLimit(1)
+                    .truncationMode(
+                        .middle
+                    )
+                }
 
                 Text(
                     filesPayload
@@ -254,8 +467,10 @@ struct ClipboardRow: View {
                 fileSourceMetadataView
             }
             .frame(
-                maxWidth: .infinity,
-                alignment: .leading
+                maxWidth:
+                    .infinity,
+                alignment:
+                    .leading
             )
         }
     }
@@ -270,7 +485,8 @@ struct ClipboardRow: View {
         {
             Image(
                 systemName:
-                    fileReference.isDirectory
+                    fileReference
+                        .isDirectory
                         ? "folder.fill"
                         : "doc.fill"
             )
@@ -300,18 +516,55 @@ struct ClipboardRow: View {
             )
         }
     }
-    
+
     private var isLink: Bool {
         item.kind == .normal &&
         item.linkURL != nil
     }
 
     private var linkURL: URL? {
-        guard item.kind == .normal else {
+        guard
+            item.kind ==
+                .normal
+        else {
             return nil
         }
 
         return item.linkURL
+    }
+
+    private func beginRenaming() {
+        renameDraft =
+            item.customTitle ??
+            item.automaticDisplayText
+
+        isRenaming = true
+
+        Task { @MainActor in
+            isRenameFieldFocused =
+                true
+        }
+    }
+
+    private func saveRename() {
+        guard isRenaming else {
+            return
+        }
+
+        isRenaming = false
+        isRenameFieldFocused =
+            false
+
+        onRename(
+            renameDraft
+        )
+    }
+
+    private func cancelRenaming() {
+        isRenaming = false
+        isRenameFieldFocused =
+            false
+        renameDraft = ""
     }
 
     private func openLink() {
@@ -319,9 +572,11 @@ struct ClipboardRow: View {
             return
         }
 
-        NSWorkspace.shared.open(linkURL)
+        NSWorkspace.shared.open(
+            linkURL
+        )
     }
-    
+
     private func previewImage() {
         guard
             let imagePayload =
@@ -345,39 +600,90 @@ struct ClipboardRow: View {
                         "Image Could Not Be Previewed",
                     message:
                         "The stored image could not be opened in Quick Look.",
-                    error: error
+                    error:
+                        error
                 )
             }
         }
     }
 
-    private var sensitiveSkippedRow: some View {
+    private var sensitiveSkippedRow:
+        some View
+    {
         HStack(spacing: 8) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(item.displayText)
-                    .fontWeight(.bold)
-                    .foregroundStyle(.red)
-                    .lineLimit(3)
-                    .multilineTextAlignment(.leading)
+            VStack(
+                alignment: .leading,
+                spacing: 6
+            ) {
+                Text(
+                    item.displayText
+                )
+                .fontWeight(.bold)
+                .foregroundStyle(.red)
+                .lineLimit(3)
+                .multilineTextAlignment(
+                    .leading
+                )
 
                 Text(
-                    ClipboardTimestampFormatter.string(
-                        for: item.createdAt
-                    )
+                    ClipboardTimestampFormatter
+                        .string(
+                            for:
+                                item.createdAt
+                        )
                 )
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(
+                    .secondary
+                )
             }
             .padding(.vertical, 8)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(
+                maxWidth: .infinity,
+                alignment: .leading
+            )
 
             deleteButton
-                .help("Delete this warning row")
-                .accessibilityLabel("Delete warning row")
+                .help(
+                    "Delete this warning row"
+                )
+                .accessibilityLabel(
+                    "Delete warning row"
+                )
         }
     }
     
-    private var pinButton: some View {
+    private var renameButton:
+        some View
+    {
+        Button {
+            beginRenaming()
+        } label: {
+            Image(
+                systemName:
+                    "square.and.pencil"
+            )
+            .foregroundStyle(
+                .secondary
+            )
+            .frame(
+                width: 28,
+                height: 28
+            )
+            .contentShape(
+                Rectangle()
+            )
+        }
+        .buttonStyle(.borderless)
+        .help("Rename clip")
+        .accessibilityLabel(
+            "Rename clipboard item"
+        )
+    }
+
+    private var pinButton:
+        some View
+    {
         Button {
             if item.isPinned {
                 onUnpin()
@@ -396,8 +702,13 @@ struct ClipboardRow: View {
                     ? .primary
                     : .secondary
             )
-            .frame(width: 28, height: 28)
-            .contentShape(Rectangle())
+            .frame(
+                width: 28,
+                height: 28
+            )
+            .contentShape(
+                Rectangle()
+            )
         }
         .buttonStyle(.borderless)
         .help(
@@ -411,15 +722,70 @@ struct ClipboardRow: View {
                 : "Pin clipboard item"
         )
     }
-    
-    private var previewImageButton:
+
+    private var deleteButton:
         some View
     {
         Button(
-            action: previewImage
+            role: .destructive,
+            action:
+                onDelete
         ) {
             Image(
-                systemName: "eye"
+                systemName:
+                    "trash"
+            )
+            .foregroundStyle(
+                .secondary
+            )
+            .frame(
+                width: 28,
+                height: 28
+            )
+            .contentShape(
+                Rectangle()
+            )
+        }
+        .buttonStyle(.borderless)
+    }
+
+    private var openLinkButton:
+        some View
+    {
+        Button {
+            openLink()
+        } label: {
+            Image(
+                systemName:
+                    "link"
+            )
+            .foregroundStyle(
+                .secondary
+            )
+            .frame(
+                width: 28,
+                height: 28
+            )
+            .contentShape(
+                Rectangle()
+            )
+        }
+        .buttonStyle(.borderless)
+        .help("Open link in browser")
+        .accessibilityLabel(
+            "Open link"
+        )
+    }
+
+    private var previewImageButton:
+        some View
+    {
+        Button {
+            previewImage()
+        } label: {
+            Image(
+                systemName:
+                    "eye"
             )
             .foregroundStyle(
                 .secondary
@@ -438,47 +804,26 @@ struct ClipboardRow: View {
             "Preview image"
         )
     }
-    
-    private var openLinkButton: some View {
-        Button(action: openLink) {
-            Image(systemName: "link")
-                .foregroundStyle(.secondary)
-                .frame(width: 28, height: 28)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.borderless)
-        .help("Open link")
-        .accessibilityLabel("Open link")
-    }
-    
-    private var deleteButton: some View {
-        Button(action: onDelete) {
-            Image(systemName: "trash")
-                .foregroundStyle(.secondary)
-                .frame(width: 28, height: 28)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.borderless)
-    }
-    
-    private var fileSourceMetadataView:
+
+    @ViewBuilder
+    private var metadataView:
         some View
     {
-        HStack(spacing: 6) {
-            if let sourceAppName =
-                item.sourceAppName,
-               !sourceAppName
-                    .trimmingCharacters(
-                        in:
-                            .whitespacesAndNewlines
-                    )
-                    .isEmpty
-            {
-                Text(sourceAppName)
-                    .lineLimit(1)
+        HStack(spacing: 4) {
+            Text(
+                item.sourceAppName ??
+                "Unknown App"
+            )
+            .font(.caption)
+            .foregroundStyle(
+                .secondary
+            )
 
-                Text("•")
-            }
+            Text("•")
+                .font(.caption)
+                .foregroundStyle(
+                    .secondary
+                )
 
             Text(
                 ClipboardTimestampFormatter
@@ -487,59 +832,22 @@ struct ClipboardRow: View {
                             item.createdAt
                     )
             )
+            .font(.caption)
+            .foregroundStyle(
+                .secondary
+            )
         }
-        .font(.caption)
-        .foregroundStyle(.secondary)
     }
-    
+
     private var imageSourceMetadataView:
         some View
     {
-        HStack(spacing: 6) {
-            if let sourceAppName =
-                item.sourceAppName,
-               !sourceAppName
-                    .trimmingCharacters(
-                        in:
-                            .whitespacesAndNewlines
-                    )
-                    .isEmpty
-            {
-                Text(sourceAppName)
-                    .lineLimit(1)
-
-                Text("•")
-            }
-
-            Text(
-                ClipboardTimestampFormatter
-                    .string(
-                        for:
-                            item.createdAt
-                    )
-            )
-        }
-        .font(.caption)
-        .foregroundStyle(.secondary)
+        metadataView
     }
-    
-    private var metadataView: some View {
-        HStack(spacing: 6) {
-            Text(
-                ClipboardTimestampFormatter.string(
-                    for: item.createdAt
-                )
-            )
-            
-            if let sourceAppName = item.sourceAppName,
-               !sourceAppName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                Text("•")
-                
-                Text(sourceAppName)
-                    .lineLimit(1)
-            }
-        }
-        .font(.caption)
-        .foregroundStyle(.secondary)
+
+    private var fileSourceMetadataView:
+        some View
+    {
+        metadataView
     }
 }

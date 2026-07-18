@@ -39,13 +39,23 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
     let origin: ClipboardItemOrigin
     let isPinned: Bool
     let pinnedAt: Date?
+    let customTitle: String?
 
     var text: String {
         payload.compatibilityText
     }
     
     var displayText: String {
+        customTitle ??
+            payload.displayText
+    }
+
+    var automaticDisplayText: String {
         payload.displayText
+    }
+
+    var hasCustomTitle: Bool {
+        customTitle != nil
     }
 
     var linkURL: URL? {
@@ -61,7 +71,14 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
     }
 
     var searchableText: String {
-        payload.searchableText
+        guard let customTitle else {
+            return payload.searchableText
+        }
+
+        return """
+        \(customTitle)
+        \(payload.searchableText)
+        """
     }
     
     var duplicateKey: String {
@@ -82,7 +99,8 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
         origin: ClipboardItemOrigin = .captured,
         contentKind: ClipboardContentKind? = nil,
         isPinned: Bool = false,
-        pinnedAt: Date? = nil
+        pinnedAt: Date? = nil,
+        customTitle: String? = nil
     ) {
         self.init(
             id: id,
@@ -99,7 +117,8 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
                 sourceBundleIdentifier,
             origin: origin,
             isPinned: isPinned,
-            pinnedAt: pinnedAt
+            pinnedAt: pinnedAt,
+            customTitle: customTitle
         )
     }
 
@@ -112,7 +131,8 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
         sourceBundleIdentifier: String? = nil,
         origin: ClipboardItemOrigin = .captured,
         isPinned: Bool = false,
-        pinnedAt: Date? = nil
+        pinnedAt: Date? = nil,
+        customTitle: String? = nil
     ) {
         self.id = id
         self.payload = payload
@@ -129,6 +149,11 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
             self.isPinned
                 ? pinnedAt
                 : nil
+
+        self.customTitle =
+            ClipboardItem.normalizedCustomTitle(
+                customTitle
+            )
     }
 
     func pinnedCopy(
@@ -148,7 +173,8 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
                 sourceBundleIdentifier,
             origin: origin,
             isPinned: true,
-            pinnedAt: pinnedAt
+            pinnedAt: pinnedAt,
+            customTitle: customTitle
         )
     }
 
@@ -163,7 +189,31 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
                 sourceBundleIdentifier,
             origin: origin,
             isPinned: false,
-            pinnedAt: nil
+            pinnedAt: nil,
+            customTitle: customTitle
+        )
+    }
+    
+    func renamedCopy(
+        customTitle:
+            String?
+    ) -> ClipboardItem {
+        guard kind == .normal else {
+            return self
+        }
+
+        return ClipboardItem(
+            id: id,
+            payload: payload,
+            createdAt: createdAt,
+            kind: kind,
+            sourceAppName: sourceAppName,
+            sourceBundleIdentifier:
+                sourceBundleIdentifier,
+            origin: origin,
+            isPinned: isPinned,
+            pinnedAt: pinnedAt,
+            customTitle: customTitle
         )
     }
 
@@ -178,7 +228,8 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
                 sourceBundleIdentifier,
             origin: .restored,
             isPinned: isPinned,
-            pinnedAt: pinnedAt
+            pinnedAt: pinnedAt,
+            customTitle: customTitle
         )
     }
 
@@ -197,6 +248,7 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
         case contentKind
         case isPinned
         case pinnedAt
+        case customTitle
     }
 
     init(from decoder: Decoder) throws {
@@ -289,6 +341,15 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
         } else {
             pinnedAt = nil
         }
+
+        customTitle =
+            ClipboardItem.normalizedCustomTitle(
+                try container.decodeIfPresent(
+                    String.self,
+                    forKey:
+                        .customTitle
+                )
+            )
     }
 
     func encode(
@@ -354,6 +415,30 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
             pinnedAt,
             forKey: .pinnedAt
         )
+
+        try container.encodeIfPresent(
+            customTitle,
+            forKey: .customTitle
+        )
+    }
+    
+    private static func normalizedCustomTitle(
+        _ value:
+            String?
+    ) -> String? {
+        guard let value else {
+            return nil
+        }
+
+        let trimmedValue =
+            value.trimmingCharacters(
+                in:
+                    .whitespacesAndNewlines
+            )
+
+        return trimmedValue.isEmpty
+            ? nil
+            : trimmedValue
     }
 
     private static func payload(

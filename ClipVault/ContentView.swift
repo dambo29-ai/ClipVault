@@ -515,6 +515,15 @@ struct ContentView: View {
                 onCopy: {
                     clipboardStore.copyToClipboard(item)
                 },
+                onRename: {
+                    customTitle in
+
+                    clipboardStore.renameItem(
+                        item,
+                        customTitle:
+                            customTitle
+                    )
+                },
                 onPin: {
                     isPinnedSectionExpanded = true
                     clipboardStore.pinItem(item)

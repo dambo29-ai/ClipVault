@@ -714,12 +714,15 @@ final class ClipboardStore: ObservableObject {
 
                 do {
                     let didWrite =
-                        try await
-                            imagePasteboardService
-                                .writeImage(
-                                    imagePayload,
-                                    to: .general
-                                )
+                    try await
+                        imagePasteboardService
+                            .writeImage(
+                                imagePayload,
+                                customTitle:
+                                    item.customTitle,
+                                to:
+                                    .general
+                            )
 
                     guard didWrite else {
                         OperationFailureAlert.show(
@@ -878,6 +881,51 @@ final class ClipboardStore: ObservableObject {
             previousItems:
                 previousItems
         )
+    }
+    
+    func renameItem(
+        _ item:
+            ClipboardItem,
+        customTitle:
+            String?
+    ) {
+        guard
+            item.kind == .normal,
+            let index =
+                items.firstIndex(
+                    where: {
+                        $0.id ==
+                            item.id
+                    }
+                )
+        else {
+            return
+        }
+
+        let renamedItem =
+            items[index]
+                .renamedCopy(
+                    customTitle:
+                        customTitle
+                )
+
+        guard
+            renamedItem !=
+                items[index]
+        else {
+            return
+        }
+
+        var updatedItems =
+            items
+
+        updatedItems[index] =
+            renamedItem
+
+        items =
+            updatedItems
+
+        saveItems()
     }
     
     func deleteItem(_ item: ClipboardItem) {
@@ -1314,7 +1362,7 @@ final class ClipboardStore: ObservableObject {
             do {
                 let imagePayload =
                     try await imageStorageService
-                        .storeImage(
+                        .storeClipboardImage(
                             data:
                                 imageData
                         )

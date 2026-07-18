@@ -170,6 +170,115 @@ struct ClipboardImagePasteboardServiceTests {
             imageData
         )
     }
+    
+    @Test
+    func customTitleWritesStagedFileWithCustomFilename()
+        async throws
+    {
+        let testDirectory =
+            makeTestDirectory()
+
+        defer {
+            removeTestDirectory(
+                testDirectory
+            )
+        }
+
+        let storageService =
+            ClipboardImageStorageService(
+                imagesDirectoryURL:
+                    testDirectory
+            )
+
+        let imageData =
+            try makePNGData(
+                width:
+                    9,
+                height:
+                    7
+            )
+
+        let payload =
+            try await storageService
+                .storeImage(
+                    data:
+                        imageData,
+                    originalFilename:
+                        "Original Image.png"
+                )
+
+        let pasteboard =
+            makePasteboard()
+
+        let pasteboardService =
+            ClipboardImagePasteboardService(
+                imageStorageService:
+                    storageService
+            )
+
+        let didWrite =
+            try await pasteboardService
+                .writeImage(
+                    payload,
+                    customTitle:
+                        "Kitchen / Backsplash: Option",
+                    to:
+                        pasteboard
+                )
+
+        #expect(didWrite)
+
+        let writtenFileURLs =
+            pasteboard.readObjects(
+                forClasses: [
+                    NSURL.self
+                ],
+                options: [
+                    .urlReadingFileURLsOnly:
+                        true
+                ]
+            ) as? [NSURL]
+
+        let writtenFileURL =
+            writtenFileURLs?
+                .first
+                .map {
+                    $0 as URL
+                }
+
+        #expect(
+            writtenFileURL?
+                .lastPathComponent ==
+            "Kitchen - Backsplash- Option.png"
+        )
+
+        #expect(
+            writtenFileURL?
+                .lastPathComponent !=
+            "Original Image.png"
+        )
+
+        #expect(
+            writtenFileURL.map {
+                FileManager.default
+                    .fileExists(
+                        atPath:
+                            $0.path
+                    )
+            } ==
+            true
+        )
+
+        #expect(
+            writtenFileURL.flatMap {
+                try? Data(
+                    contentsOf:
+                        $0
+                )
+            } ==
+            imageData
+        )
+    }
 
     @Test
     func missingImageDoesNotClearExistingClipboard()
