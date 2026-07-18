@@ -32,6 +32,7 @@ enum ClipboardPayload:
     case text(ClipboardTextPayload)
     case link(ClipboardLinkPayload)
     case image(ClipboardImagePayload)
+    case files(ClipboardFilesPayload)
 
     var contentKind: ClipboardContentKind {
         switch self {
@@ -43,6 +44,9 @@ enum ClipboardPayload:
 
         case .image:
             return .image
+
+        case .files:
+            return .files
         }
     }
 
@@ -56,6 +60,9 @@ enum ClipboardPayload:
 
         case let .image(payload):
             return payload.searchableText
+
+        case let .files(payload):
+            return payload.searchableText
         }
     }
 
@@ -68,6 +75,9 @@ enum ClipboardPayload:
             return payload.urlString
 
         case let .image(payload):
+            return payload.displayTitle
+
+        case let .files(payload):
             return payload.displayTitle
         }
     }
@@ -102,6 +112,16 @@ enum ClipboardPayload:
 
         return payload
     }
+    
+    var filesPayload: ClipboardFilesPayload? {
+        guard
+            case let .files(payload) = self
+        else {
+            return nil
+        }
+
+        return payload
+    }
 
     @discardableResult
     func write(
@@ -124,14 +144,11 @@ enum ClipboardPayload:
                 forType: .string
             )
 
-        case .image:
+        case .image, .files:
             /*
-             Image data is stored in the managed Images
-             directory rather than inside this payload.
-
-             Pasteboard restoration will be connected after
-             ClipboardImageStorageService is integrated into
-             ClipboardStore.
+             Image data and persistent File access are handled
+             by dedicated services in ClipboardStore rather
+             than directly by this lightweight payload.
              */
             return false
         }
@@ -150,6 +167,9 @@ enum ClipboardPayload:
                 )
 
         case let .image(payload):
+            return payload.duplicateKey
+
+        case let .files(payload):
             return payload.duplicateKey
         }
     }

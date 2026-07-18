@@ -7,9 +7,11 @@
 
 import AppKit
 import Foundation
+import UniformTypeIdentifiers
 
 enum ClipboardChangeContent {
     case fileURLs([URL])
+    case rasterImage(Data)
     case text(String)
 }
 
@@ -40,15 +42,87 @@ enum ClipboardPasteboardClassificationService {
             )
         }
 
+        if let imageData =
+            rasterImageData(
+                from:
+                    pasteboard
+            )
+        {
+            return .rasterImage(
+                imageData
+            )
+        }
+
         guard
             let text =
                 pasteboard.string(
-                    forType: .string
+                    forType:
+                        .string
                 )
         else {
             return nil
         }
 
-        return .text(text)
+        return .text(
+            text
+        )
+    }
+
+    private static func rasterImageData(
+        from pasteboard:
+            NSPasteboard
+    ) -> Data? {
+        let preferredTypes:
+            [NSPasteboard.PasteboardType] =
+                [
+                    .png,
+                    .tiff
+                ]
+
+        for pasteboardType in
+            preferredTypes
+        {
+            if let data =
+                pasteboard.data(
+                    forType:
+                        pasteboardType
+                ),
+               !data.isEmpty
+            {
+                return data
+            }
+        }
+
+        for pasteboardType in
+            pasteboard.types ?? []
+        {
+            guard
+                pasteboardType !=
+                    .fileURL,
+                pasteboardType !=
+                    .pdf,
+                let uniformType =
+                    UTType(
+                        pasteboardType
+                            .rawValue
+                    ),
+                uniformType.conforms(
+                    to:
+                        .image
+                ),
+                let data =
+                    pasteboard.data(
+                        forType:
+                            pasteboardType
+                    ),
+                !data.isEmpty
+            else {
+                continue
+            }
+
+            return data
+        }
+
+        return nil
     }
 }

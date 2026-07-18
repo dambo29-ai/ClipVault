@@ -56,6 +56,10 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
         payload.imagePayload
     }
 
+    var filesPayload: ClipboardFilesPayload? {
+        payload.filesPayload
+    }
+
     var searchableText: String {
         payload.searchableText
     }

@@ -86,6 +86,12 @@ struct ClipboardImageBatchImportResult {
     let failedFilenames: [String]
 }
 
+struct ClipboardFilesImportResult {
+    let importedCount: Int
+    let pinnedDuplicateCount: Int
+    let failedFilenames: [String]
+}
+
 @MainActor
 final class ClipboardStore: ObservableObject {
     static let minimumHistoryLimit = 10
@@ -123,6 +129,12 @@ final class ClipboardStore: ObservableObject {
 
     private let imagePasteboardService:
         ClipboardImagePasteboardService
+    
+    private let fileReferenceService:
+        ClipboardFileReferenceService
+    
+    private let filesPasteboardService:
+        ClipboardFilesPasteboardService
 
     private var appDiscoveryTask: Task<Void, Never>?
     private var pinnedHighlightTask: Task<Void, Never>?
@@ -227,15 +239,34 @@ final class ClipboardStore: ObservableObject {
     init(
         imageStorageService:
             ClipboardImageStorageService =
-                .shared
+                .shared,
+        fileReferenceService:
+            ClipboardFileReferenceService? =
+                nil
     ) {
         self.imageStorageService =
             imageStorageService
 
+        let resolvedFileReferenceService =
+            fileReferenceService ??
+            ClipboardFileReferenceService
+                .shared
+
+        self.fileReferenceService =
+            resolvedFileReferenceService
+
+        filesPasteboardService =
+            ClipboardFilesPasteboardService(
+                fileReferenceService:
+                    resolvedFileReferenceService
+            )
+
         imagePasteboardService =
             ClipboardImagePasteboardService(
                 imageStorageService:
-                    imageStorageService
+                    imageStorageService,
+                fileReferenceService:
+                    resolvedFileReferenceService
             )
 
         loadMaxItemCount()
@@ -311,10 +342,20 @@ final class ClipboardStore: ObservableObject {
             }
 
             do {
+                let originalFileReference =
+                    try? fileReferenceService
+                        .makeReference(
+                            for:
+                                fileURL
+                        )
+
                 let imagePayload =
                     try await imageStorageService
                         .storeImage(
-                            at: fileURL
+                            at:
+                                fileURL,
+                            originalFileReference:
+                                originalFileReference
                         )
 
                 let duplicateKey =
@@ -466,6 +507,184 @@ final class ClipboardStore: ObservableObject {
         )
     }
     
+    func importFileURLs(
+        _ fileURLs: [URL],
+        sourceAppName:
+            String = "Manual Import",
+        sourceBundleIdentifier:
+            String? = nil
+    ) -> ClipboardFilesImportResult {
+        guard !fileURLs.isEmpty else {
+            return ClipboardFilesImportResult(
+                importedCount: 0,
+                pinnedDuplicateCount: 0,
+                failedFilenames: []
+            )
+        }
+
+        let referenceResult =
+            fileReferenceService
+                .makeReferences(
+                    for:
+                        fileURLs
+                )
+
+        let failedFilenames =
+            referenceResult
+                .failedURLs
+                .map(\.lastPathComponent)
+
+        guard
+            !referenceResult
+                .references
+                .isEmpty
+        else {
+            return ClipboardFilesImportResult(
+                importedCount: 0,
+                pinnedDuplicateCount: 0,
+                failedFilenames:
+                    failedFilenames
+            )
+        }
+
+        let previousItems =
+            items
+
+        var updatedItems =
+            items
+
+        var newItems:
+            [ClipboardItem] = []
+
+        var pinnedDuplicateItemIDs:
+            [UUID] = []
+
+        for reference in
+            referenceResult.references
+        {
+            let filesPayload =
+                ClipboardFilesPayload(
+                    files: [
+                        reference
+                    ]
+                )
+
+            let duplicateKey =
+                filesPayload.duplicateKey
+
+            if let pinnedItem =
+                updatedItems.first(
+                    where: {
+                        $0.kind == .normal &&
+                        $0.isPinned &&
+                        $0.duplicateKey ==
+                            duplicateKey
+                    }
+                )
+            {
+                pinnedDuplicateItemIDs.append(
+                    pinnedItem.id
+                )
+
+                continue
+            }
+
+            updatedItems.removeAll {
+                $0.kind == .normal &&
+                !$0.isPinned &&
+                $0.duplicateKey ==
+                    duplicateKey
+            }
+
+            let newItem =
+                ClipboardItem(
+                    payload:
+                        .files(
+                            filesPayload
+                        ),
+                    createdAt:
+                        Date(),
+                    sourceAppName:
+                        sourceAppName,
+                    sourceBundleIdentifier:
+                        sourceBundleIdentifier
+                )
+
+            newItems.append(
+                newItem
+            )
+        }
+
+        guard
+            !newItems.isEmpty
+        else {
+            if let highlightedItemID =
+                pinnedDuplicateItemIDs.last
+            {
+                signalPinnedDuplicate(
+                    itemID:
+                        highlightedItemID
+                )
+            }
+
+            return ClipboardFilesImportResult(
+                importedCount: 0,
+                pinnedDuplicateCount:
+                    pinnedDuplicateItemIDs.count,
+                failedFilenames:
+                    failedFilenames
+            )
+        }
+
+        updatedItems.insert(
+            contentsOf:
+                newItems,
+            at: 0
+        )
+
+        items =
+            retainedItems(
+                from:
+                    updatedItems
+            )
+
+        let retainedItemIDs =
+            Set(
+                items.map(\.id)
+            )
+
+        let survivingImportedCount =
+            newItems.filter {
+                retainedItemIDs.contains(
+                    $0.id
+                )
+            }
+            .count
+
+        finalizeHistoryMutation(
+            previousItems:
+                previousItems
+        )
+
+        if let highlightedItemID =
+            pinnedDuplicateItemIDs.last
+        {
+            signalPinnedDuplicate(
+                itemID:
+                    highlightedItemID
+            )
+        }
+
+        return ClipboardFilesImportResult(
+            importedCount:
+                survivingImportedCount,
+            pinnedDuplicateCount:
+                pinnedDuplicateItemIDs.count,
+            failedFilenames:
+                failedFilenames
+        )
+    }
+    
     func copyToClipboard(
         _ item: ClipboardItem
     ) {
@@ -524,6 +743,39 @@ final class ClipboardStore: ObservableObject {
                         error: error
                     )
                 }
+            }
+        case let .files(filesPayload):
+            do {
+                let didWrite =
+                    try filesPasteboardService
+                        .writeFiles(
+                            filesPayload,
+                            to:
+                                .general
+                        )
+
+                guard didWrite else {
+                    OperationFailureAlert.show(
+                        title:
+                            "File Could Not Be Copied",
+                        message:
+                            "ClipVault could not write the stored file or folder reference to the clipboard."
+                    )
+
+                    return
+                }
+
+                clipboardMonitoringService
+                    .synchronizeChangeCount()
+            } catch {
+                OperationFailureAlert.show(
+                    title:
+                        "File Could Not Be Copied",
+                    message:
+                        "The stored file or folder could not be accessed.",
+                    error:
+                        error
+                )
             }
         }
     }
@@ -974,21 +1226,225 @@ final class ClipboardStore: ObservableObject {
     }
     
     private func handleClipboardChange(
-        _ payload: ClipboardChangePayload
+        _ payload:
+            ClipboardChangePayload
     ) {
         switch payload.content {
         case .text:
-            _ = processClipboardCapture(
-                payload,
-                captureSource:
-                    .nativeClipboard
-            )
+            _ =
+                processClipboardCapture(
+                    payload,
+                    captureSource:
+                        .nativeClipboard
+                )
 
         case let .fileURLs(fileURLs):
             handleCopiedFileURLs(
                 fileURLs,
-                payload: payload
+                payload:
+                    payload
             )
+
+        case let .rasterImage(imageData):
+            handleCopiedRasterImage(
+                imageData,
+                payload:
+                    payload
+            )
+        }
+    }
+    
+    private func handleCopiedRasterImage(
+        _ imageData: Data,
+        payload:
+            ClipboardChangePayload
+    ) {
+        guard !isMonitoringPaused else {
+            return
+        }
+
+        let sourceAppName =
+            payload.sourceAppName
+
+        let sourceBundleIdentifier =
+            payload.sourceBundleIdentifier
+
+        if let sourceAppName,
+           let sourceBundleIdentifier
+        {
+            rememberApp(
+                displayName:
+                    sourceAppName,
+                bundleIdentifier:
+                    sourceBundleIdentifier,
+                appPath:
+                    payload.sourceAppPath,
+                shouldSave:
+                    true
+            )
+        }
+
+        let sourceRuleMode =
+            ruleModeForSourceApp(
+                sourceAppName:
+                    sourceAppName,
+                bundleIdentifier:
+                    sourceBundleIdentifier
+            )
+
+        guard
+            sourceRuleMode !=
+                .blocked
+        else {
+            addBlockedAppSkippedPlaceholder(
+                sourceAppName:
+                    sourceAppName,
+                captureSource:
+                    .nativeClipboard
+            )
+
+            return
+        }
+
+        Task { @MainActor [weak self] in
+            guard let self else {
+                return
+            }
+
+            do {
+                let imagePayload =
+                    try await imageStorageService
+                        .storeImage(
+                            data:
+                                imageData
+                        )
+
+                let duplicateKey =
+                    imagePayload
+                        .duplicateKey
+
+                if let pinnedItem =
+                    items.first(
+                        where: {
+                            $0.kind ==
+                                .normal &&
+                            $0.isPinned &&
+                            $0.duplicateKey ==
+                                duplicateKey
+                        }
+                    )
+                {
+                    try? await imageStorageService
+                        .deleteImage(
+                            for:
+                                imagePayload
+                        )
+
+                    signalPinnedDuplicate(
+                        itemID:
+                            pinnedItem.id
+                    )
+
+                    if let pinnedImagePayload =
+                        pinnedItem.imagePayload
+                    {
+                        let didWrite =
+                            try await imagePasteboardService
+                                .writeImage(
+                                    pinnedImagePayload,
+                                    to:
+                                        .general
+                                )
+
+                        if didWrite {
+                            clipboardMonitoringService
+                                .synchronizeChangeCount()
+                        }
+                    }
+
+                    return
+                }
+
+                let previousItems =
+                    items
+
+                var updatedItems =
+                    items
+
+                updatedItems.removeAll {
+                    $0.kind ==
+                        .normal &&
+                    !$0.isPinned &&
+                    $0.duplicateKey ==
+                        duplicateKey
+                }
+
+                let newItem =
+                    ClipboardItem(
+                        payload:
+                            .image(
+                                imagePayload
+                            ),
+                        createdAt:
+                            Date(),
+                        sourceAppName:
+                            sourceAppName,
+                        sourceBundleIdentifier:
+                            sourceBundleIdentifier
+                    )
+
+                updatedItems.insert(
+                    newItem,
+                    at:
+                        0
+                )
+
+                items =
+                    retainedItems(
+                        from:
+                            updatedItems
+                    )
+
+                let wasRetained =
+                    items.contains {
+                        $0.id ==
+                            newItem.id
+                    }
+
+                finalizeHistoryMutation(
+                    previousItems:
+                        previousItems
+                )
+
+                guard wasRetained else {
+                    try? await imageStorageService
+                        .deleteImage(
+                            for:
+                                imagePayload
+                        )
+
+                    return
+                }
+
+                let didWrite =
+                    try await imagePasteboardService
+                        .writeImage(
+                            imagePayload,
+                            to:
+                                .general
+                        )
+
+                if didWrite {
+                    clipboardMonitoringService
+                        .synchronizeChangeCount()
+                }
+            } catch {
+                /*
+                 Passive clipboard monitoring must not interrupt
+                 the user with an alert when image storage or
+                 clipboard augmentation fails.
+                 */
+            }
         }
     }
     
@@ -1047,15 +1503,44 @@ final class ClipboardStore: ObservableObject {
                 return
             }
 
-            _ =
-                await importImageFiles(
-                    at: fileURLs,
-                    sourceAppName:
-                        sourceAppName ??
-                        "Finder",
-                    sourceBundleIdentifier:
-                        sourceBundleIdentifier
-                )
+            let routingResult =
+                ClipboardFileURLRoutingService
+                    .route(
+                        fileURLs
+                    )
+
+            if !routingResult
+                .imageFileURLs
+                .isEmpty
+            {
+                _ =
+                    await importImageFiles(
+                        at:
+                            routingResult
+                                .imageFileURLs,
+                        sourceAppName:
+                            sourceAppName ??
+                            "Finder",
+                        sourceBundleIdentifier:
+                            sourceBundleIdentifier
+                    )
+            }
+
+            if !routingResult
+                .fileAndFolderURLs
+                .isEmpty
+            {
+                _ =
+                    importFileURLs(
+                        routingResult
+                            .fileAndFolderURLs,
+                        sourceAppName:
+                            sourceAppName ??
+                            "Finder",
+                        sourceBundleIdentifier:
+                            sourceBundleIdentifier
+                    )
+            }
         }
     }
 

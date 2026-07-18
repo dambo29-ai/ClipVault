@@ -13,23 +13,44 @@ struct ClipboardImagePasteboardService {
     private let imageStorageService:
         ClipboardImageStorageService
 
+    private let fileReferenceService:
+        ClipboardFileReferenceService
+
     init(
         imageStorageService:
             ClipboardImageStorageService =
-                .shared
+                .shared,
+        fileReferenceService:
+            ClipboardFileReferenceService? =
+                nil
     ) {
         self.imageStorageService =
             imageStorageService
+
+        self.fileReferenceService =
+            fileReferenceService ??
+            ClipboardFileReferenceService
+                .shared
     }
 
     func writeImage(
-        _ payload: ClipboardImagePayload,
-        to pasteboard: NSPasteboard
+        _ payload:
+            ClipboardImagePayload,
+        to pasteboard:
+            NSPasteboard
     ) async throws -> Bool {
         let imageData =
             try await imageStorageService
                 .loadImageData(
-                    for: payload
+                    for:
+                        payload
+                )
+
+        let managedImageFileURL =
+            try await imageStorageService
+                .imageFileURL(
+                    for:
+                        payload
                 )
 
         let pasteboardType =
@@ -45,10 +66,52 @@ struct ClipboardImagePasteboardService {
         guard
             pasteboardItem.setData(
                 imageData,
-                forType: pasteboardType
+                forType:
+                    pasteboardType
             )
         else {
             return false
+        }
+
+        var resolvedFileReference:
+            ResolvedClipboardFileReference?
+
+        var fileURLForPasteboard =
+            managedImageFileURL
+
+        if let originalFileReference =
+            payload.originalFileReference
+        {
+            resolvedFileReference =
+                try? fileReferenceService
+                    .resolve(
+                        originalFileReference
+                    )
+
+            if let resolvedFileReference {
+                fileURLForPasteboard =
+                    resolvedFileReference
+                        .url
+            }
+        }
+
+        guard
+            pasteboardItem.setString(
+                fileURLForPasteboard
+                    .absoluteString,
+                forType:
+                    .fileURL
+            )
+        else {
+            resolvedFileReference?
+                .stopAccessing()
+
+            return false
+        }
+
+        defer {
+            resolvedFileReference?
+                .stopAccessing()
         }
 
         pasteboard.clearContents()

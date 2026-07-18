@@ -245,6 +245,53 @@ struct ClipboardImagePayloadTests {
                 originalPayload
         )
     }
+    
+    @Test
+    func payloadPreservesOriginalFileReference()
+        throws
+    {
+        let fileReference =
+            ClipboardFileReference(
+                path:
+                    "/Users/example/Desktop/photo.png",
+                displayName:
+                    "photo.png",
+                isDirectory:
+                    false,
+                byteCount:
+                    1234,
+                bookmarkData:
+                    Data([1, 2, 3])
+            )
+
+        let originalPayload =
+            makePayload(
+                originalFilename:
+                    "photo.png",
+                originalFileReference:
+                    fileReference
+            )
+
+        let encodedData =
+            try JSONEncoder()
+                .encode(
+                    originalPayload
+                )
+
+        let decodedPayload =
+            try JSONDecoder()
+                .decode(
+                    ClipboardImagePayload.self,
+                    from:
+                        encodedData
+                )
+
+        #expect(
+            decodedPayload
+                .originalFileReference ==
+                fileReference
+        )
+    }
 
     private func makePayload(
         storageIdentifier:
@@ -257,8 +304,10 @@ struct ClipboardImagePayloadTests {
         originalFilename:
             String? = nil,
         wasConverted:
-            Bool = false
-    ) -> ClipboardImagePayload {
+            Bool = false,
+        originalFileReference:
+            ClipboardFileReference? = nil
+        ) -> ClipboardImagePayload {
         ClipboardImagePayload(
             storageIdentifier:
                 storageIdentifier,
@@ -282,7 +331,9 @@ struct ClipboardImagePayloadTests {
             originalFilename:
                 originalFilename,
             wasConverted:
-                wasConverted
-        )
+                wasConverted,
+            originalFileReference:
+                originalFileReference
+            )
     }
 }

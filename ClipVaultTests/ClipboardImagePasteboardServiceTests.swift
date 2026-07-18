@@ -74,6 +74,102 @@ struct ClipboardImagePasteboardServiceTests {
                 imageData
         )
     }
+    
+    @Test
+    func storedImageWithoutOriginalFileWritesManagedFileURL()
+        async throws
+    {
+        let testDirectory =
+            makeTestDirectory()
+
+        defer {
+            removeTestDirectory(
+                testDirectory
+            )
+        }
+
+        let storageService =
+            ClipboardImageStorageService(
+                imagesDirectoryURL:
+                    testDirectory
+            )
+
+        let imageData =
+            try makePNGData(
+                width: 7,
+                height: 5
+            )
+
+        let payload =
+            try await storageService
+                .storeImage(
+                    data:
+                        imageData
+                )
+
+        let managedImageURL =
+            try await storageService
+                .imageFileURL(
+                    for:
+                        payload
+                )
+
+        let pasteboard =
+            makePasteboard()
+
+        let pasteboardService =
+            ClipboardImagePasteboardService(
+                imageStorageService:
+                    storageService
+            )
+
+        let didWrite =
+            try await pasteboardService
+                .writeImage(
+                    payload,
+                    to:
+                        pasteboard
+                )
+
+        #expect(didWrite)
+
+        let writtenFileURLs =
+            pasteboard.readObjects(
+                forClasses: [
+                    NSURL.self
+                ],
+                options: [
+                    .urlReadingFileURLsOnly:
+                        true
+                ]
+            ) as? [NSURL]
+
+        #expect(
+            writtenFileURLs?
+                .first
+                .map {
+                    ($0 as URL)
+                        .standardizedFileURL
+                        .path
+                } ==
+            managedImageURL
+                .standardizedFileURL
+                .path
+        )
+
+        let storedType =
+            NSPasteboard.PasteboardType(
+                UTType.png.identifier
+            )
+
+        #expect(
+            pasteboard.data(
+                forType:
+                    storedType
+            ) ==
+            imageData
+        )
+    }
 
     @Test
     func missingImageDoesNotClearExistingClipboard()

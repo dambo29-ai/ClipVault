@@ -29,7 +29,9 @@ actor ClipboardImageStorageService {
     
     func storeImage(
         at fileURL: URL,
-        wasConverted: Bool = false
+        wasConverted: Bool = false,
+        originalFileReference:
+            ClipboardFileReference? = nil
     ) throws -> ClipboardImagePayload {
         let imageData =
             try Data(
@@ -41,14 +43,18 @@ actor ClipboardImageStorageService {
             originalFilename:
                 fileURL.lastPathComponent,
             wasConverted:
-                wasConverted
+                wasConverted,
+            originalFileReference:
+                originalFileReference
         )
     }
 
     func storeImage(
         data: Data,
         originalFilename: String? = nil,
-        wasConverted: Bool = false
+        wasConverted: Bool = false,
+        originalFileReference:
+            ClipboardFileReference? = nil
     ) throws -> ClipboardImagePayload {
         guard !data.isEmpty else {
             throw ClipboardImageStorageError
@@ -85,8 +91,10 @@ actor ClipboardImageStorageService {
                 originalFilename:
                     originalFilename,
                 wasConverted:
-                    wasConverted
-            )
+                    wasConverted,
+                originalFileReference:
+                    originalFileReference
+                )
 
         let fileURL =
             try imageFileURL(

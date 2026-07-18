@@ -144,6 +144,12 @@ struct ClipboardRow: View {
             imageRowContent(
                 imagePayload
             )
+        } else if let filesPayload =
+            item.filesPayload
+        {
+            filesRowContent(
+                filesPayload
+            )
         } else {
             textRowContent
         }
@@ -203,6 +209,94 @@ struct ClipboardRow: View {
             .frame(
                 maxWidth: .infinity,
                 alignment: .leading
+            )
+        }
+    }
+    
+    private func filesRowContent(
+        _ filesPayload:
+            ClipboardFilesPayload
+    ) -> some View {
+        HStack(
+            alignment: .center,
+            spacing: 12
+        ) {
+            fileIconView(
+                for:
+                    filesPayload
+            )
+
+            VStack(
+                alignment: .leading,
+                spacing: 5
+            ) {
+                Text(
+                    filesPayload
+                        .displayTitle
+                )
+                .fontWeight(.medium)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .help(
+                    filesPayload
+                        .displayTitle
+                )
+
+                Text(
+                    filesPayload
+                        .rowMetadataText
+                )
+                .lineLimit(1)
+                .foregroundStyle(
+                    .secondary
+                )
+
+                fileSourceMetadataView
+            }
+            .frame(
+                maxWidth: .infinity,
+                alignment: .leading
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func fileIconView(
+        for filesPayload:
+            ClipboardFilesPayload
+    ) -> some View {
+        if let fileReference =
+            filesPayload.files.first
+        {
+            Image(
+                systemName:
+                    fileReference.isDirectory
+                        ? "folder.fill"
+                        : "doc.fill"
+            )
+            .font(
+                .system(
+                    size: 32
+                )
+            )
+            .foregroundStyle(
+                .secondary
+            )
+            .frame(
+                width: 56,
+                height: 56
+            )
+            .background {
+                RoundedRectangle(
+                    cornerRadius: 7
+                )
+                .fill(
+                    Color.secondary
+                        .opacity(0.08)
+                )
+            }
+            .accessibilityHidden(
+                true
             )
         }
     }
@@ -365,6 +459,37 @@ struct ClipboardRow: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.borderless)
+    }
+    
+    private var fileSourceMetadataView:
+        some View
+    {
+        HStack(spacing: 6) {
+            if let sourceAppName =
+                item.sourceAppName,
+               !sourceAppName
+                    .trimmingCharacters(
+                        in:
+                            .whitespacesAndNewlines
+                    )
+                    .isEmpty
+            {
+                Text(sourceAppName)
+                    .lineLimit(1)
+
+                Text("•")
+            }
+
+            Text(
+                ClipboardTimestampFormatter
+                    .string(
+                        for:
+                            item.createdAt
+                    )
+            )
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
     }
     
     private var imageSourceMetadataView:

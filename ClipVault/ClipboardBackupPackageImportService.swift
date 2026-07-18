@@ -303,7 +303,10 @@ final class ClipboardBackupPackageImportService {
                                     .originalFilename,
                             wasConverted:
                                 originalImagePayload
-                                    .wasConverted
+                                    .wasConverted,
+                            originalFileReference:
+                                originalImagePayload
+                                    .originalFileReference
                         )
 
                 restoredPayloadByOriginalStorageIdentifier[
@@ -443,6 +446,12 @@ final class ClipboardBackupPackageImportService {
             restoredPayload =
                 .image(
                     restoredImagePayload
+                )
+
+        case let .files(filesPayload):
+            restoredPayload =
+                .files(
+                    filesPayload
                 )
         }
 

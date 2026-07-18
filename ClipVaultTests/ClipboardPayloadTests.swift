@@ -196,6 +196,117 @@ struct ClipboardPayloadTests {
                 originalPayload
         )
     }
+    
+    @Test
+    func filesPayloadProvidesFileClassificationAndMetadata() {
+        let filesPayload =
+            makeFilesPayload()
+
+        let payload =
+            ClipboardPayload.files(
+                filesPayload
+            )
+
+        #expect(
+            payload.contentKind ==
+                .files
+        )
+
+        #expect(
+            payload.displayText ==
+                "2 Items"
+        )
+
+        #expect(
+            payload.searchableText.contains(
+                "report.pdf"
+            )
+        )
+
+        #expect(
+            payload.searchableText.contains(
+                "Project"
+            )
+        )
+
+        #expect(payload.linkURL == nil)
+
+        #expect(
+            payload.filesPayload ==
+                filesPayload
+        )
+
+        #expect(
+            payload.duplicateKey
+                .hasPrefix(
+                    "files:"
+                )
+        )
+    }
+
+    @Test
+    func filesPayloadDoesNotClearPasteboardWithoutFileService() {
+        let pasteboard =
+            makePasteboard()
+
+        pasteboard.clearContents()
+
+        pasteboard.setString(
+            "Existing clipboard value",
+            forType:
+                .string
+        )
+
+        let payload =
+            ClipboardPayload.files(
+                makeFilesPayload()
+            )
+
+        let didWrite =
+            payload.write(
+                to:
+                    pasteboard
+            )
+
+        #expect(!didWrite)
+
+        #expect(
+            pasteboard.string(
+                forType:
+                    .string
+            ) ==
+            "Existing clipboard value"
+        )
+    }
+
+    @Test
+    func filesPayloadRoundTripPreservesAssociatedValue()
+        throws
+    {
+        let originalPayload =
+            ClipboardPayload.files(
+                makeFilesPayload()
+            )
+
+        let encodedData =
+            try JSONEncoder()
+                .encode(
+                    originalPayload
+                )
+
+        let decodedPayload =
+            try JSONDecoder()
+                .decode(
+                    ClipboardPayload.self,
+                    from:
+                        encodedData
+                )
+
+        #expect(
+            decodedPayload ==
+                originalPayload
+        )
+    }
 
     @Test
     func inferenceCreatesLinkPayloadForValidURL() {
@@ -367,6 +478,33 @@ struct ClipboardPayloadTests {
             originalFilename:
                 "source-image.png",
             wasConverted: false
+        )
+    }
+    
+    private func makeFilesPayload()
+        -> ClipboardFilesPayload
+    {
+        ClipboardFilesPayload(
+            files: [
+                ClipboardFileReference(
+                    path:
+                        "/Users/example/Documents/report.pdf",
+                    displayName:
+                        "report.pdf",
+                    isDirectory:
+                        false,
+                    byteCount:
+                        12_000
+                ),
+                ClipboardFileReference(
+                    path:
+                        "/Users/example/Documents/Project",
+                    displayName:
+                        "Project",
+                    isDirectory:
+                        true
+                )
+            ]
         )
     }
     

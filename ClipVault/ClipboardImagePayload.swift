@@ -52,6 +52,9 @@ struct ClipboardImagePayload:
     let originalFilename: String?
     let wasConverted: Bool
 
+    let originalFileReference:
+        ClipboardFileReference?
+
     nonisolated init(
         storageIdentifier: UUID = UUID(),
         format: ClipboardImageFormat,
@@ -60,7 +63,9 @@ struct ClipboardImagePayload:
         byteCount: Int,
         contentHash: String,
         originalFilename: String? = nil,
-        wasConverted: Bool = false
+        wasConverted: Bool = false,
+        originalFileReference:
+            ClipboardFileReference? = nil
     ) {
         self.storageIdentifier =
             storageIdentifier
@@ -106,6 +111,9 @@ struct ClipboardImagePayload:
 
         self.wasConverted =
             wasConverted
+
+        self.originalFileReference =
+            originalFileReference
     }
 
     var displayTitle: String {
