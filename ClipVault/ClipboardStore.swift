@@ -811,11 +811,13 @@ final class ClipboardStore: ObservableObject {
                 } catch {
                     OperationFailureAlert.show(
                         title:
-                            "File Could Not Be Copied",
+                            "File or Folder Is Unavailable",
                         message:
-                            "The stored file or folder could not be accessed or prepared for pasting.",
-                        error:
-                            error
+                            """
+                            ClipVault kept the current clipboard unchanged.
+
+                            Restore the original file or folder to an accessible location, then try again.
+                            """
                     )
                 }
             }

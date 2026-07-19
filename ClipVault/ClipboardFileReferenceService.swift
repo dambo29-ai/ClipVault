@@ -12,7 +12,7 @@ enum ClipboardFileReferenceError:
     Equatable
 {
     case notFileURL
-    case resourceDoesNotExist
+    case resourceUnavailable
     case resourceMetadataUnavailable
     case bookmarkUnavailable
     case invalidBookmark
@@ -24,9 +24,9 @@ enum ClipboardFileReferenceError:
             return
                 "The selected item is not a local file or folder."
 
-        case .resourceDoesNotExist:
+        case .resourceUnavailable:
             return
-                "The selected file or folder could not be found."
+                "The file or folder is currently unavailable. It may have been moved, deleted, or stored on a disconnected drive or network location."
 
         case .resourceMetadataUnavailable:
             return
@@ -42,7 +42,7 @@ enum ClipboardFileReferenceError:
 
         case .staleBookmark:
             return
-                "The saved file reference is stale and must be refreshed."
+                "ClipVault’s saved access to this file or folder is no longer valid. The original item may have moved or its storage location may have changed."
         }
     }
 }
@@ -51,6 +51,31 @@ struct ResolvedClipboardFileReference {
     let url: URL
     let didStartSecurityScopedAccess: Bool
 
+    private let securityScopedAccessStopper:
+        (URL) -> Void
+
+    init(
+        url: URL,
+        didStartSecurityScopedAccess:
+            Bool,
+        securityScopedAccessStopper:
+            @escaping (URL) -> Void = {
+                fileURL in
+
+                fileURL
+                    .stopAccessingSecurityScopedResource()
+            }
+    ) {
+        self.url =
+            url
+
+        self.didStartSecurityScopedAccess =
+            didStartSecurityScopedAccess
+
+        self.securityScopedAccessStopper =
+            securityScopedAccessStopper
+    }
+
     func stopAccessing() {
         guard
             didStartSecurityScopedAccess
@@ -58,7 +83,9 @@ struct ResolvedClipboardFileReference {
             return
         }
 
-        url.stopAccessingSecurityScopedResource()
+        securityScopedAccessStopper(
+            url
+        )
     }
 }
 
@@ -75,6 +102,12 @@ final class ClipboardFileReferenceService {
             url: URL,
             isStale: Bool
         )
+
+    private let securityScopedAccessStarter:
+        (URL) -> Bool
+
+    private let securityScopedAccessStopper:
+        (URL) -> Void
 
     private init() {
         bookmarkCreator = {
@@ -122,6 +155,20 @@ final class ClipboardFileReferenceService {
                     isStale
             )
         }
+
+        securityScopedAccessStarter = {
+            fileURL in
+
+            fileURL
+                .startAccessingSecurityScopedResource()
+        }
+
+        securityScopedAccessStopper = {
+            fileURL in
+
+            fileURL
+                .stopAccessingSecurityScopedResource()
+        }
     }
 
     init(
@@ -131,13 +178,33 @@ final class ClipboardFileReferenceService {
             @escaping (Data) throws -> (
                 url: URL,
                 isStale: Bool
-            )
+            ),
+        securityScopedAccessStarter:
+            @escaping (URL) -> Bool = {
+                fileURL in
+
+                fileURL
+                    .startAccessingSecurityScopedResource()
+            },
+        securityScopedAccessStopper:
+            @escaping (URL) -> Void = {
+                fileURL in
+
+                fileURL
+                    .stopAccessingSecurityScopedResource()
+            }
     ) {
         self.bookmarkCreator =
             bookmarkCreator
 
         self.bookmarkResolver =
             bookmarkResolver
+
+        self.securityScopedAccessStarter =
+            securityScopedAccessStarter
+
+        self.securityScopedAccessStopper =
+            securityScopedAccessStopper
     }
 
     func makeReference(
@@ -160,17 +227,19 @@ final class ClipboardFileReferenceService {
                 )
         else {
             throw ClipboardFileReferenceError
-                .resourceDoesNotExist
+                .resourceUnavailable
         }
 
         let didStartAccessing =
-            standardizedURL
-                .startAccessingSecurityScopedResource()
+            securityScopedAccessStarter(
+                standardizedURL
+            )
 
         defer {
             if didStartAccessing {
-                standardizedURL
-                    .stopAccessingSecurityScopedResource()
+                securityScopedAccessStopper(
+                    standardizedURL
+                )
             }
         }
 
@@ -323,18 +392,21 @@ final class ClipboardFileReferenceService {
                 )
         else {
             throw ClipboardFileReferenceError
-                .resourceDoesNotExist
+                .resourceUnavailable
         }
 
         let didStartAccessing =
-            standardizedURL
-                .startAccessingSecurityScopedResource()
+            securityScopedAccessStarter(
+                standardizedURL
+            )
 
         return ResolvedClipboardFileReference(
             url:
                 standardizedURL,
             didStartSecurityScopedAccess:
-                didStartAccessing
+                didStartAccessing,
+            securityScopedAccessStopper:
+                securityScopedAccessStopper
         )
     }
 }

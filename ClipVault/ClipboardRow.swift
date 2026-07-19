@@ -21,6 +21,10 @@ struct ClipboardRow: View {
     @State private var isRenaming = false
     @State private var renameDraft = ""
 
+    @State private var fileAvailability:
+        ClipboardFileAvailabilityStatus =
+            .available
+
     @FocusState
     private var isRenameFieldFocused:
         Bool
@@ -464,6 +468,24 @@ struct ClipboardRow: View {
                     .secondary
                 )
 
+                if fileAvailability ==
+                    .unavailable
+                {
+                    Label(
+                        "Original unavailable",
+                        systemImage:
+                            "exclamationmark.triangle.fill"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(
+                        .orange
+                    )
+                    .lineLimit(1)
+                    .accessibilityLabel(
+                        "Original file or folder unavailable"
+                    )
+                }
+
                 fileSourceMetadataView
             }
             .frame(
@@ -471,6 +493,14 @@ struct ClipboardRow: View {
                     .infinity,
                 alignment:
                     .leading
+            )
+        }
+        .task(
+            id:
+                filesPayload
+        ) {
+            await monitorFileAvailability(
+                filesPayload
             )
         }
     }
@@ -483,37 +513,107 @@ struct ClipboardRow: View {
         if let fileReference =
             filesPayload.files.first
         {
-            Image(
-                systemName:
-                    fileReference
-                        .isDirectory
-                        ? "folder.fill"
-                        : "doc.fill"
-            )
-            .font(
-                .system(
-                    size: 32
+            ZStack(
+                alignment:
+                    .bottomTrailing
+            ) {
+                Image(
+                    systemName:
+                        fileReference
+                            .isDirectory
+                            ? "folder.fill"
+                            : "doc.fill"
                 )
-            )
-            .foregroundStyle(
-                .secondary
-            )
-            .frame(
-                width: 56,
-                height: 56
-            )
-            .background {
-                RoundedRectangle(
-                    cornerRadius: 7
+                .font(
+                    .system(
+                        size: 32
+                    )
                 )
-                .fill(
-                    Color.secondary
-                        .opacity(0.08)
+                .foregroundStyle(
+                    fileAvailability ==
+                        .unavailable
+                        ? .tertiary
+                        : .secondary
                 )
+                .frame(
+                    width: 56,
+                    height: 56
+                )
+                .background {
+                    RoundedRectangle(
+                        cornerRadius: 7
+                    )
+                    .fill(
+                        Color.secondary
+                            .opacity(0.08)
+                    )
+                }
+
+                if fileAvailability ==
+                    .unavailable
+                {
+                    Image(
+                        systemName:
+                            "exclamationmark.triangle.fill"
+                    )
+                    .font(
+                        .system(
+                            size: 14
+                        )
+                    )
+                    .foregroundStyle(
+                        .orange
+                    )
+                    .background {
+                        Circle()
+                            .fill(
+                                Color(
+                                    nsColor:
+                                        .windowBackgroundColor
+                                )
+                            )
+                            .padding(-2)
+                    }
+                    .offset(
+                        x: 2,
+                        y: 2
+                    )
+                }
             }
             .accessibilityHidden(
                 true
             )
+        }
+    }
+    
+    private func monitorFileAvailability(
+        _ filesPayload:
+            ClipboardFilesPayload
+    ) async {
+        while !Task.isCancelled {
+            let updatedAvailability =
+                ClipboardFileAvailabilityService
+                    .shared
+                    .status(
+                        for:
+                            filesPayload
+                    )
+
+            if fileAvailability !=
+                updatedAvailability
+            {
+                fileAvailability =
+                    updatedAvailability
+            }
+
+            do {
+                try await Task.sleep(
+                    for:
+                        .seconds(15)
+                )
+            } catch {
+                return
+            }
         }
     }
 

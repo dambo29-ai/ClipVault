@@ -160,7 +160,7 @@ struct ClipboardFileReferenceServiceTests {
         {
             #expect(
                 error ==
-                    .resourceDoesNotExist
+                    .resourceUnavailable
             )
         }
     }
@@ -395,6 +395,74 @@ struct ClipboardFileReferenceServiceTests {
                 .standardizedFileURL
                 .path
         )
+    }
+    
+    @Test
+    func resolvedUnavailableResourceIsRejectedWithRetryableError()
+        throws
+    {
+        let context =
+            try makeContext()
+
+        defer {
+            removeDirectory(
+                context.rootURL
+            )
+        }
+
+        let unavailableURL =
+            context.rootURL
+                .appendingPathComponent(
+                    "Disconnected Drive",
+                    isDirectory:
+                        true
+                )
+                .appendingPathComponent(
+                    "Archived Report.pdf"
+                )
+
+        context.resolvedURLBox.url =
+            unavailableURL
+
+        let reference =
+            ClipboardFileReference(
+                path:
+                    unavailableURL.path,
+                displayName:
+                    "Archived Report.pdf",
+                isDirectory:
+                    false,
+                byteCount:
+                    nil,
+                bookmarkData:
+                    context.bookmarkData
+            )
+
+        do {
+            _ =
+                try context.service
+                    .resolve(
+                        reference
+                    )
+
+            Issue.record(
+                "Expected the unavailable resource to be rejected."
+            )
+        } catch let error
+            as ClipboardFileReferenceError
+        {
+            #expect(
+                error ==
+                    .resourceUnavailable
+            )
+
+            #expect(
+                error.localizedDescription
+                    .localizedCaseInsensitiveContains(
+                        "disconnected"
+                    )
+            )
+        }
     }
 
     @Test
