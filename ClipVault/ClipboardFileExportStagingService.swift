@@ -37,7 +37,7 @@ struct ClipboardFileExportStagingService:
     private let stagingRootURL:
         URL
 
-    init(
+    nonisolated init(
         stagingRootURL:
             URL? = nil
     ) {
@@ -74,7 +74,7 @@ struct ClipboardFileExportStagingService:
         }
     }
 
-    func stagedCopy(
+    nonisolated func stagedCopy(
         of sourceURL:
             URL,
         customTitle:
@@ -103,7 +103,7 @@ struct ClipboardFileExportStagingService:
         .value
     }
 
-    private static func makeStagedCopy(
+    private nonisolated static func makeStagedCopy(
         of sourceURL:
             URL,
         customTitle:
@@ -217,7 +217,7 @@ struct ClipboardFileExportStagingService:
         }
     }
 
-    private static func sanitizedFilenameComponent(
+    private nonisolated static func sanitizedFilenameComponent(
         _ value:
             String
     ) -> String {
