@@ -48,13 +48,6 @@ struct ClipboardImagePasteboardService {
                         payload
                 )
 
-        let managedImageFileURL =
-            try await imageStorageService
-                .imageFileURL(
-                    for:
-                        payload
-                )
-
         let pasteboardType =
             NSPasteboard.PasteboardType(
                 payload
@@ -85,8 +78,33 @@ struct ClipboardImagePasteboardService {
                         .whitespacesAndNewlines
                 )
 
-        var fileURLForPasteboard =
-            managedImageFileURL
+        let originalFilenameStem =
+            payload.originalFilename
+                .map {
+                    NSString(
+                        string:
+                            $0
+                    )
+                    .deletingPathExtension
+                }
+                .flatMap {
+                    let trimmedValue =
+                        $0.trimmingCharacters(
+                            in:
+                                .whitespacesAndNewlines
+                        )
+
+                    return trimmedValue.isEmpty
+                        ? nil
+                        : trimmedValue
+                }
+
+        let fallbackFilenameStem =
+            originalFilenameStem ??
+            "Copied Image"
+
+        let fileURLForPasteboard:
+            URL
 
         if let normalizedCustomTitle,
            !normalizedCustomTitle.isEmpty
@@ -112,7 +130,25 @@ struct ClipboardImagePasteboardService {
                 fileURLForPasteboard =
                     resolvedFileReference
                         .url
+            } else {
+                fileURLForPasteboard =
+                    try await imageStorageService
+                        .stagedImageFileURL(
+                            for:
+                                payload,
+                            preferredFilenameStem:
+                                fallbackFilenameStem
+                        )
             }
+        } else {
+            fileURLForPasteboard =
+                try await imageStorageService
+                    .stagedImageFileURL(
+                        for:
+                            payload,
+                        preferredFilenameStem:
+                            fallbackFilenameStem
+                    )
         }
 
         guard

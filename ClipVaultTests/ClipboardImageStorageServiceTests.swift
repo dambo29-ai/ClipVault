@@ -491,6 +491,77 @@ struct ClipboardImageStorageServiceTests {
 
         #expect(payload.wasConverted)
     }
+    
+    @Test
+    func deletingImageAlsoDeletesStagedExport()
+        async throws
+    {
+        let testDirectory =
+            makeTestDirectory()
+
+        defer {
+            removeTestDirectory(
+                testDirectory
+            )
+        }
+
+        let service =
+            ClipboardImageStorageService(
+                imagesDirectoryURL:
+                    testDirectory
+            )
+
+        let payload =
+            try await service.storeImage(
+                data:
+                    makePNGData(
+                        width:
+                            5,
+                        height:
+                            4
+                    )
+            )
+
+        let stagedFileURL =
+            try await service
+                .stagedImageFileURL(
+                    for:
+                        payload,
+                    preferredFilenameStem:
+                        "Test Export"
+                )
+
+        #expect(
+            FileManager.default
+                .fileExists(
+                    atPath:
+                        stagedFileURL.path
+                )
+        )
+
+        try await service.deleteImage(
+            for:
+                payload
+        )
+
+        #expect(
+            !FileManager.default
+                .fileExists(
+                    atPath:
+                        stagedFileURL.path
+                )
+        )
+
+        #expect(
+            !FileManager.default
+                .fileExists(
+                    atPath:
+                        stagedFileURL
+                            .deletingLastPathComponent()
+                            .path
+                )
+        )
+    }
 
     @Test
     func deletingImageRemovesManagedFileAndIsIdempotent()

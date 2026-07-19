@@ -138,6 +138,12 @@ final class ClipboardStore: ObservableObject {
 
     private var appDiscoveryTask: Task<Void, Never>?
     private var pinnedHighlightTask: Task<Void, Never>?
+
+    private var currentClipboardItemID:
+        UUID?
+
+    private var currentClipboardChangeCount:
+        Int?
     
     // Old key retained only so we can migrate existing Allowed/Blocked choices.
     private let legacyBlockedAppGroupIDsKey = "blockedAppGroupIDs"
@@ -706,6 +712,10 @@ final class ClipboardStore: ObservableObject {
             clipboardMonitoringService
                 .synchronizeChangeCount()
 
+            markAsCurrentClipboardItem(
+                item
+            )
+
         case let .image(imagePayload):
             Task { @MainActor [weak self] in
                 guard let self else {
@@ -737,6 +747,10 @@ final class ClipboardStore: ObservableObject {
 
                     clipboardMonitoringService
                         .synchronizeChangeCount()
+
+                    markAsCurrentClipboardItem(
+                        item
+                    )
                 } catch {
                     OperationFailureAlert.show(
                         title:
@@ -770,6 +784,10 @@ final class ClipboardStore: ObservableObject {
 
                 clipboardMonitoringService
                     .synchronizeChangeCount()
+
+                markAsCurrentClipboardItem(
+                    item
+                )
             } catch {
                 OperationFailureAlert.show(
                     title:
@@ -781,6 +799,37 @@ final class ClipboardStore: ObservableObject {
                 )
             }
         }
+    }
+    
+    private func markAsCurrentClipboardItem(
+        _ item:
+            ClipboardItem
+    ) {
+        currentClipboardItemID =
+            item.id
+
+        currentClipboardChangeCount =
+            NSPasteboard.general
+                .changeCount
+    }
+
+    private func clearCurrentClipboardItem() {
+        currentClipboardItemID =
+            nil
+
+        currentClipboardChangeCount =
+            nil
+    }
+
+    private func isCurrentClipboardItem(
+        _ item:
+            ClipboardItem
+    ) -> Bool {
+        currentClipboardItemID ==
+            item.id &&
+        currentClipboardChangeCount ==
+            NSPasteboard.general
+                .changeCount
     }
 
     func beginIgnoringClipboardMonitoringChanges() {
@@ -902,6 +951,11 @@ final class ClipboardStore: ObservableObject {
             return
         }
 
+        let wasCurrentClipboardItem =
+            isCurrentClipboardItem(
+                items[index]
+            )
+
         let renamedItem =
             items[index]
                 .renamedCopy(
@@ -926,6 +980,61 @@ final class ClipboardStore: ObservableObject {
             updatedItems
 
         saveItems()
+
+        guard
+            wasCurrentClipboardItem,
+            let imagePayload =
+                renamedItem.imagePayload
+        else {
+            return
+        }
+
+        Task { @MainActor [weak self] in
+            guard let self else {
+                return
+            }
+
+            /*
+             Recheck before writing because another app may
+             have changed the clipboard while this Task waited.
+             */
+            guard
+                isCurrentClipboardItem(
+                    renamedItem
+                )
+            else {
+                return
+            }
+
+            do {
+                let didWrite =
+                    try await imagePasteboardService
+                        .writeImage(
+                            imagePayload,
+                            customTitle:
+                                renamedItem
+                                    .customTitle,
+                            to:
+                                .general
+                        )
+
+                guard didWrite else {
+                    return
+                }
+
+                clipboardMonitoringService
+                    .synchronizeChangeCount()
+
+                markAsCurrentClipboardItem(
+                    renamedItem
+                )
+            } catch {
+                /*
+                 The rename itself remains saved even when
+                 clipboard rewriting fails.
+                 */
+            }
+        }
     }
     
     func deleteItem(_ item: ClipboardItem) {
@@ -1277,6 +1386,8 @@ final class ClipboardStore: ObservableObject {
         _ payload:
             ClipboardChangePayload
     ) {
+        clearCurrentClipboardItem()
+
         switch payload.content {
         case .text:
             _ =
@@ -1407,6 +1518,10 @@ final class ClipboardStore: ObservableObject {
                         if didWrite {
                             clipboardMonitoringService
                                 .synchronizeChangeCount()
+
+                            markAsCurrentClipboardItem(
+                                pinnedItem
+                            )
                         }
                     }
 
@@ -1485,6 +1600,10 @@ final class ClipboardStore: ObservableObject {
                 if didWrite {
                     clipboardMonitoringService
                         .synchronizeChangeCount()
+
+                    markAsCurrentClipboardItem(
+                        newItem
+                    )
                 }
             } catch {
                 /*
@@ -1572,6 +1691,27 @@ final class ClipboardStore: ObservableObject {
                         sourceBundleIdentifier:
                             sourceBundleIdentifier
                     )
+
+                if routingResult
+                    .imageFileURLs
+                    .count == 1,
+                   routingResult
+                    .fileAndFolderURLs
+                    .isEmpty,
+                   let currentImageItem =
+                        items.first(
+                            where: {
+                                $0.kind ==
+                                    .normal &&
+                                $0.imagePayload !=
+                                    nil
+                            }
+                        )
+                {
+                    markAsCurrentClipboardItem(
+                        currentImageItem
+                    )
+                }
             }
 
             if !routingResult
@@ -1703,6 +1843,14 @@ final class ClipboardStore: ObservableObject {
                     previousItems
             )
 
+            if captureSource ==
+                .nativeClipboard
+            {
+                markAsCurrentClipboardItem(
+                    pinnedItem
+                )
+            }
+
             return .captured
         }
 
@@ -1740,6 +1888,14 @@ final class ClipboardStore: ObservableObject {
             previousItems:
                 previousItems
         )
+
+        if captureSource ==
+            .nativeClipboard
+        {
+            markAsCurrentClipboardItem(
+                newItem
+            )
+        }
 
         return .captured
     }

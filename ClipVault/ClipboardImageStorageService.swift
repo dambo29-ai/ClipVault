@@ -205,22 +205,43 @@ actor ClipboardImageStorageService {
     }
 
     func deleteImage(
-        for payload: ClipboardImagePayload
+        for payload:
+            ClipboardImagePayload
     ) throws {
+        let fileManager =
+            FileManager.default
+
         let fileURL =
             try imageFileURL(
-                for: payload
+                for:
+                    payload
             )
 
-        guard FileManager.default.fileExists(
-            atPath: fileURL.path
-        ) else {
-            return
+        if fileManager.fileExists(
+            atPath:
+                fileURL.path
+        ) {
+            try fileManager.removeItem(
+                at:
+                    fileURL
+            )
         }
 
-        try FileManager.default.removeItem(
-            at: fileURL
-        )
+        let stagingDirectoryURL =
+            try stagedImageDirectoryURL(
+                for:
+                    payload
+            )
+
+        if fileManager.fileExists(
+            atPath:
+                stagingDirectoryURL.path
+        ) {
+            try fileManager.removeItem(
+                at:
+                    stagingDirectoryURL
+            )
+        }
     }
     
     func stagedImageFileURL(
@@ -237,9 +258,11 @@ actor ClipboardImageStorageService {
 
         let safeExtension =
             try Self.validatedFilenameExtension(
-                payload
-                    .format
-                    .filenameExtension
+                Self.exportFilenameExtension(
+                    for:
+                        payload
+                            .format
+                )
             )
 
         let safeFilenameStem =
@@ -248,19 +271,10 @@ actor ClipboardImageStorageService {
             )
 
         let stagingDirectoryURL =
-            try resolvedImagesDirectoryURL()
-                .appendingPathComponent(
-                    "Paste Exports",
-                    isDirectory:
-                        true
-                )
-                .appendingPathComponent(
+            try stagedImageDirectoryURL(
+                for:
                     payload
-                        .storageIdentifier
-                        .uuidString,
-                    isDirectory:
-                        true
-                )
+            )
 
         try FileManager.default
             .createDirectory(
@@ -305,6 +319,25 @@ actor ClipboardImageStorageService {
         )
 
         return stagedFileURL
+    }
+    
+    private func stagedImageDirectoryURL(
+        for payload:
+            ClipboardImagePayload
+    ) throws -> URL {
+        try resolvedImagesDirectoryURL()
+            .appendingPathComponent(
+                "Paste Exports",
+                isDirectory:
+                    true
+            )
+            .appendingPathComponent(
+                payload
+                    .storageIdentifier
+                    .uuidString,
+                isDirectory:
+                    true
+            )
     }
 
     func imageFileURL(
@@ -375,6 +408,19 @@ actor ClipboardImageStorageService {
                 "Images",
                 isDirectory: true
             )
+    }
+    
+    private nonisolated static func exportFilenameExtension(
+        for format:
+            ClipboardImageFormat
+    ) -> String {
+        if format.uniformTypeIdentifier ==
+            UTType.jpeg.identifier
+        {
+            return "jpg"
+        }
+
+        return format.filenameExtension
     }
     
     private nonisolated static func sanitizedFilenameStem(

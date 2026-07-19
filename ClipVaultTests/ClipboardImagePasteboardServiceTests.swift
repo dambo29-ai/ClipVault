@@ -76,7 +76,7 @@ struct ClipboardImagePasteboardServiceTests {
     }
     
     @Test
-    func storedImageWithoutOriginalFileWritesManagedFileURL()
+    func storedImageWithoutOriginalFileWritesFriendlyStagedFileURL()
         async throws
     {
         let testDirectory =
@@ -105,13 +105,6 @@ struct ClipboardImagePasteboardServiceTests {
                 .storeImage(
                     data:
                         imageData
-                )
-
-        let managedImageURL =
-            try await storageService
-                .imageFileURL(
-                    for:
-                        payload
                 )
 
         let pasteboard =
@@ -149,12 +142,9 @@ struct ClipboardImagePasteboardServiceTests {
                 .first
                 .map {
                     ($0 as URL)
-                        .standardizedFileURL
-                        .path
+                        .lastPathComponent
                 } ==
-            managedImageURL
-                .standardizedFileURL
-                .path
+            "Copied Image.png"
         )
 
         let storedType =
@@ -168,6 +158,87 @@ struct ClipboardImagePasteboardServiceTests {
                     storedType
             ) ==
             imageData
+        )
+    }
+    
+    @Test
+    func generatedJPEGUsesJPGFilenameExtension()
+        async throws
+    {
+        let testDirectory =
+            makeTestDirectory()
+
+        defer {
+            removeTestDirectory(
+                testDirectory
+            )
+        }
+
+        let storageService =
+            ClipboardImageStorageService(
+                imagesDirectoryURL:
+                    testDirectory
+            )
+
+        let tiffData =
+            try makeOpaqueTIFFData(
+                width:
+                    30,
+                height:
+                    20
+            )
+
+        let payload =
+            try await storageService
+                .storeClipboardImage(
+                    data:
+                        tiffData
+                )
+
+        #expect(
+            payload.format
+                .filenameExtension ==
+            "jpeg"
+        )
+
+        let pasteboard =
+            makePasteboard()
+
+        let pasteboardService =
+            ClipboardImagePasteboardService(
+                imageStorageService:
+                    storageService
+            )
+
+        let didWrite =
+            try await pasteboardService
+                .writeImage(
+                    payload,
+                    to:
+                        pasteboard
+                )
+
+        #expect(didWrite)
+
+        let writtenFileURLs =
+            pasteboard.readObjects(
+                forClasses: [
+                    NSURL.self
+                ],
+                options: [
+                    .urlReadingFileURLsOnly:
+                        true
+                ]
+            ) as? [NSURL]
+
+        #expect(
+            writtenFileURLs?
+                .first
+                .map {
+                    ($0 as URL)
+                        .lastPathComponent
+                } ==
+            "Copied Image.jpg"
         )
     }
     
@@ -448,6 +519,79 @@ struct ClipboardImagePasteboardServiceTests {
             ) ==
                 "Existing clipboard value"
         )
+    }
+    
+    private func makeOpaqueTIFFData(
+        width: Int,
+        height: Int
+    ) throws -> Data {
+        guard
+            let bitmap =
+                NSBitmapImageRep(
+                    bitmapDataPlanes:
+                        nil,
+                    pixelsWide:
+                        width,
+                    pixelsHigh:
+                        height,
+                    bitsPerSample:
+                        8,
+                    samplesPerPixel:
+                        4,
+                    hasAlpha:
+                        true,
+                    isPlanar:
+                        false,
+                    colorSpaceName:
+                        .deviceRGB,
+                    bytesPerRow:
+                        0,
+                    bitsPerPixel:
+                        0
+                )
+        else {
+            throw TestImageError
+                .couldNotCreateImage
+        }
+
+        let fillColor =
+            NSColor(
+                calibratedRed:
+                    0.25,
+                green:
+                    0.55,
+                blue:
+                    0.85,
+                alpha:
+                    1.0
+            )
+
+        for y in 0..<height {
+            for x in 0..<width {
+                bitmap.setColor(
+                    fillColor,
+                    atX:
+                        x,
+                    y:
+                        y
+                )
+            }
+        }
+
+        guard
+            let data =
+                bitmap.representation(
+                    using:
+                        .tiff,
+                    properties:
+                        [:]
+                )
+        else {
+            throw TestImageError
+                .couldNotCreateImage
+        }
+
+        return data
     }
 
     private func makePNGData(
