@@ -8,28 +8,147 @@
 import AppKit
 import Foundation
 
+struct ClipboardFilesPasteboardEntry {
+    let payload:
+        ClipboardFilesPayload
+
+    let customTitle:
+        String?
+
+    let exportIdentifier:
+        UUID
+}
+
 @MainActor
 struct ClipboardFilesPasteboardService {
     private let fileReferenceService:
         ClipboardFileReferenceService
 
+    private let exportStagingService:
+        ClipboardFileExportStagingService
+
     init(
         fileReferenceService:
             ClipboardFileReferenceService? =
+                nil,
+        exportStagingService:
+            ClipboardFileExportStagingService? =
                 nil
     ) {
         self.fileReferenceService =
             fileReferenceService ??
             ClipboardFileReferenceService
                 .shared
+
+        self.exportStagingService =
+            exportStagingService ??
+            ClipboardFileExportStagingService()
+    }
+    
+    func writeFileEntries(
+        _ entries:
+            [ClipboardFilesPasteboardEntry],
+        to pasteboard:
+            NSPasteboard
+    ) async throws -> Bool {
+        guard !entries.isEmpty else {
+            return false
+        }
+
+        var resolvedReferences:
+            [ResolvedClipboardFileReference] =
+                []
+
+        var fileURLs:
+            [URL] = []
+
+        do {
+            for entry in entries {
+                guard
+                    entry.payload.files.count == 1,
+                    let fileReference =
+                        entry.payload.files.first
+                else {
+                    stopAccessing(
+                        resolvedReferences
+                    )
+
+                    return false
+                }
+
+                let resolvedReference =
+                    try fileReferenceService
+                        .resolve(
+                            fileReference
+                        )
+
+                resolvedReferences.append(
+                    resolvedReference
+                )
+
+                let normalizedCustomTitle =
+                    entry.customTitle?
+                        .trimmingCharacters(
+                            in:
+                                .whitespacesAndNewlines
+                        )
+
+                if let normalizedCustomTitle,
+                   !normalizedCustomTitle.isEmpty
+                {
+                    let stagedURL =
+                        try await exportStagingService
+                            .stagedCopy(
+                                of:
+                                    resolvedReference.url,
+                                customTitle:
+                                    normalizedCustomTitle,
+                                exportIdentifier:
+                                    entry.exportIdentifier
+                            )
+
+                    fileURLs.append(
+                        stagedURL
+                    )
+                } else {
+                    fileURLs.append(
+                        resolvedReference.url
+                    )
+                }
+            }
+        } catch {
+            stopAccessing(
+                resolvedReferences
+            )
+
+            throw error
+        }
+
+        defer {
+            stopAccessing(
+                resolvedReferences
+            )
+        }
+
+        pasteboard.clearContents()
+
+        return pasteboard.writeObjects(
+            fileURLs.map {
+                $0 as NSURL
+            }
+        )
     }
 
     func writeFiles(
         _ payload:
             ClipboardFilesPayload,
+        customTitle:
+            String? = nil,
+        exportIdentifier:
+            UUID? = nil,
         to pasteboard:
             NSPasteboard
-    ) throws -> Bool {
+    ) async throws -> Bool {
         guard !payload.files.isEmpty else {
             return false
         }
@@ -66,20 +185,51 @@ struct ClipboardFilesPasteboardService {
             )
         }
 
-        let fileURLs =
-            resolvedReferences.map {
-                $0.url
-            }
+        let normalizedCustomTitle =
+            customTitle?
+                .trimmingCharacters(
+                    in:
+                        .whitespacesAndNewlines
+                )
 
-        let pasteboardObjects =
-            fileURLs.map {
-                $0 as NSURL
-            }
+        let fileURLs:
+            [URL]
+
+        if
+            payload.files.count == 1,
+            resolvedReferences.count == 1,
+            let normalizedCustomTitle,
+            !normalizedCustomTitle.isEmpty
+        {
+            let stagedURL =
+                try await exportStagingService
+                    .stagedCopy(
+                        of:
+                            resolvedReferences[0]
+                                .url,
+                        customTitle:
+                            normalizedCustomTitle,
+                        exportIdentifier:
+                            exportIdentifier ??
+                            UUID()
+                    )
+
+            fileURLs = [
+                stagedURL
+            ]
+        } else {
+            fileURLs =
+                resolvedReferences.map {
+                    $0.url
+                }
+        }
 
         pasteboard.clearContents()
 
         return pasteboard.writeObjects(
-            pasteboardObjects
+            fileURLs.map {
+                $0 as NSURL
+            }
         )
     }
 

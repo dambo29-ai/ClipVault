@@ -701,39 +701,39 @@ final class ClipboardStore: ObservableObject {
         switch item.payload {
         case .text, .link:
             let didWrite =
-                item.payload.write(
-                    to: .general
-                )
-
+            item.payload.write(
+                to: .general
+            )
+            
             guard didWrite else {
                 return
             }
-
+            
             clipboardMonitoringService
                 .synchronizeChangeCount()
-
+            
             markAsCurrentClipboardItem(
                 item
             )
-
+            
         case let .image(imagePayload):
             Task { @MainActor [weak self] in
                 guard let self else {
                     return
                 }
-
+                
                 do {
                     let didWrite =
                     try await
-                        imagePasteboardService
-                            .writeImage(
-                                imagePayload,
-                                customTitle:
-                                    item.customTitle,
-                                to:
+                    imagePasteboardService
+                        .writeImage(
+                            imagePayload,
+                            customTitle:
+                                item.customTitle,
+                            to:
                                     .general
-                            )
-
+                        )
+                    
                     guard didWrite else {
                         OperationFailureAlert.show(
                             title:
@@ -741,13 +741,13 @@ final class ClipboardStore: ObservableObject {
                             message:
                                 "ClipVault could not write the stored image to the clipboard."
                         )
-
+                        
                         return
                     }
-
+                    
                     clipboardMonitoringService
                         .synchronizeChangeCount()
-
+                    
                     markAsCurrentClipboardItem(
                         item
                     )
@@ -762,41 +762,51 @@ final class ClipboardStore: ObservableObject {
                 }
             }
         case let .files(filesPayload):
-            do {
-                let didWrite =
-                    try filesPasteboardService
+            Task { @MainActor [weak self] in
+                guard let self else {
+                    return
+                }
+                
+                do {
+                    let didWrite =
+                    try await filesPasteboardService
                         .writeFiles(
                             filesPayload,
+                            customTitle:
+                                item.customTitle,
+                            exportIdentifier:
+                                item.id,
                             to:
-                                .general
+                                    .general
                         )
-
-                guard didWrite else {
+                    
+                    guard didWrite else {
+                        OperationFailureAlert.show(
+                            title:
+                                "File Could Not Be Copied",
+                            message:
+                                "ClipVault could not write the stored file or folder reference to the clipboard."
+                        )
+                        
+                        return
+                    }
+                    
+                    clipboardMonitoringService
+                        .synchronizeChangeCount()
+                    
+                    markAsCurrentClipboardItem(
+                        item
+                    )
+                } catch {
                     OperationFailureAlert.show(
                         title:
                             "File Could Not Be Copied",
                         message:
-                            "ClipVault could not write the stored file or folder reference to the clipboard."
+                            "The stored file or folder could not be accessed or prepared for pasting.",
+                        error:
+                            error
                     )
-
-                    return
                 }
-
-                clipboardMonitoringService
-                    .synchronizeChangeCount()
-
-                markAsCurrentClipboardItem(
-                    item
-                )
-            } catch {
-                OperationFailureAlert.show(
-                    title:
-                        "File Could Not Be Copied",
-                    message:
-                        "The stored file or folder could not be accessed.",
-                    error:
-                        error
-                )
             }
         }
     }
@@ -1082,6 +1092,13 @@ final class ClipboardStore: ObservableObject {
                                 nil
                         }
 
+                let fileItems =
+                    updatedActiveClipboardItems
+                        .filter {
+                            $0.filesPayload !=
+                                nil
+                        }
+
                 let didWrite:
                     Bool
 
@@ -1141,6 +1158,50 @@ final class ClipboardStore: ObservableObject {
                                 customTitle:
                                     renamedItem
                                         .customTitle,
+                                to:
+                                    .general
+                            )
+                } else if
+                    fileItems.count ==
+                        updatedActiveClipboardItems
+                            .count
+                {
+                    let entries =
+                        fileItems.compactMap {
+                            fileItem
+                                -> ClipboardFilesPasteboardEntry?
+                            in
+
+                            guard
+                                let filesPayload =
+                                    fileItem
+                                        .filesPayload
+                            else {
+                                return nil
+                            }
+
+                            return ClipboardFilesPasteboardEntry(
+                                payload:
+                                    filesPayload,
+                                customTitle:
+                                    fileItem
+                                        .customTitle,
+                                exportIdentifier:
+                                    fileItem.id
+                            )
+                        }
+
+                    guard
+                        entries.count ==
+                            fileItems.count
+                    else {
+                        return
+                    }
+
+                    didWrite =
+                        try await filesPasteboardService
+                            .writeFileEntries(
+                                entries,
                                 to:
                                     .general
                             )
@@ -1745,6 +1806,65 @@ final class ClipboardStore: ObservableObject {
         }
     }
     
+    private func clipboardFileItems(
+        matching fileURLs:
+            [URL]
+    ) -> [ClipboardItem] {
+        var unmatchedItems =
+            items.filter {
+                $0.kind == .normal &&
+                $0.filesPayload != nil
+            }
+
+        var matchedItems:
+            [ClipboardItem] = []
+
+        for fileURL in fileURLs {
+            let standardizedPath =
+                fileURL
+                    .standardizedFileURL
+                    .path
+
+            guard
+                let matchingIndex =
+                    unmatchedItems
+                        .firstIndex(
+                            where: {
+                                guard
+                                    let fileReference =
+                                        $0.filesPayload?
+                                            .files
+                                            .first
+                                else {
+                                    return false
+                                }
+
+                                return fileReference
+                                    .fileURL
+                                    .standardizedFileURL
+                                    .path ==
+                                    standardizedPath
+                            }
+                        )
+            else {
+                return []
+            }
+
+            matchedItems.append(
+                unmatchedItems[
+                    matchingIndex
+                ]
+            )
+
+            unmatchedItems.remove(
+                at:
+                    matchingIndex
+            )
+        }
+
+        return matchedItems
+    }
+    
     private func clipboardImageItems(
         matching fileURLs:
             [URL]
@@ -1920,6 +2040,28 @@ final class ClipboardStore: ObservableObject {
                         sourceBundleIdentifier:
                             sourceBundleIdentifier
                     )
+
+                if routingResult
+                    .imageFileURLs
+                    .isEmpty
+                {
+                    let currentFileItems =
+                        clipboardFileItems(
+                            matching:
+                                routingResult
+                                    .fileAndFolderURLs
+                        )
+
+                    if currentFileItems.count ==
+                        routingResult
+                            .fileAndFolderURLs
+                            .count
+                    {
+                        markAsCurrentClipboardItems(
+                            currentFileItems
+                        )
+                    }
+                }
             }
         }
     }

@@ -14,7 +14,7 @@ import Testing
 struct ClipboardFilesPasteboardServiceTests {
     @Test
     func resolvedFileWritesFileURLToPasteboard()
-        throws
+    async throws
     {
         let context =
             try makeContext()
@@ -61,7 +61,7 @@ struct ClipboardFilesPasteboardServiceTests {
             makePasteboard()
 
         let didWrite =
-            try context
+            try await context
                 .pasteboardService
                 .writeFiles(
                     payload,
@@ -99,7 +99,7 @@ struct ClipboardFilesPasteboardServiceTests {
 
     @Test
     func resolvedFolderWritesFolderURLToPasteboard()
-        throws
+    async throws
     {
         let context =
             try makeContext()
@@ -149,7 +149,7 @@ struct ClipboardFilesPasteboardServiceTests {
             makePasteboard()
 
         let didWrite =
-            try context
+            try await context
                 .pasteboardService
                 .writeFiles(
                     payload,
@@ -186,7 +186,7 @@ struct ClipboardFilesPasteboardServiceTests {
 
     @Test
     func multipleResolvedFilesAreWrittenTogether()
-        throws
+    async throws
     {
         let context =
             try makeContext()
@@ -290,7 +290,7 @@ struct ClipboardFilesPasteboardServiceTests {
             makePasteboard()
 
         let didWrite =
-            try service.writeFiles(
+            try await service.writeFiles(
                 payload,
                 to:
                     pasteboard
@@ -324,7 +324,7 @@ struct ClipboardFilesPasteboardServiceTests {
 
     @Test
     func missingBookmarkDoesNotClearExistingClipboard()
-        throws
+    async throws
     {
         let context =
             try makeContext()
@@ -362,7 +362,7 @@ struct ClipboardFilesPasteboardServiceTests {
 
         do {
             _ =
-                try context
+                try await context
                     .pasteboardService
                     .writeFiles(
                         payload,
@@ -393,7 +393,7 @@ struct ClipboardFilesPasteboardServiceTests {
 
     @Test
     func staleBookmarkDoesNotClearExistingClipboard()
-        throws
+    async throws
     {
         let context =
             try makeContext(
@@ -452,7 +452,7 @@ struct ClipboardFilesPasteboardServiceTests {
 
         do {
             _ =
-                try context
+                try await context
                     .pasteboardService
                     .writeFiles(
                         payload,
@@ -483,7 +483,7 @@ struct ClipboardFilesPasteboardServiceTests {
 
     @Test
     func missingResolvedFileDoesNotClearExistingClipboard()
-        throws
+    async throws
     {
         let context =
             try makeContext()
@@ -530,7 +530,7 @@ struct ClipboardFilesPasteboardServiceTests {
 
         do {
             _ =
-                try context
+                try await context
                     .pasteboardService
                     .writeFiles(
                         payload,
@@ -558,10 +558,556 @@ struct ClipboardFilesPasteboardServiceTests {
             "Existing clipboard value"
         )
     }
+    
+    @Test
+    func customTitleWritesRenamedStagedFileWithoutChangingOriginal()
+        async throws
+    {
+        let context =
+            try makeContext()
+
+        defer {
+            removeDirectory(
+                context.rootURL
+            )
+        }
+
+        let originalURL =
+            context.rootURL
+                .appendingPathComponent(
+                    "Original Report.txt"
+                )
+
+        let originalData =
+            Data(
+                "Important report"
+                    .utf8
+            )
+
+        try originalData.write(
+            to:
+                originalURL
+        )
+
+        context.resolvedURLBox.url =
+            originalURL
+
+        let stagingURL =
+            context.rootURL
+                .appendingPathComponent(
+                    "Staging",
+                    isDirectory:
+                        true
+                )
+
+        let pasteboardService =
+            ClipboardFilesPasteboardService(
+                fileReferenceService:
+                    context
+                        .fileReferenceService,
+                exportStagingService:
+                    ClipboardFileExportStagingService(
+                        stagingRootURL:
+                            stagingURL
+                    )
+            )
+
+        let payload =
+            makePayload(
+                references: [
+                    makeReference(
+                        path:
+                            "/Original/Original Report.txt",
+                        displayName:
+                            "Original Report.txt",
+                        bookmarkData:
+                            context.bookmarkData
+                    )
+                ]
+            )
+
+        let pasteboard =
+            makePasteboard()
+
+        let didWrite =
+            try await pasteboardService
+                .writeFiles(
+                    payload,
+                    customTitle:
+                        "Final Report",
+                    exportIdentifier:
+                        UUID(
+                            uuidString:
+                                "00000000-0000-0000-0000-000000000001"
+                        )!,
+                    to:
+                        pasteboard
+                )
+
+        #expect(didWrite)
+
+        let writtenURL =
+            (
+                pasteboard.readObjects(
+                    forClasses: [
+                        NSURL.self
+                    ],
+                    options: [
+                        .urlReadingFileURLsOnly:
+                            true
+                    ]
+                ) as? [NSURL]
+            )?
+            .first
+            .map {
+                $0 as URL
+            }
+
+        #expect(
+            writtenURL?
+                .lastPathComponent ==
+            "Final Report.txt"
+        )
+
+        #expect(
+            writtenURL?
+                .standardizedFileURL !=
+            originalURL
+                .standardizedFileURL
+        )
+
+        #expect(
+            writtenURL.flatMap {
+                try? Data(
+                    contentsOf:
+                        $0
+                )
+            } ==
+            originalData
+        )
+
+        #expect(
+            FileManager.default
+                .fileExists(
+                    atPath:
+                        originalURL.path
+                )
+        )
+
+        #expect(
+            originalURL
+                .lastPathComponent ==
+            "Original Report.txt"
+        )
+    }
+    
+    @Test
+    func customTitleWritesRenamedFolderWithCompleteContents()
+        async throws
+    {
+        let context =
+            try makeContext()
+
+        defer {
+            removeDirectory(
+                context.rootURL
+            )
+        }
+
+        let originalFolderURL =
+            context.rootURL
+                .appendingPathComponent(
+                    "Original Project",
+                    isDirectory:
+                        true
+                )
+
+        try FileManager.default
+            .createDirectory(
+                at:
+                    originalFolderURL,
+                withIntermediateDirectories:
+                    true
+            )
+
+        let nestedFileURL =
+            originalFolderURL
+                .appendingPathComponent(
+                    "Notes.txt"
+                )
+
+        try Data(
+            "Project notes"
+                .utf8
+        )
+        .write(
+            to:
+                nestedFileURL
+        )
+
+        context.resolvedURLBox.url =
+            originalFolderURL
+
+        let stagingURL =
+            context.rootURL
+                .appendingPathComponent(
+                    "Staging",
+                    isDirectory:
+                        true
+                )
+
+        let pasteboardService =
+            ClipboardFilesPasteboardService(
+                fileReferenceService:
+                    context
+                        .fileReferenceService,
+                exportStagingService:
+                    ClipboardFileExportStagingService(
+                        stagingRootURL:
+                            stagingURL
+                    )
+            )
+
+        let payload =
+            makePayload(
+                references: [
+                    makeReference(
+                        path:
+                            "/Original/Original Project",
+                        displayName:
+                            "Original Project",
+                        isDirectory:
+                            true,
+                        bookmarkData:
+                            context.bookmarkData
+                    )
+                ]
+            )
+
+        let pasteboard =
+            makePasteboard()
+
+        let didWrite =
+            try await pasteboardService
+                .writeFiles(
+                    payload,
+                    customTitle:
+                        "Client Project",
+                    exportIdentifier:
+                        UUID(
+                            uuidString:
+                                "00000000-0000-0000-0000-000000000002"
+                        )!,
+                    to:
+                        pasteboard
+                )
+
+        #expect(didWrite)
+
+        let writtenURL =
+            (
+                pasteboard.readObjects(
+                    forClasses: [
+                        NSURL.self
+                    ],
+                    options: [
+                        .urlReadingFileURLsOnly:
+                            true
+                    ]
+                ) as? [NSURL]
+            )?
+            .first
+            .map {
+                $0 as URL
+            }
+
+        #expect(
+            writtenURL?
+                .lastPathComponent ==
+            "Client Project"
+        )
+
+        #expect(
+            writtenURL.map {
+                FileManager.default
+                    .fileExists(
+                        atPath:
+                            $0
+                                .appendingPathComponent(
+                                    "Notes.txt"
+                                )
+                                .path
+                    )
+            } ==
+            true
+        )
+
+        #expect(
+            FileManager.default
+                .fileExists(
+                    atPath:
+                        originalFolderURL.path
+                )
+        )
+
+        #expect(
+            originalFolderURL
+                .lastPathComponent ==
+            "Original Project"
+        )
+    }
+    
+    @Test
+    func multipleFileEntriesPreserveOrderAndRenameOnlySelectedMember()
+        async throws
+    {
+        let rootURL =
+            FileManager.default
+                .temporaryDirectory
+                .appendingPathComponent(
+                    "ClipboardFilesGroupTest-" +
+                    UUID().uuidString,
+                    isDirectory:
+                        true
+                )
+
+        defer {
+            removeDirectory(
+                rootURL
+            )
+        }
+
+        try FileManager.default
+            .createDirectory(
+                at:
+                    rootURL,
+                withIntermediateDirectories:
+                    true
+            )
+
+        let firstURL =
+            rootURL
+                .appendingPathComponent(
+                    "First.txt"
+                )
+
+        let secondURL =
+            rootURL
+                .appendingPathComponent(
+                    "Second.txt"
+                )
+
+        let thirdFolderURL =
+            rootURL
+                .appendingPathComponent(
+                    "Third Folder",
+                    isDirectory:
+                        true
+                )
+
+        try Data(
+            "First"
+                .utf8
+        )
+        .write(
+            to:
+                firstURL
+        )
+
+        try Data(
+            "Second"
+                .utf8
+        )
+        .write(
+            to:
+                secondURL
+        )
+
+        try FileManager.default
+            .createDirectory(
+                at:
+                    thirdFolderURL,
+                withIntermediateDirectories:
+                    true
+            )
+
+        let resolvedURLs =
+            [
+                firstURL,
+                secondURL,
+                thirdFolderURL
+            ]
+
+        let resolverIndexBox =
+            ResolverIndexBox()
+
+        let bookmarkData =
+            Data([1, 2, 3])
+
+        let referenceService =
+            ClipboardFileReferenceService(
+                bookmarkCreator: {
+                    _ in
+                    bookmarkData
+                },
+                bookmarkResolver: {
+                    _ in
+
+                    let index =
+                        resolverIndexBox.index
+
+                    resolverIndexBox.index += 1
+
+                    return (
+                        url:
+                            resolvedURLs[index],
+                        isStale:
+                            false
+                    )
+                }
+            )
+
+        let stagingURL =
+            rootURL
+                .appendingPathComponent(
+                    "Staging",
+                    isDirectory:
+                        true
+                )
+
+        let service =
+            ClipboardFilesPasteboardService(
+                fileReferenceService:
+                    referenceService,
+                exportStagingService:
+                    ClipboardFileExportStagingService(
+                        stagingRootURL:
+                            stagingURL
+                    )
+            )
+
+        let entries =
+            [
+                ClipboardFilesPasteboardEntry(
+                    payload:
+                        makePayload(
+                            references: [
+                                makeReference(
+                                    path:
+                                        "/Original/First.txt",
+                                    displayName:
+                                        "First.txt",
+                                    bookmarkData:
+                                        bookmarkData
+                                )
+                            ]
+                        ),
+                    customTitle:
+                        nil,
+                    exportIdentifier:
+                        UUID()
+                ),
+                ClipboardFilesPasteboardEntry(
+                    payload:
+                        makePayload(
+                            references: [
+                                makeReference(
+                                    path:
+                                        "/Original/Second.txt",
+                                    displayName:
+                                        "Second.txt",
+                                    bookmarkData:
+                                        bookmarkData
+                                )
+                            ]
+                        ),
+                    customTitle:
+                        "Renamed Second",
+                    exportIdentifier:
+                        UUID()
+                ),
+                ClipboardFilesPasteboardEntry(
+                    payload:
+                        makePayload(
+                            references: [
+                                makeReference(
+                                    path:
+                                        "/Original/Third Folder",
+                                    displayName:
+                                        "Third Folder",
+                                    isDirectory:
+                                        true,
+                                    bookmarkData:
+                                        bookmarkData
+                                )
+                            ]
+                        ),
+                    customTitle:
+                        nil,
+                    exportIdentifier:
+                        UUID()
+                )
+            ]
+
+        let pasteboard =
+            makePasteboard()
+
+        let didWrite =
+            try await service
+                .writeFileEntries(
+                    entries,
+                    to:
+                        pasteboard
+                )
+
+        #expect(didWrite)
+
+        let writtenNames =
+            (
+                pasteboard.readObjects(
+                    forClasses: [
+                        NSURL.self
+                    ],
+                    options: [
+                        .urlReadingFileURLsOnly:
+                            true
+                    ]
+                ) as? [NSURL]
+            )?
+            .map {
+                ($0 as URL)
+                    .lastPathComponent
+            }
+
+        #expect(
+            writtenNames ==
+                [
+                    "First.txt",
+                    "Renamed Second.txt",
+                    "Third Folder"
+                ]
+        )
+
+        #expect(
+            firstURL.lastPathComponent ==
+                "First.txt"
+        )
+
+        #expect(
+            secondURL.lastPathComponent ==
+                "Second.txt"
+        )
+
+        #expect(
+            thirdFolderURL
+                .lastPathComponent ==
+                "Third Folder"
+        )
+    }
 
     @Test
     func partialResolutionFailureDoesNotClearClipboard()
-        throws
+    async throws
     {
         let context =
             try makeContext()
@@ -655,7 +1201,7 @@ struct ClipboardFilesPasteboardServiceTests {
 
         do {
             _ =
-                try service.writeFiles(
+                try await service.writeFiles(
                     payload,
                     to:
                         pasteboard
@@ -684,7 +1230,7 @@ struct ClipboardFilesPasteboardServiceTests {
 
     @Test
     func emptyPayloadDoesNotClearClipboard()
-        throws
+    async throws
     {
         let context =
             try makeContext()
@@ -707,7 +1253,7 @@ struct ClipboardFilesPasteboardServiceTests {
         )
 
         let didWrite =
-            try context
+            try await context
                 .pasteboardService
                 .writeFiles(
                     ClipboardFilesPayload(
@@ -785,6 +1331,8 @@ struct ClipboardFilesPasteboardServiceTests {
                 bookmarkData,
             resolvedURLBox:
                 resolvedURLBox,
+            fileReferenceService:
+                fileReferenceService,
             pasteboardService:
                 ClipboardFilesPasteboardService(
                     fileReferenceService:
@@ -850,6 +1398,9 @@ struct ClipboardFilesPasteboardServiceTests {
         let bookmarkData: Data
         let resolvedURLBox:
             ResolvedURLBox
+
+        let fileReferenceService:
+            ClipboardFileReferenceService
 
         let pasteboardService:
             ClipboardFilesPasteboardService
