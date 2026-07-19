@@ -139,8 +139,8 @@ final class ClipboardStore: ObservableObject {
     private var appDiscoveryTask: Task<Void, Never>?
     private var pinnedHighlightTask: Task<Void, Never>?
 
-    private var currentClipboardItemID:
-        UUID?
+    private var currentClipboardItemIDs:
+        [UUID] = []
 
     private var currentClipboardChangeCount:
         Int?
@@ -805,8 +805,17 @@ final class ClipboardStore: ObservableObject {
         _ item:
             ClipboardItem
     ) {
-        currentClipboardItemID =
-            item.id
+        markAsCurrentClipboardItems([
+            item
+        ])
+    }
+
+    private func markAsCurrentClipboardItems(
+        _ clipboardItems:
+            [ClipboardItem]
+    ) {
+        currentClipboardItemIDs =
+            clipboardItems.map(\.id)
 
         currentClipboardChangeCount =
             NSPasteboard.general
@@ -814,8 +823,8 @@ final class ClipboardStore: ObservableObject {
     }
 
     private func clearCurrentClipboardItem() {
-        currentClipboardItemID =
-            nil
+        currentClipboardItemIDs =
+            []
 
         currentClipboardChangeCount =
             nil
@@ -825,11 +834,54 @@ final class ClipboardStore: ObservableObject {
         _ item:
             ClipboardItem
     ) -> Bool {
-        currentClipboardItemID ==
-            item.id &&
+        currentClipboardItemIDs
+            .contains(
+                item.id
+            ) &&
         currentClipboardChangeCount ==
             NSPasteboard.general
                 .changeCount
+    }
+
+    private func currentClipboardItems()
+        -> [ClipboardItem]?
+    {
+        guard
+            !currentClipboardItemIDs
+                .isEmpty,
+            currentClipboardChangeCount ==
+                NSPasteboard.general
+                    .changeCount
+        else {
+            return nil
+        }
+
+        let itemsByID =
+            Dictionary(
+                uniqueKeysWithValues:
+                    items.map {
+                        (
+                            $0.id,
+                            $0
+                        )
+                    }
+            )
+
+        let clipboardItems =
+            currentClipboardItemIDs
+                .compactMap {
+                    itemsByID[$0]
+                }
+
+        guard
+            clipboardItems.count ==
+                currentClipboardItemIDs
+                    .count
+        else {
+            return nil
+        }
+
+        return clipboardItems
     }
 
     func beginIgnoringClipboardMonitoringChanges() {
@@ -951,10 +1003,18 @@ final class ClipboardStore: ObservableObject {
             return
         }
 
+        let activeClipboardItems =
+            currentClipboardItems()
+
         let wasCurrentClipboardItem =
-            isCurrentClipboardItem(
-                items[index]
-            )
+            activeClipboardItems?
+                .contains(
+                    where: {
+                        $0.id ==
+                            item.id
+                    }
+                ) ==
+            true
 
         let renamedItem =
             items[index]
@@ -983,40 +1043,110 @@ final class ClipboardStore: ObservableObject {
 
         guard
             wasCurrentClipboardItem,
-            let imagePayload =
-                renamedItem.imagePayload
+            let activeClipboardItems
         else {
             return
         }
+
+        let updatedActiveClipboardItems =
+            activeClipboardItems.map {
+                activeItem in
+
+                activeItem.id ==
+                    renamedItem.id
+                    ? renamedItem
+                    : activeItem
+            }
 
         Task { @MainActor [weak self] in
             guard let self else {
                 return
             }
 
-            /*
-             Recheck before writing because another app may
-             have changed the clipboard while this Task waited.
-             */
             guard
-                isCurrentClipboardItem(
-                    renamedItem
-                )
+                currentClipboardChangeCount ==
+                    NSPasteboard.general
+                        .changeCount,
+                currentClipboardItemIDs ==
+                    updatedActiveClipboardItems
+                        .map(\.id)
             else {
                 return
             }
 
             do {
-                let didWrite =
-                    try await imagePasteboardService
-                        .writeImage(
-                            imagePayload,
-                            customTitle:
-                                renamedItem
-                                    .customTitle,
-                            to:
-                                .general
-                        )
+                let imageItems =
+                    updatedActiveClipboardItems
+                        .filter {
+                            $0.imagePayload !=
+                                nil
+                        }
+
+                let didWrite:
+                    Bool
+
+                if imageItems.count ==
+                    updatedActiveClipboardItems
+                        .count,
+                   imageItems.count > 1
+                {
+                    let entries =
+                        imageItems.compactMap {
+                            imageItem
+                                -> ClipboardImagePasteboardEntry?
+                            in
+
+                            guard
+                                let imagePayload =
+                                    imageItem
+                                        .imagePayload
+                            else {
+                                return nil
+                            }
+
+                            return ClipboardImagePasteboardEntry(
+                                payload:
+                                    imagePayload,
+                                customTitle:
+                                    imageItem
+                                        .customTitle
+                            )
+                        }
+
+                    guard
+                        entries.count ==
+                            imageItems.count
+                    else {
+                        return
+                    }
+
+                    didWrite =
+                        try await imagePasteboardService
+                            .writeImageFiles(
+                                entries,
+                                to:
+                                    .general
+                            )
+                } else if
+                    updatedActiveClipboardItems
+                        .count == 1,
+                    let imagePayload =
+                        renamedItem
+                            .imagePayload
+                {
+                    didWrite =
+                        try await imagePasteboardService
+                            .writeImage(
+                                imagePayload,
+                                customTitle:
+                                    renamedItem
+                                        .customTitle,
+                                to:
+                                    .general
+                            )
+                } else {
+                    return
+                }
 
                 guard didWrite else {
                     return
@@ -1025,13 +1155,13 @@ final class ClipboardStore: ObservableObject {
                 clipboardMonitoringService
                     .synchronizeChangeCount()
 
-                markAsCurrentClipboardItem(
-                    renamedItem
+                markAsCurrentClipboardItems(
+                    updatedActiveClipboardItems
                 )
             } catch {
                 /*
-                 The rename itself remains saved even when
-                 clipboard rewriting fails.
+                 The custom title remains saved even when
+                 rebuilding the live clipboard fails.
                  */
             }
         }
@@ -1615,6 +1745,67 @@ final class ClipboardStore: ObservableObject {
         }
     }
     
+    private func clipboardImageItems(
+        matching fileURLs:
+            [URL]
+    ) -> [ClipboardItem] {
+        var unmatchedItems =
+            items.filter {
+                $0.kind == .normal &&
+                $0.imagePayload != nil
+            }
+
+        var matchedItems:
+            [ClipboardItem] = []
+
+        for fileURL in fileURLs {
+            let standardizedPath =
+                fileURL
+                    .standardizedFileURL
+                    .path
+
+            guard
+                let matchingIndex =
+                    unmatchedItems
+                        .firstIndex(
+                            where: {
+                                guard
+                                    let originalPath =
+                                        $0.imagePayload?
+                                            .originalFileReference?
+                                            .path
+                                else {
+                                    return false
+                                }
+
+                                return URL(
+                                    fileURLWithPath:
+                                        originalPath
+                                )
+                                .standardizedFileURL
+                                .path ==
+                                    standardizedPath
+                            }
+                        )
+            else {
+                return []
+            }
+
+            matchedItems.append(
+                unmatchedItems[
+                    matchingIndex
+                ]
+            )
+
+            unmatchedItems.remove(
+                at:
+                    matchingIndex
+            )
+        }
+
+        return matchedItems
+    }
+    
     private func handleCopiedFileURLs(
         _ fileURLs: [URL],
         payload: ClipboardChangePayload
@@ -1693,24 +1884,25 @@ final class ClipboardStore: ObservableObject {
                     )
 
                 if routingResult
-                    .imageFileURLs
-                    .count == 1,
-                   routingResult
                     .fileAndFolderURLs
-                    .isEmpty,
-                   let currentImageItem =
-                        items.first(
-                            where: {
-                                $0.kind ==
-                                    .normal &&
-                                $0.imagePayload !=
-                                    nil
-                            }
-                        )
+                    .isEmpty
                 {
-                    markAsCurrentClipboardItem(
-                        currentImageItem
-                    )
+                    let currentImageItems =
+                        clipboardImageItems(
+                            matching:
+                                routingResult
+                                    .imageFileURLs
+                        )
+
+                    if currentImageItems.count ==
+                        routingResult
+                            .imageFileURLs
+                            .count
+                    {
+                        markAsCurrentClipboardItems(
+                            currentImageItems
+                        )
+                    }
                 }
             }
 

@@ -350,6 +350,126 @@ struct ClipboardImagePasteboardServiceTests {
             imageData
         )
     }
+    
+    @Test
+    func multipleImageFilesPreserveOrderAndCustomFilename()
+        async throws
+    {
+        let testDirectory =
+            makeTestDirectory()
+
+        defer {
+            removeTestDirectory(
+                testDirectory
+            )
+        }
+
+        let storageService =
+            ClipboardImageStorageService(
+                imagesDirectoryURL:
+                    testDirectory
+            )
+
+        let firstPayload =
+            try await storageService
+                .storeImage(
+                    data:
+                        makePNGData(
+                            width: 4,
+                            height: 4
+                        ),
+                    originalFilename:
+                        "First.png"
+                )
+
+        let secondPayload =
+            try await storageService
+                .storeImage(
+                    data:
+                        makePNGData(
+                            width: 5,
+                            height: 5
+                        ),
+                    originalFilename:
+                        "Second.png"
+                )
+
+        let thirdPayload =
+            try await storageService
+                .storeImage(
+                    data:
+                        makePNGData(
+                            width: 6,
+                            height: 6
+                        ),
+                    originalFilename:
+                        "Third.png"
+                )
+
+        let pasteboard =
+            makePasteboard()
+
+        let service =
+            ClipboardImagePasteboardService(
+                imageStorageService:
+                    storageService
+            )
+
+        let didWrite =
+            try await service
+                .writeImageFiles(
+                    [
+                        ClipboardImagePasteboardEntry(
+                            payload:
+                                firstPayload,
+                            customTitle:
+                                nil
+                        ),
+                        ClipboardImagePasteboardEntry(
+                            payload:
+                                secondPayload,
+                            customTitle:
+                                "Renamed Second"
+                        ),
+                        ClipboardImagePasteboardEntry(
+                            payload:
+                                thirdPayload,
+                            customTitle:
+                                nil
+                        )
+                    ],
+                    to:
+                        pasteboard
+                )
+
+        #expect(didWrite)
+
+        let writtenURLs =
+            (
+                pasteboard.readObjects(
+                    forClasses: [
+                        NSURL.self
+                    ],
+                    options: [
+                        .urlReadingFileURLsOnly:
+                            true
+                    ]
+                ) as? [NSURL]
+            )?
+            .map {
+                ($0 as URL)
+                    .lastPathComponent
+            }
+
+        #expect(
+            writtenURLs ==
+                [
+                    "First.png",
+                    "Renamed Second.png",
+                    "Third.png"
+                ]
+        )
+    }
 
     @Test
     func missingImageDoesNotClearExistingClipboard()
