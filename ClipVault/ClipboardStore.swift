@@ -136,6 +136,9 @@ final class ClipboardStore: ObservableObject {
     private let filesPasteboardService:
         ClipboardFilesPasteboardService
 
+    private let mixedFilesPasteboardService:
+        ClipboardMixedFilesPasteboardService
+
     private var appDiscoveryTask: Task<Void, Never>?
     private var pinnedHighlightTask: Task<Void, Never>?
 
@@ -263,6 +266,14 @@ final class ClipboardStore: ObservableObject {
 
         filesPasteboardService =
             ClipboardFilesPasteboardService(
+                fileReferenceService:
+                    resolvedFileReferenceService
+            )
+
+        mixedFilesPasteboardService =
+            ClipboardMixedFilesPasteboardService(
+                imageStorageService:
+                    imageStorageService,
                 fileReferenceService:
                     resolvedFileReferenceService
             )
@@ -1098,6 +1109,14 @@ final class ClipboardStore: ObservableObject {
                             $0.filesPayload !=
                                 nil
                         }
+                
+                let isMixedFinderGroup =
+                    !imageItems.isEmpty &&
+                    !fileItems.isEmpty &&
+                    imageItems.count +
+                        fileItems.count ==
+                        updatedActiveClipboardItems
+                            .count
 
                 let didWrite:
                     Bool
@@ -1201,6 +1220,56 @@ final class ClipboardStore: ObservableObject {
                     didWrite =
                         try await filesPasteboardService
                             .writeFileEntries(
+                                entries,
+                                to:
+                                    .general
+                            )
+                } else if isMixedFinderGroup {
+                    let entries =
+                        updatedActiveClipboardItems
+                            .compactMap {
+                                activeItem
+                                    -> ClipboardMixedFilePasteboardEntry?
+                                in
+
+                                if let imagePayload =
+                                    activeItem.imagePayload
+                                {
+                                    return .image(
+                                        payload:
+                                            imagePayload,
+                                        customTitle:
+                                            activeItem.customTitle
+                                    )
+                                }
+
+                                if let filesPayload =
+                                    activeItem.filesPayload
+                                {
+                                    return .file(
+                                        payload:
+                                            filesPayload,
+                                        customTitle:
+                                            activeItem.customTitle,
+                                        exportIdentifier:
+                                            activeItem.id
+                                    )
+                                }
+
+                                return nil
+                            }
+
+                    guard
+                        entries.count ==
+                            updatedActiveClipboardItems
+                                .count
+                    else {
+                        return
+                    }
+
+                    didWrite =
+                        try await mixedFilesPasteboardService
+                            .writeEntries(
                                 entries,
                                 to:
                                     .general
@@ -1806,6 +1875,90 @@ final class ClipboardStore: ObservableObject {
         }
     }
     
+    private func clipboardFinderItems(
+        matching fileURLs:
+            [URL]
+    ) -> [ClipboardItem] {
+        var unmatchedItems =
+            items.filter {
+                $0.kind == .normal &&
+                (
+                    $0.imagePayload != nil ||
+                    $0.filesPayload != nil
+                )
+            }
+
+        var matchedItems:
+            [ClipboardItem] = []
+
+        for fileURL in fileURLs {
+            let standardizedPath =
+                fileURL
+                    .standardizedFileURL
+                    .path
+
+            guard
+                let matchingIndex =
+                    unmatchedItems
+                        .firstIndex(
+                            where: {
+                                clipboardSourcePath(
+                                    for:
+                                        $0
+                                ) ==
+                                standardizedPath
+                            }
+                        )
+            else {
+                return []
+            }
+
+            matchedItems.append(
+                unmatchedItems[
+                    matchingIndex
+                ]
+            )
+
+            unmatchedItems.remove(
+                at:
+                    matchingIndex
+            )
+        }
+
+        return matchedItems
+    }
+
+    private func clipboardSourcePath(
+        for item:
+            ClipboardItem
+    ) -> String? {
+        if let originalPath =
+            item.imagePayload?
+                .originalFileReference?
+                .path
+        {
+            return URL(
+                fileURLWithPath:
+                    originalPath
+            )
+            .standardizedFileURL
+            .path
+        }
+
+        if let fileReference =
+            item.filesPayload?
+                .files
+                .first
+        {
+            return fileReference
+                .fileURL
+                .standardizedFileURL
+                .path
+        }
+
+        return nil
+    }
+    
     private func clipboardFileItems(
         matching fileURLs:
             [URL]
@@ -2002,28 +2155,6 @@ final class ClipboardStore: ObservableObject {
                         sourceBundleIdentifier:
                             sourceBundleIdentifier
                     )
-
-                if routingResult
-                    .fileAndFolderURLs
-                    .isEmpty
-                {
-                    let currentImageItems =
-                        clipboardImageItems(
-                            matching:
-                                routingResult
-                                    .imageFileURLs
-                        )
-
-                    if currentImageItems.count ==
-                        routingResult
-                            .imageFileURLs
-                            .count
-                    {
-                        markAsCurrentClipboardItems(
-                            currentImageItems
-                        )
-                    }
-                }
             }
 
             if !routingResult
@@ -2040,28 +2171,28 @@ final class ClipboardStore: ObservableObject {
                         sourceBundleIdentifier:
                             sourceBundleIdentifier
                     )
+            }
 
-                if routingResult
-                    .imageFileURLs
+            guard
+                routingResult
+                    .failedURLs
                     .isEmpty
-                {
-                    let currentFileItems =
-                        clipboardFileItems(
-                            matching:
-                                routingResult
-                                    .fileAndFolderURLs
-                        )
+            else {
+                return
+            }
 
-                    if currentFileItems.count ==
-                        routingResult
-                            .fileAndFolderURLs
-                            .count
-                    {
-                        markAsCurrentClipboardItems(
-                            currentFileItems
-                        )
-                    }
-                }
+            let currentFinderItems =
+                clipboardFinderItems(
+                    matching:
+                        fileURLs
+                )
+
+            if currentFinderItems.count ==
+                fileURLs.count
+            {
+                markAsCurrentClipboardItems(
+                    currentFinderItems
+                )
             }
         }
     }
