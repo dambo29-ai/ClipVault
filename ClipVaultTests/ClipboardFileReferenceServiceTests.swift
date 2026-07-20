@@ -124,6 +124,77 @@ struct ClipboardFileReferenceServiceTests {
             reference.byteCount == nil
         )
     }
+    
+    @Test
+    func symbolicLinkIsCapturedWithoutBookmark()
+        throws
+    {
+        let context =
+            try makeContext()
+
+        defer {
+            removeDirectory(
+                context.rootURL
+            )
+        }
+
+        let targetURL =
+            context.rootURL
+                .appendingPathComponent(
+                    "Target.png"
+                )
+
+        try Data([1, 2, 3])
+            .write(
+                to:
+                    targetURL
+            )
+
+        let symbolicLinkURL =
+            context.rootURL
+                .appendingPathComponent(
+                    "Photo Link"
+                )
+
+        try FileManager.default
+            .createSymbolicLink(
+                atPath:
+                    symbolicLinkURL.path,
+                withDestinationPath:
+                    targetURL.path
+            )
+
+        let reference =
+            try context.service
+                .makeReference(
+                    for:
+                        symbolicLinkURL
+                )
+
+        #expect(
+            reference.isSymbolicLink
+        )
+
+        #expect(
+            reference.bookmarkData ==
+                nil
+        )
+
+        #expect(
+            reference.symbolicLinkDestination ==
+                targetURL.path
+        )
+
+        #expect(
+            reference.displayName ==
+                "Photo Link"
+        )
+
+        #expect(
+            reference.kindDisplayName ==
+                "Symbolic Link"
+        )
+    }
 
     @Test
     func missingResourceIsRejected()

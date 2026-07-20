@@ -109,6 +109,12 @@ final class ClipboardFileReferenceService {
     private let securityScopedAccessStopper:
         (URL) -> Void
 
+    private let symbolicLinkDestinationReader:
+        (String) throws -> String
+
+    private let symbolicLinkStorageService:
+        ClipboardSymbolicLinkStorageService
+
     private init() {
         bookmarkCreator = {
             fileURL in
@@ -169,6 +175,20 @@ final class ClipboardFileReferenceService {
             fileURL
                 .stopAccessingSecurityScopedResource()
         }
+
+        symbolicLinkDestinationReader = {
+            path in
+
+            try FileManager.default
+                .destinationOfSymbolicLink(
+                    atPath:
+                        path
+                )
+        }
+
+        symbolicLinkStorageService =
+            ClipboardSymbolicLinkStorageService
+                .shared
     }
 
     init(
@@ -192,7 +212,21 @@ final class ClipboardFileReferenceService {
 
                 fileURL
                     .stopAccessingSecurityScopedResource()
-            }
+            },
+        symbolicLinkDestinationReader:
+            @escaping (String) throws
+                -> String = {
+                    path in
+
+                    try FileManager.default
+                        .destinationOfSymbolicLink(
+                            atPath:
+                                path
+                        )
+                },
+        symbolicLinkStorageService:
+            ClipboardSymbolicLinkStorageService? =
+                nil
     ) {
         self.bookmarkCreator =
             bookmarkCreator
@@ -205,10 +239,19 @@ final class ClipboardFileReferenceService {
 
         self.securityScopedAccessStopper =
             securityScopedAccessStopper
+
+        self.symbolicLinkDestinationReader =
+            symbolicLinkDestinationReader
+
+        self.symbolicLinkStorageService =
+            symbolicLinkStorageService ??
+            ClipboardSymbolicLinkStorageService
+                .shared
     }
 
     func makeReference(
-        for fileURL: URL
+        for fileURL:
+            URL
     ) throws -> ClipboardFileReference {
         guard fileURL.isFileURL else {
             throw ClipboardFileReferenceError
@@ -218,6 +261,42 @@ final class ClipboardFileReferenceService {
         let standardizedURL =
             fileURL
                 .standardizedFileURL
+
+        if Self.isSymbolicLink(
+            at:
+                standardizedURL
+        ) {
+            let destination:
+                String
+
+            do {
+                destination =
+                    try symbolicLinkDestinationReader(
+                        standardizedURL.path
+                    )
+            } catch {
+                throw ClipboardFileReferenceError
+                    .resourceMetadataUnavailable
+            }
+
+            return ClipboardFileReference(
+                path:
+                    standardizedURL.path,
+                displayName:
+                    standardizedURL
+                        .lastPathComponent,
+                isDirectory:
+                    false,
+                byteCount:
+                    nil,
+                bookmarkData:
+                    nil,
+                symbolicLinkIdentifier:
+                    UUID(),
+                symbolicLinkDestination:
+                    destination
+            )
+        }
 
         guard
             FileManager.default
@@ -310,7 +389,8 @@ final class ClipboardFileReferenceService {
     }
 
     func makeReferences(
-        for fileURLs: [URL]
+        for fileURLs:
+            [URL]
     ) -> ClipboardFileReferenceBatchResult {
         var references:
             [ClipboardFileReference] = []
@@ -348,6 +428,24 @@ final class ClipboardFileReferenceService {
         _ reference:
             ClipboardFileReference
     ) throws -> ResolvedClipboardFileReference {
+        if reference.isSymbolicLink {
+            let symbolicLinkURL =
+                try symbolicLinkStorageService
+                    .materializedURL(
+                        for:
+                            reference
+                    )
+
+            return ResolvedClipboardFileReference(
+                url:
+                    symbolicLinkURL,
+                didStartSecurityScopedAccess:
+                    false,
+                securityScopedAccessStopper:
+                    securityScopedAccessStopper
+            )
+        }
+
         guard
             let bookmarkData =
                 reference.bookmarkData
@@ -408,6 +506,29 @@ final class ClipboardFileReferenceService {
             securityScopedAccessStopper:
                 securityScopedAccessStopper
         )
+    }
+
+    private nonisolated static func isSymbolicLink(
+        at fileURL:
+            URL
+    ) -> Bool {
+        guard
+            let attributes =
+                try? FileManager.default
+                    .attributesOfItem(
+                        atPath:
+                            fileURL.path
+                    ),
+            let fileType =
+                attributes[
+                    .type
+                ] as? FileAttributeType
+        else {
+            return false
+        }
+
+        return fileType ==
+            .typeSymbolicLink
     }
 }
 

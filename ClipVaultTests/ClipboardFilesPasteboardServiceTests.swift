@@ -1104,6 +1104,198 @@ struct ClipboardFilesPasteboardServiceTests {
                 "Third Folder"
         )
     }
+    
+    @Test
+    func symbolicLinkIsReconstructedAndRenamedWithoutChangingDestination()
+        async throws
+    {
+        let rootURL =
+            FileManager.default
+                .temporaryDirectory
+                .appendingPathComponent(
+                    "ClipboardSymbolicLinkPasteboardTest-" +
+                    UUID().uuidString,
+                    isDirectory:
+                        true
+                )
+
+        defer {
+            removeDirectory(
+                rootURL
+            )
+        }
+
+        try FileManager.default
+            .createDirectory(
+                at:
+                    rootURL,
+                withIntermediateDirectories:
+                    true
+            )
+
+        let targetURL =
+            rootURL
+                .appendingPathComponent(
+                    "Target.png"
+                )
+
+        try Data([1, 2, 3])
+            .write(
+                to:
+                    targetURL
+            )
+
+        let symbolicLinkStorageURL =
+            rootURL
+                .appendingPathComponent(
+                    "Symbolic Link Storage",
+                    isDirectory:
+                        true
+                )
+
+        let symbolicLinkStorageService =
+            ClipboardSymbolicLinkStorageService(
+                storageRootURL:
+                    symbolicLinkStorageURL
+            )
+
+        let fileReferenceService =
+            ClipboardFileReferenceService(
+                bookmarkCreator: {
+                    _ in
+                    Data([1])
+                },
+                bookmarkResolver: {
+                    _ in
+
+                    throw TestError
+                        .resolutionFailed
+                },
+                symbolicLinkStorageService:
+                    symbolicLinkStorageService
+            )
+
+        let stagingURL =
+            rootURL
+                .appendingPathComponent(
+                    "Staging",
+                    isDirectory:
+                        true
+                )
+
+        let pasteboardService =
+            ClipboardFilesPasteboardService(
+                fileReferenceService:
+                    fileReferenceService,
+                exportStagingService:
+                    ClipboardFileExportStagingService(
+                        stagingRootURL:
+                            stagingURL
+                    )
+            )
+
+        let reference =
+            ClipboardFileReference(
+                path:
+                    rootURL
+                        .appendingPathComponent(
+                            "Original Link"
+                        )
+                        .path,
+                displayName:
+                    "Original Link",
+                isDirectory:
+                    false,
+                byteCount:
+                    nil,
+                bookmarkData:
+                    nil,
+                symbolicLinkIdentifier:
+                    UUID(),
+                symbolicLinkDestination:
+                    targetURL.path
+            )
+
+        let payload =
+            ClipboardFilesPayload(
+                files: [
+                    reference
+                ]
+            )
+
+        let pasteboard =
+            makePasteboard()
+
+        let didWrite =
+            try await pasteboardService
+                .writeFiles(
+                    payload,
+                    customTitle:
+                        "Renamed Link",
+                    exportIdentifier:
+                        UUID(),
+                    to:
+                        pasteboard
+                )
+
+        #expect(didWrite)
+
+        let writtenURL =
+            (
+                pasteboard.readObjects(
+                    forClasses: [
+                        NSURL.self
+                    ],
+                    options: [
+                        .urlReadingFileURLsOnly:
+                            true
+                    ]
+                ) as? [NSURL]
+            )?
+            .first
+            .map {
+                $0 as URL
+            }
+
+        #expect(
+            writtenURL?
+                .lastPathComponent ==
+                "Renamed Link"
+        )
+
+        guard let writtenURL else {
+            Issue.record(
+                "Expected a symbolic-link URL on the pasteboard."
+            )
+
+            return
+        }
+
+        let attributes =
+            try FileManager.default
+                .attributesOfItem(
+                    atPath:
+                        writtenURL.path
+                )
+
+        #expect(
+            attributes[.type]
+                as? FileAttributeType ==
+                .typeSymbolicLink
+        )
+
+        let writtenDestination =
+            try FileManager.default
+                .destinationOfSymbolicLink(
+                    atPath:
+                        writtenURL.path
+                )
+
+        #expect(
+            writtenDestination ==
+                targetURL.path
+        )
+    }
 
     @Test
     func partialResolutionFailureDoesNotClearClipboard()

@@ -69,7 +69,9 @@ enum ClipboardFileURLRoutingService {
                     try standardizedURL
                         .resourceValues(
                             forKeys: [
-                                .isDirectoryKey
+                                .isDirectoryKey,
+                                .isAliasFileKey,
+                                .isSymbolicLinkKey
                             ]
                         )
             } catch {
@@ -86,6 +88,24 @@ enum ClipboardFileURLRoutingService {
             else {
                 failedURLs.append(
                     fileURL
+                )
+
+                continue
+            }
+
+            let isAliasFile =
+                resourceValues.isAliasFile ??
+                false
+
+            let isSymbolicLink =
+                resourceValues.isSymbolicLink ??
+                false
+            
+            if isAliasFile ||
+                isSymbolicLink
+            {
+                fileAndFolderURLs.append(
+                    standardizedURL
                 )
 
                 continue

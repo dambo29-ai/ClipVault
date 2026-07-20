@@ -18,12 +18,22 @@ struct ClipboardFileReference:
     let byteCount: Int?
     let bookmarkData: Data?
 
+    let symbolicLinkIdentifier:
+        UUID?
+
+    let symbolicLinkDestination:
+        String?
+
     nonisolated init(
         path: String,
         displayName: String,
         isDirectory: Bool,
         byteCount: Int? = nil,
-        bookmarkData: Data? = nil
+        bookmarkData: Data? = nil,
+        symbolicLinkIdentifier:
+            UUID? = nil,
+        symbolicLinkDestination:
+            String? = nil
     ) {
         let cleanedPath =
             path.trimmingCharacters(
@@ -66,6 +76,27 @@ struct ClipboardFileReference:
 
         self.bookmarkData =
             bookmarkData
+
+        self.symbolicLinkIdentifier =
+            symbolicLinkIdentifier
+
+        let cleanedSymbolicLinkDestination =
+            symbolicLinkDestination?
+                .trimmingCharacters(
+                    in:
+                        .whitespacesAndNewlines
+                )
+
+        self.symbolicLinkDestination =
+            cleanedSymbolicLinkDestination?
+                .isEmpty == false
+                ? cleanedSymbolicLinkDestination
+                : nil
+    }
+    
+    var isSymbolicLink: Bool {
+        symbolicLinkIdentifier != nil &&
+        symbolicLinkDestination != nil
     }
 
     var fileURL: URL {
@@ -76,6 +107,10 @@ struct ClipboardFileReference:
     }
 
     var kindDisplayName: String {
+        if isSymbolicLink {
+            return "Symbolic Link"
+        }
+
         guard !isDirectory else {
             return "Folder"
         }
@@ -150,7 +185,22 @@ struct ClipboardFileReference:
     }
 
     var duplicateComponent: String {
-        fileURL
+        if let symbolicLinkDestination {
+            return [
+                "symbolic-link",
+                fileURL
+                    .standardizedFileURL
+                    .path
+                    .lowercased(),
+                symbolicLinkDestination
+            ]
+            .joined(
+                separator:
+                    "|"
+            )
+        }
+
+        return fileURL
             .standardizedFileURL
             .path
             .lowercased()

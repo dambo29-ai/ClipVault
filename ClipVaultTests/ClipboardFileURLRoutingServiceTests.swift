@@ -237,6 +237,70 @@ struct ClipboardFileURLRoutingServiceTests {
                 ]
         )
     }
+    
+    @Test
+    func symbolicLinkToImageIsRoutedAsFile()
+        throws
+    {
+        let rootURL =
+            try makeTestDirectory()
+
+        defer {
+            removeTestDirectory(
+                rootURL
+            )
+        }
+
+        let imageURL =
+            rootURL
+                .appendingPathComponent(
+                    "Photo.png"
+                )
+
+        try makePNGData()
+            .write(
+                to:
+                    imageURL
+            )
+
+        let symbolicLinkURL =
+            rootURL
+                .appendingPathComponent(
+                    "Photo Link"
+                )
+
+        try FileManager.default
+            .createSymbolicLink(
+                at:
+                    symbolicLinkURL,
+                withDestinationURL:
+                    imageURL
+            )
+
+        let result =
+            ClipboardFileURLRoutingService
+                .route([
+                    symbolicLinkURL
+                ])
+
+        #expect(
+            result.imageFileURLs
+                .isEmpty
+        )
+
+        #expect(
+            result.fileAndFolderURLs ==
+                [
+                    symbolicLinkURL
+                        .standardizedFileURL
+                ]
+        )
+
+        #expect(
+            result.failedURLs
+                .isEmpty
+        )
+    }
 
     @Test
     func missingResourceIsReportedAsFailure()
