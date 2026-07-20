@@ -169,6 +169,16 @@ struct ClipboardRow: View {
                         }
                     }
 
+                    if item.filesPayload !=
+                        nil
+                    {
+                        Button(
+                            "Preview"
+                        ) {
+                            previewFiles()
+                        }
+                    }
+
                     if item.isPinned {
                         Button(
                             "Unpin"
@@ -202,6 +212,10 @@ struct ClipboardRow: View {
 
                 if item.imagePayload != nil {
                     previewImageButton
+                }
+
+                if item.filesPayload != nil {
+                    previewFilesButton
                 }
 
                 renameButton
@@ -753,6 +767,35 @@ struct ClipboardRow: View {
             }
         }
     }
+    
+    private func previewFiles() {
+        guard
+            let filesPayload =
+                item.filesPayload
+        else {
+            return
+        }
+
+        do {
+            try ClipboardFileQuickLookService
+                .shared
+                .showPreview(
+                    for:
+                        filesPayload
+                )
+        } catch {
+            OperationFailureAlert.show(
+                title:
+                    "File Could Not Be Previewed",
+                message:
+                    filesPayload.files.count == 1
+                        ? "The original file or folder could not be opened in Quick Look."
+                        : "One or more original files or folders could not be opened in Quick Look.",
+                error:
+                    error
+            )
+        }
+    }
 
     private var sensitiveSkippedRow:
         some View
@@ -949,6 +992,44 @@ struct ClipboardRow: View {
         .help("Preview image")
         .accessibilityLabel(
             "Preview image"
+        )
+    }
+    
+    private var previewFilesButton:
+        some View
+    {
+        Button {
+            previewFiles()
+        } label: {
+            Image(
+                systemName:
+                    "eye"
+            )
+            .foregroundStyle(
+                .secondary
+            )
+            .frame(
+                width: 28,
+                height: 28
+            )
+            .contentShape(
+                Rectangle()
+            )
+        }
+        .buttonStyle(.borderless)
+        .help(
+            item.filesPayload?
+                .files
+                .count == 1
+                ? "Preview file or folder"
+                : "Preview files and folders"
+        )
+        .accessibilityLabel(
+            item.filesPayload?
+                .files
+                .count == 1
+                ? "Preview file or folder"
+                : "Preview files and folders"
         )
     }
 
