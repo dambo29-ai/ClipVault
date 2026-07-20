@@ -53,6 +53,8 @@ enum ClipboardBackupPackageImportError:
         storageIdentifier: UUID
     )
 
+    case invalidFileReference
+
     case missingValidatedImageData(
         storageIdentifier: UUID
     )
@@ -108,7 +110,11 @@ enum ClipboardBackupPackageImportError:
         ):
             return
                 "The backup contains duplicate image metadata for \(storageIdentifier.uuidString)."
-            
+
+        case .invalidFileReference:
+            return
+                "The backup contains invalid file or folder reference metadata."
+
         case let .missingValidatedImageData(
             storageIdentifier
         ):
@@ -215,6 +221,11 @@ final class ClipboardBackupPackageImportService {
             throw ClipboardBackupPackageImportError
                 .noImportableItems
         }
+
+        try validateFileReferences(
+            in:
+                normalItems
+        )
 
         let imageDataByStorageIdentifier =
             try readAndValidateImageAssets(
@@ -556,6 +567,119 @@ final class ClipboardBackupPackageImportService {
         }
 
         return manifest
+    }
+    
+    private func validateFileReferences(
+        in items:
+            [ClipboardItem]
+    ) throws {
+        for item in items {
+            guard
+                let filesPayload =
+                    item.filesPayload
+            else {
+                continue
+            }
+
+            guard
+                !filesPayload
+                    .files
+                    .isEmpty
+            else {
+                throw ClipboardBackupPackageImportError
+                    .invalidFileReference
+            }
+
+            for reference in
+                filesPayload.files
+            {
+                guard
+                    Self.isValidFileReference(
+                        reference
+                    )
+                else {
+                    throw ClipboardBackupPackageImportError
+                        .invalidFileReference
+                }
+            }
+        }
+    }
+
+    private nonisolated static func isValidFileReference(
+        _ reference:
+            ClipboardFileReference
+    ) -> Bool {
+        let cleanedPath =
+            reference.path
+                .trimmingCharacters(
+                    in:
+                        .whitespacesAndNewlines
+                )
+
+        let cleanedDisplayName =
+            reference.displayName
+                .trimmingCharacters(
+                    in:
+                        .whitespacesAndNewlines
+                )
+
+        guard
+            !cleanedPath.isEmpty,
+            !cleanedDisplayName.isEmpty
+        else {
+            return false
+        }
+
+        let hasSymbolicLinkIdentifier =
+            reference
+                .symbolicLinkIdentifier != nil
+
+        let cleanedSymbolicLinkDestination =
+            reference
+                .symbolicLinkDestination?
+                .trimmingCharacters(
+                    in:
+                        .whitespacesAndNewlines
+                )
+
+        let hasSymbolicLinkDestination =
+            cleanedSymbolicLinkDestination?
+                .isEmpty == false
+
+        guard
+            hasSymbolicLinkIdentifier ==
+                hasSymbolicLinkDestination
+        else {
+            return false
+        }
+
+        if hasSymbolicLinkIdentifier {
+            guard
+                reference.bookmarkData == nil,
+                !reference.isDirectory,
+                reference.byteCount == nil
+            else {
+                return false
+            }
+
+            return true
+        }
+
+        guard
+            reference.bookmarkData != nil
+        else {
+            return false
+        }
+
+        if reference.isDirectory {
+            guard
+                reference.byteCount == nil
+            else {
+                return false
+            }
+        }
+
+        return true
     }
 
     private func readAndValidateImageAssets(

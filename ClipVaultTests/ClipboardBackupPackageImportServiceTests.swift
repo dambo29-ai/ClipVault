@@ -458,6 +458,718 @@ struct ClipboardBackupPackageImportServiceTests {
     }
     
     @Test
+    func emptyFilesPayloadIsRejected()
+        async throws
+    {
+        let context =
+            makeContext()
+
+        defer {
+            removeTestDirectory(
+                context.testRoot
+            )
+        }
+
+        let packageURL =
+            try await context
+                .packageService
+                .exportBackup(
+                    items: [
+                        ClipboardItem(
+                            payload:
+                                .files(
+                                    ClipboardFilesPayload(
+                                        files: []
+                                    )
+                                )
+                        )
+                    ]
+                )
+
+        do {
+            _ =
+                try context
+                    .importService
+                    .readPackage(
+                        at:
+                            packageURL
+                    )
+
+            Issue.record(
+                "Expected an empty Files payload to be rejected."
+            )
+        } catch let error
+            as ClipboardBackupPackageImportError
+        {
+            #expect(
+                error ==
+                    .invalidFileReference
+            )
+        }
+    }
+    
+    @Test
+    func ordinaryFileReferenceWithoutBookmarkIsRejected()
+        async throws
+    {
+        let context =
+            makeContext()
+
+        defer {
+            removeTestDirectory(
+                context.testRoot
+            )
+        }
+
+        let reference =
+            ClipboardFileReference(
+                path:
+                    context.testRoot
+                        .appendingPathComponent(
+                            "Document.txt"
+                        )
+                        .path,
+                displayName:
+                    "Document.txt",
+                isDirectory:
+                    false,
+                byteCount:
+                    100,
+                bookmarkData:
+                    nil
+            )
+
+        let packageURL =
+            try await context
+                .packageService
+                .exportBackup(
+                    items: [
+                        ClipboardItem(
+                            payload:
+                                .files(
+                                    ClipboardFilesPayload(
+                                        files: [
+                                            reference
+                                        ]
+                                    )
+                                )
+                        )
+                    ]
+                )
+
+        do {
+            _ =
+                try context
+                    .importService
+                    .readPackage(
+                        at:
+                            packageURL
+                    )
+
+            Issue.record(
+                "Expected an ordinary File reference without a bookmark to be rejected."
+            )
+        } catch let error
+            as ClipboardBackupPackageImportError
+        {
+            #expect(
+                error ==
+                    .invalidFileReference
+            )
+        }
+    }
+    
+    @Test
+    func partialSymbolicLinkMetadataIsRejected()
+        async throws
+    {
+        let context =
+            makeContext()
+
+        defer {
+            removeTestDirectory(
+                context.testRoot
+            )
+        }
+
+        let reference =
+            ClipboardFileReference(
+                path:
+                    context.testRoot
+                        .appendingPathComponent(
+                            "Photo Link"
+                        )
+                        .path,
+                displayName:
+                    "Photo Link",
+                isDirectory:
+                    false,
+                byteCount:
+                    nil,
+                bookmarkData:
+                    nil,
+                symbolicLinkIdentifier:
+                    UUID(),
+                symbolicLinkDestination:
+                    nil
+            )
+
+        let packageURL =
+            try await context
+                .packageService
+                .exportBackup(
+                    items: [
+                        ClipboardItem(
+                            payload:
+                                .files(
+                                    ClipboardFilesPayload(
+                                        files: [
+                                            reference
+                                        ]
+                                    )
+                                )
+                        )
+                    ]
+                )
+
+        do {
+            _ =
+                try context
+                    .importService
+                    .readPackage(
+                        at:
+                            packageURL
+                    )
+
+            Issue.record(
+                "Expected partial symbolic-link metadata to be rejected."
+            )
+        } catch let error
+            as ClipboardBackupPackageImportError
+        {
+            #expect(
+                error ==
+                    .invalidFileReference
+            )
+        }
+    }
+    
+    @Test
+    func symbolicLinkWithBookmarkIsRejected()
+        async throws
+    {
+        let context =
+            makeContext()
+
+        defer {
+            removeTestDirectory(
+                context.testRoot
+            )
+        }
+
+        let reference =
+            ClipboardFileReference(
+                path:
+                    context.testRoot
+                        .appendingPathComponent(
+                            "Photo Link"
+                        )
+                        .path,
+                displayName:
+                    "Photo Link",
+                isDirectory:
+                    false,
+                byteCount:
+                    nil,
+                bookmarkData:
+                    Data([
+                        1,
+                        2,
+                        3
+                    ]),
+                symbolicLinkIdentifier:
+                    UUID(),
+                symbolicLinkDestination:
+                    "../Pictures/Photo.png"
+            )
+
+        let packageURL =
+            try await context
+                .packageService
+                .exportBackup(
+                    items: [
+                        ClipboardItem(
+                            payload:
+                                .files(
+                                    ClipboardFilesPayload(
+                                        files: [
+                                            reference
+                                        ]
+                                    )
+                                )
+                        )
+                    ]
+                )
+
+        do {
+            _ =
+                try context
+                    .importService
+                    .readPackage(
+                        at:
+                            packageURL
+                    )
+
+            Issue.record(
+                "Expected a symbolic link containing bookmark data to be rejected."
+            )
+        } catch let error
+            as ClipboardBackupPackageImportError
+        {
+            #expect(
+                error ==
+                    .invalidFileReference
+            )
+        }
+    }
+    
+    @Test
+    func invalidFileReferenceIsRejectedBeforeImageRestoration()
+        async throws
+    {
+        let context =
+            makeContext()
+
+        defer {
+            removeTestDirectory(
+                context.testRoot
+            )
+        }
+
+        let imagePayload =
+            try await context
+                .imageStorageService
+                .storeImage(
+                    data:
+                        makePNGData(
+                            width:
+                                11,
+                            height:
+                                8
+                        ),
+                    originalFilename:
+                        "Valid Image.png"
+                )
+
+        let invalidFileReference =
+            ClipboardFileReference(
+                path:
+                    context.testRoot
+                        .appendingPathComponent(
+                            "Invalid Document.txt"
+                        )
+                        .path,
+                displayName:
+                    "Invalid Document.txt",
+                isDirectory:
+                    false,
+                byteCount:
+                    128,
+                bookmarkData:
+                    nil
+            )
+
+        let packageURL =
+            try await context
+                .packageService
+                .exportBackup(
+                    items: [
+                        ClipboardItem(
+                            text:
+                                "Existing backup text"
+                        ),
+                        ClipboardItem(
+                            payload:
+                                .image(
+                                    imagePayload
+                                )
+                        ),
+                        ClipboardItem(
+                            payload:
+                                .files(
+                                    ClipboardFilesPayload(
+                                        files: [
+                                            invalidFileReference
+                                        ]
+                                    )
+                                )
+                        )
+                    ]
+                )
+
+        do {
+            let contents =
+                try context
+                    .importService
+                    .readPackage(
+                        at:
+                            packageURL
+                    )
+
+            _ =
+                try await context
+                    .importService
+                    .restorePackage(
+                        contents
+                    )
+
+            Issue.record(
+                "Expected malformed File metadata to stop the import before restoration."
+            )
+        } catch let error
+            as ClipboardBackupPackageImportError
+        {
+            #expect(
+                error ==
+                    .invalidFileReference
+            )
+        }
+
+        let restoredFiles =
+            (
+                try? FileManager.default
+                    .contentsOfDirectory(
+                        at:
+                            context
+                                .restoredImagesDirectory,
+                        includingPropertiesForKeys:
+                            nil
+                    )
+            ) ?? []
+
+        #expect(
+            restoredFiles.isEmpty
+        )
+
+        let packagedImageURL =
+            packageURL
+                .appendingPathComponent(
+                    ClipboardBackupPackageService
+                        .imagesFolderName,
+                    isDirectory:
+                        true
+                )
+                .appendingPathComponent(
+                    imagePayload
+                        .storedFilename,
+                    isDirectory:
+                        false
+                )
+
+        #expect(
+            FileManager.default
+                .fileExists(
+                    atPath:
+                        packagedImageURL.path
+                )
+        )
+    }
+    
+    @Test
+    func restoresOrdinaryFileReferenceWithoutEmbeddingFileContents()
+        async throws
+    {
+        let context =
+            makeContext()
+
+        defer {
+            removeTestDirectory(
+                context.testRoot
+            )
+        }
+
+        let originalFileURL =
+            context.testRoot
+                .appendingPathComponent(
+                    "Original Document.txt"
+                )
+
+        let originalBookmarkData =
+            Data([
+                10,
+                20,
+                30,
+                40
+            ])
+
+        let originalReference =
+            ClipboardFileReference(
+                path:
+                    originalFileURL.path,
+                displayName:
+                    "Original Document.txt",
+                isDirectory:
+                    false,
+                byteCount:
+                    128,
+                bookmarkData:
+                    originalBookmarkData
+            )
+
+        let originalItem =
+            ClipboardItem(
+                payload:
+                    .files(
+                        ClipboardFilesPayload(
+                            files: [
+                                originalReference
+                            ]
+                        )
+                    )
+            )
+
+        let packageURL =
+            try await context
+                .packageService
+                .exportBackup(
+                    items: [
+                        originalItem
+                    ]
+                )
+
+        let packagedFilesDirectoryURL =
+            packageURL
+                .appendingPathComponent(
+                    "Files",
+                    isDirectory:
+                        true
+                )
+
+        #expect(
+            !FileManager.default
+                .fileExists(
+                    atPath:
+                        packagedFilesDirectoryURL.path
+                )
+        )
+
+        let contents =
+            try context
+                .importService
+                .readPackage(
+                    at:
+                        packageURL
+                )
+
+        let restoration =
+            try await context
+                .importService
+                .restorePackage(
+                    contents
+                )
+
+        let restoredItem =
+            try #require(
+                restoration.items.first
+            )
+
+        let restoredFilesPayload =
+            try #require(
+                restoredItem.filesPayload
+            )
+
+        let restoredReference =
+            try #require(
+                restoredFilesPayload.files.first
+            )
+
+        #expect(
+            restoredReference.path ==
+                originalReference.path
+        )
+
+        #expect(
+            restoredReference.displayName ==
+                originalReference.displayName
+        )
+
+        #expect(
+            restoredReference.isDirectory ==
+                originalReference.isDirectory
+        )
+
+        #expect(
+            restoredReference.byteCount ==
+                originalReference.byteCount
+        )
+
+        #expect(
+            restoredReference.bookmarkData ==
+                originalBookmarkData
+        )
+
+        #expect(
+            !restoredReference.isSymbolicLink
+        )
+
+        #expect(
+            restoredItem.origin ==
+                .restored
+        )
+    }
+    
+    @Test
+    func restoresSymbolicLinkMetadataWithoutEmbeddingTargetContents()
+        async throws
+    {
+        let context =
+            makeContext()
+
+        defer {
+            removeTestDirectory(
+                context.testRoot
+            )
+        }
+
+        let symbolicLinkIdentifier =
+            UUID()
+
+        let symbolicLinkPath =
+            context.testRoot
+                .appendingPathComponent(
+                    "Photo Link"
+                )
+                .path
+
+        let symbolicLinkDestination =
+            "../Pictures/Family Photo.png"
+
+        let originalReference =
+            ClipboardFileReference(
+                path:
+                    symbolicLinkPath,
+                displayName:
+                    "Photo Link",
+                isDirectory:
+                    false,
+                byteCount:
+                    nil,
+                bookmarkData:
+                    nil,
+                symbolicLinkIdentifier:
+                    symbolicLinkIdentifier,
+                symbolicLinkDestination:
+                    symbolicLinkDestination
+            )
+
+        let originalItem =
+            ClipboardItem(
+                payload:
+                    .files(
+                        ClipboardFilesPayload(
+                            files: [
+                                originalReference
+                            ]
+                        )
+                    )
+            )
+
+        let packageURL =
+            try await context
+                .packageService
+                .exportBackup(
+                    items: [
+                        originalItem
+                    ]
+                )
+
+        let packagedFilesDirectoryURL =
+            packageURL
+                .appendingPathComponent(
+                    "Files",
+                    isDirectory:
+                        true
+                )
+
+        #expect(
+            !FileManager.default
+                .fileExists(
+                    atPath:
+                        packagedFilesDirectoryURL.path
+                )
+        )
+
+        let contents =
+            try context
+                .importService
+                .readPackage(
+                    at:
+                        packageURL
+                )
+
+        let restoration =
+            try await context
+                .importService
+                .restorePackage(
+                    contents
+                )
+
+        let restoredItem =
+            try #require(
+                restoration.items.first
+            )
+
+        let restoredFilesPayload =
+            try #require(
+                restoredItem.filesPayload
+            )
+
+        let restoredReference =
+            try #require(
+                restoredFilesPayload.files.first
+            )
+
+        #expect(
+            restoredReference.path ==
+                symbolicLinkPath
+        )
+
+        #expect(
+            restoredReference.displayName ==
+                "Photo Link"
+        )
+
+        #expect(
+            restoredReference.symbolicLinkIdentifier ==
+                symbolicLinkIdentifier
+        )
+
+        #expect(
+            restoredReference.symbolicLinkDestination ==
+                symbolicLinkDestination
+        )
+
+        #expect(
+            restoredReference.bookmarkData ==
+                nil
+        )
+
+        #expect(
+            restoredReference.isSymbolicLink
+        )
+
+        #expect(
+            restoredReference.kindDisplayName ==
+                "Symbolic Link"
+        )
+
+        #expect(
+            restoredItem.origin ==
+                .restored
+        )
+    }
+    
+    @Test
     func restoresTextItemWithRestoredOrigin()
         async throws
     {
@@ -884,6 +1596,504 @@ struct ClipboardBackupPackageImportServiceTests {
         #expect(
             restoredFiles.isEmpty
         )
+    }
+    
+    @Test
+    func restoredImageDiscardedAsMergeDuplicateIsDeleted()
+        async throws
+    {
+        let context =
+            makeContext()
+
+        defer {
+            removeTestDirectory(
+                context.testRoot
+            )
+        }
+
+        let imageData =
+            try makePNGData(
+                width:
+                    10,
+                height:
+                    7
+            )
+
+        let originalPayload =
+            try await context
+                .imageStorageService
+                .storeImage(
+                    data:
+                        imageData,
+                    originalFilename:
+                        "Duplicate.png"
+                )
+
+        let packageURL =
+            try await context
+                .packageService
+                .exportBackup(
+                    items: [
+                        ClipboardItem(
+                            payload:
+                                .image(
+                                    originalPayload
+                                )
+                        )
+                    ]
+                )
+
+        let contents =
+            try context
+                .importService
+                .readPackage(
+                    at:
+                        packageURL
+                )
+
+        let restoration =
+            try await context
+                .importService
+                .restorePackage(
+                    contents
+                )
+
+        let restoredItem =
+            try #require(
+                restoration.items.first
+            )
+
+        let restoredPayload =
+            try #require(
+                restoredItem.imagePayload
+            )
+
+        let existingDuplicateItem =
+            ClipboardItem(
+                payload:
+                    .image(
+                        ClipboardImagePayload(
+                            storageIdentifier:
+                                UUID(),
+                            format:
+                                restoredPayload.format,
+                            pixelWidth:
+                                restoredPayload.pixelWidth,
+                            pixelHeight:
+                                restoredPayload.pixelHeight,
+                            byteCount:
+                                restoredPayload.byteCount,
+                            contentHash:
+                                restoredPayload.contentHash,
+                            originalFilename:
+                                restoredPayload.originalFilename,
+                            wasConverted:
+                                restoredPayload.wasConverted,
+                            originalFileReference:
+                                restoredPayload
+                                    .originalFileReference
+                        )
+                    )
+            )
+
+        let preparation =
+            ClipboardImportService
+                .prepareCompleteMerge(
+                    existingItems: [
+                        existingDuplicateItem
+                    ],
+                    backupItems:
+                        restoration.items
+                )
+
+        #expect(
+            preparation.duplicateCount ==
+                1
+        )
+
+        #expect(
+            preparation.preparedItems ==
+                [
+                    existingDuplicateItem
+                ]
+        )
+
+        await context
+            .importService
+            .deleteUnretainedRestoredImageAssets(
+                from:
+                    restoration,
+                retainedItems:
+                    preparation.preparedItems
+            )
+
+        do {
+            _ =
+                try await context
+                    .restoredImageStorageService
+                    .loadImageData(
+                        for:
+                            restoredPayload
+                    )
+
+            Issue.record(
+                "Expected the restored duplicate image asset to be deleted."
+            )
+        } catch {
+            // Expected.
+        }
+    }
+    
+    @Test
+    func restoredImageDiscardedByHistoryLimitIsDeleted()
+        async throws
+    {
+        let context =
+            makeContext()
+
+        defer {
+            removeTestDirectory(
+                context.testRoot
+            )
+        }
+
+        let originalPayload =
+            try await context
+                .imageStorageService
+                .storeImage(
+                    data:
+                        makePNGData(
+                            width:
+                                12,
+                            height:
+                                8
+                        ),
+                    originalFilename:
+                        "Older Restored Image.png"
+                )
+
+        let olderRestoredImageItem =
+            ClipboardItem(
+                payload:
+                    .image(
+                        originalPayload
+                    ),
+                createdAt:
+                    Date(
+                        timeIntervalSince1970:
+                            1_000
+                    )
+            )
+
+        let packageURL =
+            try await context
+                .packageService
+                .exportBackup(
+                    items: [
+                        olderRestoredImageItem
+                    ]
+                )
+
+        let contents =
+            try context
+                .importService
+                .readPackage(
+                    at:
+                        packageURL
+                )
+
+        let restoration =
+            try await context
+                .importService
+                .restorePackage(
+                    contents
+                )
+
+        let restoredPayload =
+            try #require(
+                restoration
+                    .restoredImagePayloads
+                    .first
+            )
+
+        let newerExistingItem =
+            ClipboardItem(
+                text:
+                    "Newer existing history item",
+                createdAt:
+                    Date(
+                        timeIntervalSince1970:
+                            2_000
+                    )
+            )
+
+        let preparation =
+            ClipboardImportService
+                .prepareCompleteMerge(
+                    existingItems: [
+                        newerExistingItem
+                    ],
+                    backupItems:
+                        restoration.items
+                )
+
+        let resolution =
+            ClipboardImportService
+                .resolveHistoryLimit(
+                    for:
+                        preparation
+                            .preparedItems,
+                    currentHistoryLimit:
+                        1,
+                    maximumHistoryLimit:
+                        ClipboardStore
+                            .maximumHistoryLimit,
+                    decision:
+                        .keepLimit
+                )
+
+        #expect(
+            resolution.resolvedItems ==
+                [
+                    newerExistingItem
+                ]
+        )
+
+        #expect(
+            resolution.skippedUnpinnedItemCount ==
+                1
+        )
+
+        await context
+            .importService
+            .deleteUnretainedRestoredImageAssets(
+                from:
+                    restoration,
+                retainedItems:
+                    resolution
+                        .resolvedItems
+            )
+
+        do {
+            _ =
+                try await context
+                    .restoredImageStorageService
+                    .loadImageData(
+                        for:
+                            restoredPayload
+                    )
+
+            Issue.record(
+                "Expected the restored image removed by the history limit to be deleted."
+            )
+        } catch {
+            // Expected.
+        }
+    }
+    
+    @Test
+    func replacementDeletesPriorImageAndPreservesRestoredImage()
+        async throws
+    {
+        let context =
+            makeContext()
+
+        defer {
+            removeTestDirectory(
+                context.testRoot
+            )
+        }
+
+        let priorImagePayload =
+            try await context
+                .restoredImageStorageService
+                .storeImage(
+                    data:
+                        makePNGData(
+                            width:
+                                9,
+                            height:
+                                9
+                        ),
+                    originalFilename:
+                        "Prior History Image.png"
+                )
+
+        let priorHistoryItem =
+            ClipboardItem(
+                payload:
+                    .image(
+                        priorImagePayload
+                    ),
+                createdAt:
+                    Date(
+                        timeIntervalSince1970:
+                            1_000
+                    )
+            )
+
+        let backupImagePayload =
+            try await context
+                .imageStorageService
+                .storeImage(
+                    data:
+                        makePNGData(
+                            width:
+                                13,
+                            height:
+                                8
+                        ),
+                    originalFilename:
+                        "Restored Replacement Image.png"
+                )
+
+        let backupImageItem =
+            ClipboardItem(
+                payload:
+                    .image(
+                        backupImagePayload
+                    ),
+                createdAt:
+                    Date(
+                        timeIntervalSince1970:
+                            2_000
+                    )
+            )
+
+        let packageURL =
+            try await context
+                .packageService
+                .exportBackup(
+                    items: [
+                        backupImageItem
+                    ]
+                )
+
+        let contents =
+            try context
+                .importService
+                .readPackage(
+                    at:
+                        packageURL
+                )
+
+        let restoration =
+            try await context
+                .importService
+                .restorePackage(
+                    contents
+                )
+
+        let restoredItem =
+            try #require(
+                restoration.items.first
+            )
+
+        let restoredPayload =
+            try #require(
+                restoredItem.imagePayload
+            )
+
+        let replacementPreparation =
+            ClipboardImportService
+                .prepareCompleteReplacement(
+                    backupItems:
+                        restoration.items
+                )
+
+        #expect(
+            replacementPreparation
+                .preparedItems ==
+                [
+                    restoredItem
+                ]
+        )
+
+        let replacementResolution =
+            ClipboardImportService
+                .resolveHistoryLimit(
+                    for:
+                        replacementPreparation
+                            .preparedItems,
+                    currentHistoryLimit:
+                        10,
+                    maximumHistoryLimit:
+                        ClipboardStore
+                            .maximumHistoryLimit,
+                    decision:
+                        .keepLimit
+                )
+
+        #expect(
+            replacementResolution
+                .resolvedItems ==
+                [
+                    restoredItem
+                ]
+        )
+
+        let priorImagePayloadsToDelete =
+            ClipboardImageAssetCleanupService
+                .unreferencedImagePayloads(
+                    previousItems: [
+                        priorHistoryItem
+                    ],
+                    remainingItems:
+                        replacementResolution
+                            .resolvedItems
+                )
+
+        #expect(
+            priorImagePayloadsToDelete ==
+                [
+                    priorImagePayload
+                ]
+        )
+
+        for imagePayload in
+            priorImagePayloadsToDelete
+        {
+            try await context
+                .restoredImageStorageService
+                .deleteImage(
+                    for:
+                        imagePayload
+                )
+        }
+
+        await context
+            .importService
+            .deleteUnretainedRestoredImageAssets(
+                from:
+                    restoration,
+                retainedItems:
+                    replacementResolution
+                        .resolvedItems
+            )
+
+        do {
+            _ =
+                try await context
+                    .restoredImageStorageService
+                    .loadImageData(
+                        for:
+                            priorImagePayload
+                    )
+
+            Issue.record(
+                "Expected the image asset from the prior history to be deleted."
+            )
+        } catch {
+            // Expected.
+        }
+
+        _ =
+            try await context
+                .restoredImageStorageService
+                .loadImageData(
+                    for:
+                        restoredPayload
+                )
     }
     
     @Test
