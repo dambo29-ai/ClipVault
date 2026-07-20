@@ -173,6 +173,164 @@ struct ClipboardFileAvailabilityServiceTests {
             .unavailable
         )
     }
+    
+    @Test
+    func cloudOnlyItemStartsDownloadingAndReportsDownloading()
+        throws
+    {
+        let context =
+            try makeContext(
+                resourceExists:
+                    true
+            )
+
+        defer {
+            removeDirectory(
+                context.rootURL
+            )
+        }
+
+        let downloadCount =
+            CountBox()
+
+        let service =
+            ClipboardFileAvailabilityService(
+                fileReferenceService:
+                    context
+                        .referenceService,
+                isUbiquitousItem: {
+                    _ in
+                    true
+                },
+                downloadingStatus: {
+                    _ in
+                    .notDownloaded
+                },
+                startDownloading: {
+                    _ in
+
+                    downloadCount.value += 1
+                }
+            )
+
+        let status =
+            service.status(
+                for:
+                    context.payload
+            )
+
+        #expect(
+            status ==
+                .downloading
+        )
+
+        #expect(
+            downloadCount.value ==
+                1
+        )
+    }
+    
+    @Test
+    func downloadingCloudItemReportsDownloadingWithoutRestarting()
+        throws
+    {
+        let context =
+            try makeContext(
+                resourceExists:
+                    true
+            )
+
+        defer {
+            removeDirectory(
+                context.rootURL
+            )
+        }
+
+        let downloadCount =
+            CountBox()
+
+        let service =
+            ClipboardFileAvailabilityService(
+                fileReferenceService:
+                    context
+                        .referenceService,
+                isUbiquitousItem: {
+                    _ in
+                    true
+                },
+                downloadingStatus: {
+                    _ in
+                    .downloaded
+                },
+                startDownloading: {
+                    _ in
+
+                    downloadCount.value += 1
+                }
+            )
+
+        let status =
+            service.status(
+                for:
+                    context.payload
+            )
+
+        #expect(
+            status ==
+                .available
+        )
+
+        #expect(
+            downloadCount.value ==
+                0
+        )
+    }
+    
+    @Test
+    func currentCloudItemIsAvailable()
+        throws
+    {
+        let context =
+            try makeContext(
+                resourceExists:
+                    true
+            )
+
+        defer {
+            removeDirectory(
+                context.rootURL
+            )
+        }
+
+        let service =
+            ClipboardFileAvailabilityService(
+                fileReferenceService:
+                    context
+                        .referenceService,
+                isUbiquitousItem: {
+                    _ in
+                    true
+                },
+                downloadingStatus: {
+                    _ in
+                    .current
+                },
+                startDownloading: {
+                    _ in
+                    Issue.record(
+                        "A current iCloud item should not restart downloading."
+                    )
+                }
+            )
+
+        #expect(
+            service.status(
+                for:
+                    context.payload
+            ) ==
+            .available
+        )
+    }
 
     @Test
     func emptyPayloadIsUnavailable()
@@ -285,6 +443,8 @@ struct ClipboardFileAvailabilityServiceTests {
                 rootURL,
             payload:
                 payload,
+            referenceService:
+                referenceService,
             service:
                 service,
             stopAccessCount:
@@ -353,6 +513,9 @@ struct ClipboardFileAvailabilityServiceTests {
 
         let payload:
             ClipboardFilesPayload
+
+        let referenceService:
+            ClipboardFileReferenceService
 
         let service:
             ClipboardFileAvailabilityService

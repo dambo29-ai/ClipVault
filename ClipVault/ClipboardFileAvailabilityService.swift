@@ -12,6 +12,7 @@ enum ClipboardFileAvailabilityStatus:
     Sendable
 {
     case available
+    case downloading
     case unavailable
 }
 
@@ -23,17 +24,100 @@ final class ClipboardFileAvailabilityService {
     private let fileReferenceService:
         ClipboardFileReferenceService
 
+    private let isUbiquitousItem:
+        (URL) -> Bool
+
+    private let downloadingStatus:
+        (URL) throws -> URLUbiquitousItemDownloadingStatus?
+
+    private let startDownloading:
+        (URL) throws -> Void
+
     private init() {
         fileReferenceService =
             .shared
+
+        isUbiquitousItem = {
+            fileURL in
+
+            FileManager.default
+                .isUbiquitousItem(
+                    at:
+                        fileURL
+                )
+        }
+
+        downloadingStatus = {
+            fileURL in
+
+            try fileURL
+                .resourceValues(
+                    forKeys: [
+                        .ubiquitousItemDownloadingStatusKey
+                    ]
+                )
+                .ubiquitousItemDownloadingStatus
+        }
+
+        startDownloading = {
+            fileURL in
+
+            try FileManager.default
+                .startDownloadingUbiquitousItem(
+                    at:
+                        fileURL
+                )
+        }
     }
 
     init(
         fileReferenceService:
-            ClipboardFileReferenceService
+            ClipboardFileReferenceService,
+        isUbiquitousItem:
+            @escaping (URL) -> Bool = {
+                fileURL in
+
+                FileManager.default
+                    .isUbiquitousItem(
+                        at:
+                            fileURL
+                    )
+            },
+        downloadingStatus:
+            @escaping (URL) throws
+                -> URLUbiquitousItemDownloadingStatus? = {
+                    fileURL in
+
+                    try fileURL
+                        .resourceValues(
+                            forKeys: [
+                                .ubiquitousItemDownloadingStatusKey
+                            ]
+                        )
+                        .ubiquitousItemDownloadingStatus
+                },
+        startDownloading:
+            @escaping (URL) throws -> Void = {
+                fileURL in
+
+                try FileManager.default
+                    .startDownloadingUbiquitousItem(
+                        at:
+                            fileURL
+                    )
+            }
     ) {
         self.fileReferenceService =
             fileReferenceService
+
+        self.isUbiquitousItem =
+            isUbiquitousItem
+
+        self.downloadingStatus =
+            downloadingStatus
+
+        self.startDownloading =
+            startDownloading
     }
 
     func status(
@@ -57,6 +141,9 @@ final class ClipboardFileAvailabilityService {
             }
         }
 
+        var containsDownloadingItem =
+            false
+
         do {
             for fileReference in
                 payload.files
@@ -70,9 +157,47 @@ final class ClipboardFileAvailabilityService {
                 resolvedReferences.append(
                     resolvedReference
                 )
+
+                let fileURL =
+                    resolvedReference.url
+
+                guard
+                    isUbiquitousItem(
+                        fileURL
+                    )
+                else {
+                    continue
+                }
+
+                let status =
+                    try downloadingStatus(
+                        fileURL
+                    )
+
+                switch status {
+                case .current:
+                    break
+
+                case .downloaded:
+                    break
+
+                case .notDownloaded:
+                    try? startDownloading(
+                        fileURL
+                    )
+
+                    containsDownloadingItem =
+                        true
+
+                default:
+                    containsDownloadingItem =
+                        true
+                }
             }
 
-            return .available
+            return containsDownloadingItem
+                ? .downloading
+                : .available
         } catch {
             return .unavailable
         }

@@ -468,9 +468,26 @@ struct ClipboardRow: View {
                     .secondary
                 )
 
-                if fileAvailability ==
-                    .unavailable
-                {
+                switch fileAvailability {
+                case .available:
+                    EmptyView()
+
+                case .downloading:
+                    Label(
+                        "Downloading from iCloud",
+                        systemImage:
+                            "icloud.and.arrow.down"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(
+                        .secondary
+                    )
+                    .lineLimit(1)
+                    .accessibilityLabel(
+                        "Downloading original file or folder from iCloud"
+                    )
+
+                case .unavailable:
                     Label(
                         "Original unavailable",
                         systemImage:
@@ -549,9 +566,39 @@ struct ClipboardRow: View {
                     )
                 }
 
-                if fileAvailability ==
-                    .unavailable
-                {
+                switch fileAvailability {
+                case .available:
+                    EmptyView()
+
+                case .downloading:
+                    Image(
+                        systemName:
+                            "icloud.and.arrow.down"
+                    )
+                    .font(
+                        .system(
+                            size: 14
+                        )
+                    )
+                    .foregroundStyle(
+                        .secondary
+                    )
+                    .background {
+                        Circle()
+                            .fill(
+                                Color(
+                                    nsColor:
+                                        .windowBackgroundColor
+                                )
+                            )
+                            .padding(-2)
+                    }
+                    .offset(
+                        x: 2,
+                        y: 2
+                    )
+
+                case .unavailable:
                     Image(
                         systemName:
                             "exclamationmark.triangle.fill"
