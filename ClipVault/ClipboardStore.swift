@@ -709,6 +709,12 @@ final class ClipboardStore: ObservableObject {
             return
         }
 
+        filesPasteboardService
+            .releasePasteboardAccess()
+
+        mixedFilesPasteboardService
+            .releasePasteboardAccess()
+
         switch item.payload {
         case .text, .link:
             let didWrite =

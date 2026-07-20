@@ -20,12 +20,16 @@ struct ClipboardFilesPasteboardEntry {
 }
 
 @MainActor
-struct ClipboardFilesPasteboardService {
+final class ClipboardFilesPasteboardService {
     private let fileReferenceService:
         ClipboardFileReferenceService
 
     private let exportStagingService:
         ClipboardFileExportStagingService
+
+    private var activePasteboardReferences:
+        [ResolvedClipboardFileReference] =
+            []
 
     init(
         fileReferenceService:
@@ -54,6 +58,8 @@ struct ClipboardFilesPasteboardService {
         guard !entries.isEmpty else {
             return false
         }
+
+        releasePasteboardAccess()
 
         var resolvedReferences:
             [ResolvedClipboardFileReference] =
@@ -124,19 +130,25 @@ struct ClipboardFilesPasteboardService {
             throw error
         }
 
-        defer {
+        pasteboard.clearContents()
+
+        let didWrite =
+            pasteboard.writeObjects(
+                fileURLs.map {
+                    $0 as NSURL
+                }
+            )
+
+        if didWrite {
+            activePasteboardReferences =
+                resolvedReferences
+        } else {
             stopAccessing(
                 resolvedReferences
             )
         }
 
-        pasteboard.clearContents()
-
-        return pasteboard.writeObjects(
-            fileURLs.map {
-                $0 as NSURL
-            }
-        )
+        return didWrite
     }
 
     func writeFiles(
@@ -152,6 +164,8 @@ struct ClipboardFilesPasteboardService {
         guard !payload.files.isEmpty else {
             return false
         }
+
+        releasePasteboardAccess()
 
         var resolvedReferences:
             [ResolvedClipboardFileReference] =
@@ -179,12 +193,6 @@ struct ClipboardFilesPasteboardService {
             throw error
         }
 
-        defer {
-            stopAccessing(
-                resolvedReferences
-            )
-        }
-
         let normalizedCustomTitle =
             customTitle?
                 .trimmingCharacters(
@@ -195,42 +203,70 @@ struct ClipboardFilesPasteboardService {
         let fileURLs:
             [URL]
 
-        if
-            payload.files.count == 1,
-            resolvedReferences.count == 1,
-            let normalizedCustomTitle,
-            !normalizedCustomTitle.isEmpty
-        {
-            let stagedURL =
-                try await exportStagingService
-                    .stagedCopy(
-                        of:
-                            resolvedReferences[0]
-                                .url,
-                        customTitle:
-                            normalizedCustomTitle,
-                        exportIdentifier:
-                            exportIdentifier ??
-                            UUID()
-                    )
+        do {
+            if
+                payload.files.count == 1,
+                resolvedReferences.count == 1,
+                let normalizedCustomTitle,
+                !normalizedCustomTitle.isEmpty
+            {
+                let stagedURL =
+                    try await exportStagingService
+                        .stagedCopy(
+                            of:
+                                resolvedReferences[0]
+                                    .url,
+                            customTitle:
+                                normalizedCustomTitle,
+                            exportIdentifier:
+                                exportIdentifier ??
+                                UUID()
+                        )
 
-            fileURLs = [
-                stagedURL
-            ]
-        } else {
-            fileURLs =
-                resolvedReferences.map {
-                    $0.url
-                }
+                fileURLs = [
+                    stagedURL
+                ]
+            } else {
+                fileURLs =
+                    resolvedReferences.map {
+                        $0.url
+                    }
+            }
+        } catch {
+            stopAccessing(
+                resolvedReferences
+            )
+
+            throw error
         }
 
         pasteboard.clearContents()
 
-        return pasteboard.writeObjects(
-            fileURLs.map {
-                $0 as NSURL
-            }
+        let didWrite =
+            pasteboard.writeObjects(
+                fileURLs.map {
+                    $0 as NSURL
+                }
+            )
+
+        if didWrite {
+            activePasteboardReferences =
+                resolvedReferences
+        } else {
+            stopAccessing(
+                resolvedReferences
+            )
+        }
+
+        return didWrite
+    }
+
+    func releasePasteboardAccess() {
+        stopAccessing(
+            activePasteboardReferences
         )
+
+        activePasteboardReferences = []
     }
 
     private func stopAccessing(

@@ -27,7 +27,7 @@ enum ClipboardMixedFilePasteboardEntry {
 }
 
 @MainActor
-struct ClipboardMixedFilesPasteboardService {
+final class ClipboardMixedFilesPasteboardService {
     private let imageStorageService:
         ClipboardImageStorageService
 
@@ -36,6 +36,10 @@ struct ClipboardMixedFilesPasteboardService {
 
     private let fileExportStagingService:
         ClipboardFileExportStagingService
+
+    private var activePasteboardReferences:
+        [ResolvedClipboardFileReference] =
+            []
 
     init(
         imageStorageService:
@@ -70,6 +74,8 @@ struct ClipboardMixedFilesPasteboardService {
         guard !entries.isEmpty else {
             return false
         }
+
+        releasePasteboardAccess()
 
         var resolvedReferences:
             [ResolvedClipboardFileReference] =
@@ -161,19 +167,33 @@ struct ClipboardMixedFilesPasteboardService {
             throw error
         }
 
-        defer {
+        pasteboard.clearContents()
+
+        let didWrite =
+            pasteboard.writeObjects(
+                fileURLs.map {
+                    $0 as NSURL
+                }
+            )
+
+        if didWrite {
+            activePasteboardReferences =
+                resolvedReferences
+        } else {
             stopAccessing(
                 resolvedReferences
             )
         }
 
-        pasteboard.clearContents()
-
-        return pasteboard.writeObjects(
-            fileURLs.map {
-                $0 as NSURL
-            }
+        return didWrite
+    }
+    
+    func releasePasteboardAccess() {
+        stopAccessing(
+            activePasteboardReferences
         )
+
+        activePasteboardReferences = []
     }
 
     private func imageFileURL(

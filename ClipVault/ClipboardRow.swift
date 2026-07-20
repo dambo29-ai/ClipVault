@@ -21,6 +21,12 @@ struct ClipboardRow: View {
     @State private var isRenaming = false
     @State private var renameDraft = ""
 
+    @State private var isCopyFeedbackActive =
+        false
+
+    @State private var copyFeedbackGeneration =
+        0
+
     @State private var fileAvailability:
         ClipboardFileAvailabilityStatus =
             .available
@@ -49,9 +55,14 @@ struct ClipboardRow: View {
                 cornerRadius: 6
             )
             .fill(
-                isHighlighted
+                isHighlighted ||
+                isCopyFeedbackActive
                     ? Color.accentColor
-                        .opacity(0.16)
+                        .opacity(
+                            isHighlighted
+                                ? 0.16
+                                : 0.12
+                        )
                     : Color.clear
             )
         }
@@ -61,6 +72,14 @@ struct ClipboardRow: View {
             ),
             value:
                 isHighlighted
+        )
+        .animation(
+            .easeOut(
+                duration:
+                    0.16
+            ),
+            value:
+                isCopyFeedbackActive
         )
         .onExitCommand {
             guard isRenaming else {
@@ -118,7 +137,7 @@ struct ClipboardRow: View {
             } else {
                 Button(
                     action:
-                        onCopy
+                        performCopy
                 ) {
                     normalRowContent
                         .frame(
@@ -301,7 +320,7 @@ struct ClipboardRow: View {
                 ? "Copy"
                 : "Copy Image"
         ) {
-            onCopy()
+            performCopy()
         }
     }
 
@@ -692,6 +711,35 @@ struct ClipboardRow: View {
         }
 
         return item.linkURL
+    }
+    
+    private func performCopy() {
+        copyFeedbackGeneration += 1
+
+        let generation =
+            copyFeedbackGeneration
+
+        isCopyFeedbackActive =
+            true
+
+        onCopy()
+
+        Task { @MainActor in
+            try? await Task.sleep(
+                for:
+                    .milliseconds(180)
+            )
+
+            guard
+                copyFeedbackGeneration ==
+                    generation
+            else {
+                return
+            }
+
+            isCopyFeedbackActive =
+                false
+        }
     }
 
     private func beginRenaming() {

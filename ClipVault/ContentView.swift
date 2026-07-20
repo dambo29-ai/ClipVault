@@ -40,6 +40,14 @@ struct ContentView: View {
     @State private var selectedContentFilter:
         ClipboardContentFilter = .all
 
+    @AppStorage("imageClipboardViewMode")
+    private var imageViewModeRawValue =
+        ClipboardViewMode.list.rawValue
+
+    @AppStorage("fileClipboardViewMode")
+    private var fileViewModeRawValue =
+        ClipboardViewMode.list.rawValue
+
     @AppStorage("isPinnedSectionExpanded")
     private var isPinnedSectionExpanded = true
 
@@ -99,6 +107,55 @@ struct ContentView: View {
                     trimmedSearchText
                 )
         }
+    }
+    
+    private var selectedViewMode:
+        ClipboardViewMode
+    {
+        get {
+            switch selectedContentFilter {
+            case .images:
+                return ClipboardViewMode(
+                    rawValue:
+                        imageViewModeRawValue
+                ) ?? .list
+
+            case .files:
+                return ClipboardViewMode(
+                    rawValue:
+                        fileViewModeRawValue
+                ) ?? .list
+
+            case .all,
+                 .text,
+                 .links:
+                return .list
+            }
+        }
+
+        nonmutating set {
+            switch selectedContentFilter {
+            case .images:
+                imageViewModeRawValue =
+                    newValue.rawValue
+
+            case .files:
+                fileViewModeRawValue =
+                    newValue.rawValue
+
+            case .all,
+                 .text,
+                 .links:
+                break
+            }
+        }
+    }
+
+    private var supportsGridView:
+        Bool
+    {
+        selectedContentFilter == .images ||
+        selectedContentFilter == .files
     }
     
     private var hasActiveSearch: Bool {
@@ -221,13 +278,17 @@ struct ContentView: View {
             Divider()
             
             contentFilterView
-            
+
             searchView
             
             Divider()
             
             if filteredItems.isEmpty {
                 emptyStateView
+            } else if supportsGridView &&
+                        selectedViewMode == .grid
+            {
+                clipboardGridView
             } else {
                 clipboardListView
             }
@@ -362,42 +423,162 @@ struct ContentView: View {
         .accessibilityLabel("Clipboard content filter")
     }
     
-    private var searchView: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 13))
-                .foregroundStyle(.secondary)
-            
-            TextField(
-                searchFieldPlaceholder,
-                text: $searchText
-            )
-            .textFieldStyle(.plain)
-            .focused($isSearchFocused)
-            
-            if !searchText.isEmpty {
-                Button {
-                    searchText = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
+    private var searchView:
+        some View
+    {
+        HStack(
+            spacing:
+                8
+        ) {
+            HStack(
+                spacing:
+                    8
+            ) {
+                Image(
+                    systemName:
+                        "magnifyingglass"
+                )
+                .font(
+                    .system(
+                        size:
+                            13
+                    )
+                )
+                .foregroundStyle(
+                    .secondary
+                )
+
+                TextField(
+                    searchFieldPlaceholder,
+                    text:
+                        $searchText
+                )
+                .textFieldStyle(
+                    .plain
+                )
+                .focused(
+                    $isSearchFocused
+                )
+
+                if !searchText.isEmpty {
+                    Button {
+                        searchText = ""
+                    } label: {
+                        Image(
+                            systemName:
+                                "xmark.circle.fill"
+                        )
+                        .font(
+                            .system(
+                                size:
+                                    12
+                            )
+                        )
+                        .foregroundStyle(
+                            .secondary
+                        )
+                    }
+                    .buttonStyle(
+                        .borderless
+                    )
+                    .help(
+                        "Clear search"
+                    )
+                    .accessibilityLabel(
+                        "Clear search"
+                    )
                 }
-                .buttonStyle(.borderless)
-                .help("Clear search")
-                .accessibilityLabel("Clear search")
+            }
+            .padding(
+                .horizontal,
+                10
+            )
+            .padding(
+                .vertical,
+                7
+            )
+            .background(
+                Color(
+                    nsColor:
+                        .textBackgroundColor
+                )
+            )
+            .overlay {
+                RoundedRectangle(
+                    cornerRadius:
+                        8
+                )
+                .stroke(
+                    Color(
+                        nsColor:
+                            .separatorColor
+                    ),
+                    lineWidth:
+                        1
+                )
+            }
+            .clipShape(
+                RoundedRectangle(
+                    cornerRadius:
+                        8
+                )
+            )
+
+            if supportsGridView {
+                Picker(
+                    "View style",
+                    selection:
+                        Binding(
+                            get: {
+                                selectedViewMode
+                            },
+                            set: {
+                                selectedViewMode =
+                                    $0
+                            }
+                        )
+                ) {
+                    ForEach(
+                        ClipboardViewMode
+                            .allCases
+                    ) {
+                        viewMode in
+
+                        Image(
+                            systemName:
+                                viewMode
+                                    .systemImageName
+                        )
+                        .tag(
+                            viewMode
+                        )
+                        .help(
+                            viewMode
+                                .accessibilityLabel
+                        )
+                    }
+                }
+                .pickerStyle(
+                    .segmented
+                )
+                .labelsHidden()
+                .frame(
+                    width:
+                        78
+                )
+                .accessibilityLabel(
+                    "Clipboard view style"
+                )
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        .background(Color(nsColor: .textBackgroundColor))
-        .overlay {
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(
+            .horizontal,
+            16
+        )
+        .padding(
+            .vertical,
+            12
+        )
     }
     
     private var searchFieldPlaceholder: String {
@@ -417,6 +598,203 @@ struct ContentView: View {
         case .files:
             return "Search files"
         }
+    }
+    
+    private var clipboardGridView:
+        some View
+    {
+        ScrollView {
+            LazyVStack(
+                alignment:
+                    .leading,
+                spacing:
+                    0
+            ) {
+                if !pinnedItems.isEmpty {
+                    listSectionHeader(
+                        title:
+                            "Pinned",
+                        itemCount:
+                            pinnedItemCount,
+                        isExpanded:
+                            shouldShowPinnedRows,
+                        toggleExpanded: {
+                            guard
+                                !hasActiveSearch
+                            else {
+                                return
+                            }
+
+                            isPinnedSectionExpanded
+                                .toggle()
+                        }
+                    )
+
+                    if shouldShowPinnedRows {
+                        clipboardGrid(
+                            pinnedItems,
+                            displaysNumbers:
+                                false
+                        )
+                    }
+                }
+
+                if !recentItems.isEmpty {
+                    if !pinnedItems.isEmpty {
+                        sectionSpacing
+                    }
+
+                    listSectionHeader(
+                        title:
+                            "Recent",
+                        itemCount:
+                            recentItemCount,
+                        isExpanded:
+                            shouldShowRecentRows,
+                        toggleExpanded: {
+                            guard
+                                !hasActiveSearch
+                            else {
+                                return
+                            }
+
+                            isRecentSectionExpanded
+                                .toggle()
+                        }
+                    )
+
+                    if shouldShowRecentRows {
+                        clipboardGrid(
+                            recentItems,
+                            displaysNumbers:
+                                true
+                        )
+                    }
+                }
+            }
+            .padding(
+                .top,
+                8
+            )
+            .padding(
+                .horizontal,
+                16
+            )
+            .padding(
+                .bottom,
+                12
+            )
+        }
+    }
+
+    private func clipboardGrid(
+        _ items:
+            [ClipboardItem],
+        displaysNumbers:
+            Bool
+    ) -> some View {
+        LazyVGrid(
+            columns: [
+                GridItem(
+                    .adaptive(
+                        minimum:
+                            180,
+                        maximum:
+                            230
+                    ),
+                    spacing:
+                        12,
+                    alignment:
+                        .top
+                )
+            ],
+            alignment:
+                .leading,
+            spacing:
+                12
+        ) {
+            ForEach(
+                items,
+                id:
+                    \.id
+            ) {
+                item in
+
+                let cardDisplayNumber =
+                    displaysNumbers &&
+                    item.kind == .normal
+                        ? displayNumber(
+                            for:
+                                item
+                        )
+                        : nil
+
+                ClipboardGridCard(
+                    item:
+                        item,
+                    displayNumber:
+                        cardDisplayNumber,
+                    isHighlighted:
+                        clipboardStore
+                            .highlightedPinnedItemID ==
+                            item.id,
+                    onCopy: {
+                        clipboardStore
+                            .copyToClipboard(
+                                item
+                            )
+                    },
+                    onRename: {
+                        customTitle in
+
+                        clipboardStore
+                            .renameItem(
+                                item,
+                                customTitle:
+                                    customTitle
+                            )
+                    },
+                    onPin: {
+                        isPinnedSectionExpanded =
+                            true
+
+                        clipboardStore
+                            .pinItem(
+                                item
+                            )
+                    },
+                    onUnpin: {
+                        isRecentSectionExpanded =
+                            true
+
+                        clipboardStore
+                            .unpinItem(
+                                item
+                            )
+                    },
+                    onDelete: {
+                        clipboardStore
+                            .deleteItem(
+                                item
+                            )
+                    }
+                )
+                .id(
+                    ClipboardRowPresentationID(
+                        itemID:
+                            item.id,
+                        isPinned:
+                            item.isPinned,
+                        displayNumber:
+                            cardDisplayNumber
+                    )
+                )
+            }
+        }
+        .padding(
+            .top,
+            4
+        )
     }
     
     private var clipboardListView: some View {

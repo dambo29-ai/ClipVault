@@ -1419,6 +1419,126 @@ struct ClipboardFilesPasteboardServiceTests {
             "Existing clipboard value"
         )
     }
+    
+    @Test
+    func securityScopedAccessRemainsActiveUntilExplicitlyReleased()
+        async throws
+    {
+        let rootURL =
+            FileManager.default
+                .temporaryDirectory
+                .appendingPathComponent(
+                    "ClipboardFilesPasteboardAccessTests-" +
+                        UUID().uuidString,
+                    isDirectory:
+                        true
+                )
+
+        defer {
+            removeDirectory(
+                rootURL
+            )
+        }
+
+        try FileManager.default
+            .createDirectory(
+                at:
+                    rootURL,
+                withIntermediateDirectories:
+                    true
+            )
+
+        let fileURL =
+            rootURL
+                .appendingPathComponent(
+                    "Report.txt"
+                )
+
+        try Data(
+            "Report"
+                .utf8
+        )
+        .write(
+            to:
+                fileURL
+        )
+
+        var stopAccessCount =
+            0
+
+        let referenceService =
+            ClipboardFileReferenceService(
+                bookmarkCreator: {
+                    _ in
+                    Data([1])
+                },
+                bookmarkResolver: {
+                    _ in
+
+                    (
+                        url:
+                            fileURL,
+                        isStale:
+                            false
+                    )
+                },
+                securityScopedAccessStarter: {
+                    _ in
+                    true
+                },
+                securityScopedAccessStopper: {
+                    _ in
+                    stopAccessCount += 1
+                }
+            )
+
+        let service =
+            ClipboardFilesPasteboardService(
+                fileReferenceService:
+                    referenceService
+            )
+
+        let payload =
+            ClipboardFilesPayload(
+                files: [
+                    ClipboardFileReference(
+                        path:
+                            "/Original/Report.txt",
+                        displayName:
+                            "Report.txt",
+                        isDirectory:
+                            false,
+                        bookmarkData:
+                            Data([1])
+                    )
+                ]
+            )
+
+        let pasteboard =
+            makePasteboard()
+
+        let didWrite =
+            try await service
+                .writeFiles(
+                    payload,
+                    to:
+                        pasteboard
+                )
+
+        #expect(didWrite)
+
+        #expect(
+            stopAccessCount ==
+                0
+        )
+
+        service.releasePasteboardAccess()
+
+        #expect(
+            stopAccessCount ==
+                1
+        )
+    }
 
     @Test
     func emptyPayloadDoesNotClearClipboard()

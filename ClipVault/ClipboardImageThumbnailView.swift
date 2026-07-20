@@ -11,6 +11,8 @@ import SwiftUI
 @MainActor
 struct ClipboardImageThumbnailView: View {
     let payload: ClipboardImagePayload
+    let width: CGFloat
+    let height: CGFloat
 
     private let imageStorageService:
         ClipboardImageStorageService
@@ -23,11 +25,15 @@ struct ClipboardImageThumbnailView: View {
 
     init(
         payload: ClipboardImagePayload,
+        width: CGFloat = 96,
+        height: CGFloat = 72,
         imageStorageService:
             ClipboardImageStorageService =
                 .shared
     ) {
         self.payload = payload
+        self.width = width
+        self.height = height
         self.imageStorageService =
             imageStorageService
     }
@@ -59,8 +65,8 @@ struct ClipboardImageThumbnailView: View {
             }
         }
         .frame(
-            width: 96,
-            height: 72
+            width: width,
+            height: height
         )
         .clipShape(
             RoundedRectangle(
