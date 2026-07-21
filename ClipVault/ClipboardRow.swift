@@ -655,115 +655,20 @@ struct ClipboardRow: View {
         }
     }
 
-    @ViewBuilder
     private func fileIconView(
         for filesPayload:
             ClipboardFilesPayload
     ) -> some View {
-        if let fileReference =
-            filesPayload.files.first
-        {
-            ZStack(
-                alignment:
-                    .bottomTrailing
-            ) {
-                Image(
-                    systemName:
-                        fileReference
-                            .isDirectory
-                            ? "folder.fill"
-                            : "doc.fill"
-                )
-                .font(
-                    .system(
-                        size: 32
-                    )
-                )
-                .foregroundStyle(
-                    fileAvailability ==
-                        .unavailable
-                        ? .tertiary
-                        : .secondary
-                )
-                .frame(
-                    width: 56,
-                    height: 56
-                )
-                .background {
-                    RoundedRectangle(
-                        cornerRadius: 7
-                    )
-                    .fill(
-                        Color.secondary
-                            .opacity(0.08)
-                    )
-                }
-
-                switch fileAvailability {
-                case .available:
-                    EmptyView()
-
-                case .downloading:
-                    Image(
-                        systemName:
-                            "icloud.and.arrow.down"
-                    )
-                    .font(
-                        .system(
-                            size: 14
-                        )
-                    )
-                    .foregroundStyle(
-                        .secondary
-                    )
-                    .background {
-                        Circle()
-                            .fill(
-                                Color(
-                                    nsColor:
-                                        .windowBackgroundColor
-                                )
-                            )
-                            .padding(-2)
-                    }
-                    .offset(
-                        x: 2,
-                        y: 2
-                    )
-
-                case .unavailable:
-                    Image(
-                        systemName:
-                            "exclamationmark.triangle.fill"
-                    )
-                    .font(
-                        .system(
-                            size: 14
-                        )
-                    )
-                    .foregroundStyle(
-                        .orange
-                    )
-                    .background {
-                        Circle()
-                            .fill(
-                                Color(
-                                    nsColor:
-                                        .windowBackgroundColor
-                                )
-                            )
-                            .padding(-2)
-                    }
-                    .offset(
-                        x: 2,
-                        y: 2
-                    )
-                }
-            }
-            .accessibilityHidden(
-                true
-            )
-        }
+        ClipboardFileThumbnailView(
+            payload:
+                filesPayload,
+            width:
+                72,
+            height:
+                72,
+            availability:
+                fileAvailability
+        )
     }
     
     private func monitorFileAvailability(

@@ -280,101 +280,20 @@ struct ClipboardGridCard: View {
         _ filesPayload:
             ClipboardFilesPayload
     ) -> some View {
-        ZStack(
-            alignment:
-                .bottomTrailing
-        ) {
-            RoundedRectangle(
-                cornerRadius:
-                    8
-            )
-            .fill(
-                Color.secondary
-                    .opacity(0.08)
-            )
-            .frame(
-                height:
-                    126
-            )
-
-            Image(
-                systemName:
-                    fileSystemImageName(
-                        for:
-                            filesPayload
-                    )
-            )
-            .font(
-                .system(
-                    size:
-                        58
-                )
-            )
-            .foregroundStyle(
-                fileAvailability ==
-                    .unavailable
-                    ? .tertiary
-                    : .secondary
-            )
-            .frame(
-                maxWidth:
-                    .infinity,
-                maxHeight:
-                    .infinity
-            )
-
-            if filesPayload.files.count > 1 {
-                Text(
-                    "\(filesPayload.files.count)"
-                )
-                .font(.caption)
-                .fontWeight(
-                    .semibold
-                )
-                .monospacedDigit()
-                .padding(
-                    .horizontal,
-                    7
-                )
-                .padding(
-                    .vertical,
-                    4
-                )
-                .background(
-                    .regularMaterial,
-                    in:
-                        Capsule()
-                )
-                .padding(7)
-            }
-
-            switch fileAvailability {
-            case .available:
-                EmptyView()
-
-            case .downloading:
-                Image(
-                    systemName:
-                        "icloud.and.arrow.down"
-                )
-                .font(.title3)
-                .foregroundStyle(
-                    .secondary
-                )
-                .padding(8)
-
-            case .unavailable:
-                Image(
-                    systemName:
-                        "exclamationmark.triangle.fill"
-                )
-                .font(.title3)
-                .foregroundStyle(
-                    .orange
-                )
-                .padding(8)
-            }
-        }
+        ClipboardFileThumbnailView(
+            payload:
+                filesPayload,
+            width:
+                168,
+            height:
+                126,
+            availability:
+                fileAvailability
+        )
+        .frame(
+            maxWidth:
+                .infinity
+        )
         .task(
             id:
                 filesPayload
@@ -383,35 +302,6 @@ struct ClipboardGridCard: View {
                 filesPayload
             )
         }
-        .accessibilityHidden(
-            true
-        )
-    }
-
-    private func fileSystemImageName(
-        for filesPayload:
-            ClipboardFilesPayload
-    ) -> String {
-        guard
-            let firstReference =
-                filesPayload.files.first
-        else {
-            return "doc"
-        }
-
-        if filesPayload.files.count > 1 {
-            return "doc.on.doc.fill"
-        }
-
-        if firstReference.isDirectory {
-            return "folder.fill"
-        }
-
-        if firstReference.isSymbolicLink {
-            return "link"
-        }
-
-        return "doc.fill"
     }
 
     private var titleArea:
