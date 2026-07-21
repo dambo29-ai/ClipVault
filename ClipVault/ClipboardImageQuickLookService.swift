@@ -21,7 +21,11 @@ final class ClipboardImageQuickLookService:
     private let imageStorageService:
         ClipboardImageStorageService
 
-    private var previewURL: URL?
+    private var previewURL:
+        URL?
+
+    private var keyboardEventMonitor:
+        Any?
 
     private override convenience init() {
         self.init(
@@ -44,23 +48,18 @@ final class ClipboardImageQuickLookService:
         for payload:
             ClipboardImagePayload
     ) async throws {
-        /*
-         loadImageData validates:
-         - file existence
-         - byte count
-         - content hash
-         - image decodability
-         */
         _ =
             try await imageStorageService
                 .loadImageData(
-                    for: payload
+                    for:
+                        payload
                 )
 
         let fileURL =
             try await imageStorageService
                 .imageFileURL(
-                    for: payload
+                    for:
+                        payload
                 )
 
         previewURL =
@@ -70,18 +69,34 @@ final class ClipboardImageQuickLookService:
             let previewPanel =
                 QLPreviewPanel.shared()
         else {
+            finishPreview()
+
             throw ClipboardImageQuickLookError
                 .previewPanelUnavailable
         }
 
-        previewPanel.dataSource = self
-        previewPanel.delegate = self
-        previewPanel.currentPreviewItemIndex = 0
+        previewPanel.dataSource =
+            self
+
+        previewPanel.delegate =
+            self
+
+        previewPanel.currentPreviewItemIndex =
+            0
+
         previewPanel.reloadData()
 
-        NSApp.activate(
-            ignoringOtherApps: true
+        installKeyboardEventMonitor(
+            for:
+                previewPanel
         )
+
+        NSApp.activate(
+            ignoringOtherApps:
+                true
+        )
+
+        previewPanel.orderFrontRegardless()
 
         previewPanel.makeKeyAndOrderFront(
             nil
@@ -89,7 +104,8 @@ final class ClipboardImageQuickLookService:
     }
 
     func numberOfPreviewItems(
-        in panel: QLPreviewPanel!
+        in panel:
+            QLPreviewPanel!
     ) -> Int {
         previewURL == nil
             ? 0
@@ -97,8 +113,10 @@ final class ClipboardImageQuickLookService:
     }
 
     func previewPanel(
-        _ panel: QLPreviewPanel!,
-        previewItemAt index: Int
+        _ panel:
+            QLPreviewPanel!,
+        previewItemAt index:
+            Int
     ) -> QLPreviewItem! {
         guard
             index == 0,
@@ -107,13 +125,93 @@ final class ClipboardImageQuickLookService:
             return nil
         }
 
-        return previewURL as NSURL
+        return previewURL
+            as NSURL
     }
 
     func previewPanelWillClose(
-        _ panel: QLPreviewPanel!
+        _ panel:
+            QLPreviewPanel!
     ) {
-        previewURL = nil
+        finishPreview()
+    }
+
+    private func installKeyboardEventMonitor(
+        for previewPanel:
+            QLPreviewPanel
+    ) {
+        removeKeyboardEventMonitor()
+
+        keyboardEventMonitor =
+            NSEvent.addLocalMonitorForEvents(
+                matching:
+                    .keyDown
+            ) {
+                [weak self, weak previewPanel]
+                event in
+
+                guard
+                    let self,
+                    let previewPanel,
+                    previewPanel.isVisible,
+                    previewPanel.dataSource ===
+                        self
+                else {
+                    return event
+                }
+
+                switch event.keyCode {
+                case 49:
+                    self.closePreviewPanel(
+                        previewPanel
+                    )
+
+                    return nil
+
+                case 53:
+                    self.closePreviewPanel(
+                        previewPanel
+                    )
+
+                    return nil
+
+                default:
+                    return event
+                }
+            }
+    }
+
+    private func closePreviewPanel(
+        _ previewPanel:
+            QLPreviewPanel
+    ) {
+        previewPanel.orderOut(
+            nil
+        )
+
+        finishPreview()
+    }
+
+    private func finishPreview() {
+        previewURL =
+            nil
+
+        removeKeyboardEventMonitor()
+    }
+
+    private func removeKeyboardEventMonitor() {
+        guard
+            let keyboardEventMonitor
+        else {
+            return
+        }
+
+        NSEvent.removeMonitor(
+            keyboardEventMonitor
+        )
+
+        self.keyboardEventMonitor =
+            nil
     }
 }
 
@@ -123,7 +221,9 @@ enum ClipboardImageQuickLookError:
 {
     case previewPanelUnavailable
 
-    var errorDescription: String? {
+    var errorDescription:
+        String?
+    {
         switch self {
         case .previewPanelUnavailable:
             return

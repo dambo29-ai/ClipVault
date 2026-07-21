@@ -47,6 +47,9 @@ final class ClipboardFileQuickLookService:
     private var previewURLs:
         [URL] = []
 
+    private var keyboardEventMonitor:
+        Any?
+
     private override convenience init() {
         self.init(
             fileReferenceService:
@@ -63,7 +66,7 @@ final class ClipboardFileQuickLookService:
 
         super.init()
     }
-
+    
     func preparePreview(
         for payload:
             ClipboardFilesPayload
@@ -123,6 +126,28 @@ final class ClipboardFileQuickLookService:
         for payload:
             ClipboardFilesPayload
     ) throws {
+        if ClipboardFileInformationPreviewService
+            .shared
+            .canPreview(
+                payload
+            )
+        {
+            dismissPreview()
+
+            try ClipboardFileInformationPreviewService
+                .shared
+                .showPreview(
+                    for:
+                        payload
+                )
+
+            return
+        }
+
+        ClipboardFileInformationPreviewService
+            .shared
+            .dismissPreview()
+
         _ =
             try preparePreview(
                 for:
@@ -150,10 +175,17 @@ final class ClipboardFileQuickLookService:
 
         previewPanel.reloadData()
 
+        installKeyboardEventMonitor(
+            for:
+                previewPanel
+        )
+
         NSApp.activate(
             ignoringOtherApps:
                 true
         )
+
+        previewPanel.orderFrontRegardless()
 
         previewPanel.makeKeyAndOrderFront(
             nil
@@ -161,6 +193,9 @@ final class ClipboardFileQuickLookService:
     }
 
     func dismissPreview() {
+        ClipboardFileInformationPreviewService
+            .shared
+            .dismissPreview()
         if let previewPanel =
             QLPreviewPanel.shared(),
             previewPanel.dataSource ===
@@ -171,7 +206,7 @@ final class ClipboardFileQuickLookService:
             )
         }
 
-        stopAccessingCurrentReferences()
+        finishPreview()
     }
 
     func numberOfPreviewItems(
@@ -204,7 +239,90 @@ final class ClipboardFileQuickLookService:
         _ panel:
             QLPreviewPanel!
     ) {
+        finishPreview()
+    }
+    
+    private func installKeyboardEventMonitor(
+        for previewPanel:
+            QLPreviewPanel
+    ) {
+        removeKeyboardEventMonitor()
+
+        keyboardEventMonitor =
+            NSEvent.addLocalMonitorForEvents(
+                matching:
+                    .keyDown
+            ) {
+                [weak self, weak previewPanel]
+                event in
+
+                guard
+                    let self,
+                    let previewPanel,
+                    previewPanel.isVisible,
+                    previewPanel.dataSource ===
+                        self
+                else {
+                    return event
+                }
+
+                switch event.keyCode {
+                case 49:
+                    /*
+                     Space
+                     */
+                    self.closePreviewPanel(
+                        previewPanel
+                    )
+
+                    return nil
+
+                case 53:
+                    /*
+                     Escape
+                     */
+                    self.closePreviewPanel(
+                        previewPanel
+                    )
+
+                    return nil
+
+                default:
+                    return event
+                }
+            }
+    }
+
+    private func closePreviewPanel(
+        _ previewPanel:
+            QLPreviewPanel
+    ) {
+        previewPanel.orderOut(
+            nil
+        )
+
+        finishPreview()
+    }
+
+    private func finishPreview() {
         stopAccessingCurrentReferences()
+
+        removeKeyboardEventMonitor()
+    }
+
+    private func removeKeyboardEventMonitor() {
+        guard
+            let keyboardEventMonitor
+        else {
+            return
+        }
+
+        NSEvent.removeMonitor(
+            keyboardEventMonitor
+        )
+
+        self.keyboardEventMonitor =
+            nil
     }
 
     private func stopAccessingCurrentReferences() {

@@ -9,6 +9,7 @@ import SwiftUI
 
 private enum SettingsSection: String, CaseIterable, Identifiable {
     case general
+    case appearance
     case appRules
 
     var id: String {
@@ -20,6 +21,9 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
         case .general:
             return "General"
 
+        case .appearance:
+            return "Appearance"
+
         case .appRules:
             return "App Rules"
         }
@@ -29,6 +33,9 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
         switch self {
         case .general:
             return "gearshape"
+
+        case .appearance:
+            return "paintbrush"
 
         case .appRules:
             return "shield.lefthalf.filled"
@@ -59,9 +66,6 @@ struct SettingsContainerView: View {
             minHeight: 620,
             idealHeight: 700
         )
-        .onAppear {
-            selectedSection = .general
-        }
     }
 
     private var sidebar: some View {
@@ -113,6 +117,9 @@ struct SettingsContainerView: View {
         switch selectedSection {
         case .general:
             GeneralSettingsView()
+
+        case .appearance:
+            AppearanceSettingsView()
 
         case .appRules:
             AppRulesSettingsView()

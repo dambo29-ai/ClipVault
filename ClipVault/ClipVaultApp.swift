@@ -19,6 +19,25 @@ struct ClipVaultApp: App {
     @Environment(\.openWindow) private var openWindow
     @State private var hasRegisteredKeyboardShortcuts = false
 
+    @AppStorage(
+        ClipVaultAppearanceMode
+            .defaultsKey
+    )
+    private var appearanceModeRawValue =
+        ClipVaultAppearanceMode
+            .system
+            .rawValue
+
+    private var appearanceMode:
+        ClipVaultAppearanceMode
+    {
+        ClipVaultAppearanceMode
+            .resolved(
+                from:
+                    appearanceModeRawValue
+            )
+    }
+
     var body: some Scene {
         MenuBarExtra {
             Button("Show ClipVault") {
@@ -216,6 +235,9 @@ struct ClipVaultApp: App {
         } label: {
             Image(systemName: "doc.on.clipboard")
                 .onAppear {
+                    appearanceMode
+                        .applyToApplication()
+
                     registerKeyboardShortcutsIfNeeded()
 
                     optionSelectionGestureMonitor
@@ -225,6 +247,16 @@ struct ClipVaultApp: App {
 
                     optionSelectionGestureMonitor
                         .applySavedCapturePreference()
+                }
+                .onChange(
+                    of:
+                        appearanceModeRawValue
+                ) {
+                    _,
+                    _ in
+
+                    appearanceMode
+                        .applyToApplication()
                 }
         }
         .menuBarExtraStyle(.menu)
@@ -248,17 +280,49 @@ struct ClipVaultApp: App {
 
         Window("ClipVault", id: "main-window") {
             ContentView()
-                .environmentObject(clipboardStore)
+                .environmentObject(
+                    clipboardStore
+                )
+                .onAppear {
+                    appearanceMode
+                        .applyToApplication()
+                }
+                .onChange(
+                    of:
+                        appearanceModeRawValue
+                ) {
+                    _,
+                    _ in
+
+                    appearanceMode
+                        .applyToApplication()
+                }
         }
         .defaultSize(width: 600, height: 500)
         .defaultLaunchBehavior(.suppressed)
         
         Window("ClipVault Settings", id: "settings-window") {
             SettingsContainerView()
-                .environmentObject(clipboardStore)
+                .environmentObject(
+                    clipboardStore
+                )
                 .environmentObject(
                     optionSelectionGestureMonitor
                 )
+                .onAppear {
+                    appearanceMode
+                        .applyToApplication()
+                }
+                .onChange(
+                    of:
+                        appearanceModeRawValue
+                ) {
+                    _,
+                    _ in
+
+                    appearanceMode
+                        .applyToApplication()
+                }
         }
         .defaultSize(width: 900, height: 700)
     }
