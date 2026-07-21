@@ -21,14 +21,17 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		EC3AC58D300FC86700E8A2EB /* CHANGELOG.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CHANGELOG.md; sourceTree = "<group>"; };
+		EC3AC58F300FC88100E8A2EB /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		EC8CB50F2FFE993B00383DB4 /* ClipVault.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClipVault.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		EC96DE163004106C0062B204 /* ClipVaultTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ClipVaultTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		ECBC616C300763E000490F3C /* Exceptions for "ClipVault" folder in "ClipVault" target */ = {
+		EC3AC591300FCA2300E8A2EB /* Exceptions for "ClipVault" folder in "ClipVault" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				MANUAL_TEST_CHECKLIST.md,
 				PRODUCT_DIRECTION.md,
 			);
 			target = EC8CB50E2FFE993B00383DB4 /* ClipVault */;
@@ -39,7 +42,7 @@
 		EC8CB5112FFE993B00383DB4 /* ClipVault */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				ECBC616C300763E000490F3C /* Exceptions for "ClipVault" folder in "ClipVault" target */,
+				EC3AC591300FCA2300E8A2EB /* Exceptions for "ClipVault" folder in "ClipVault" target */,
 			);
 			path = ClipVault;
 			sourceTree = "<group>";
@@ -76,6 +79,8 @@
 				EC8CB5112FFE993B00383DB4 /* ClipVault */,
 				EC96DE173004106C0062B204 /* ClipVaultTests */,
 				EC8CB5102FFE993B00383DB4 /* Products */,
+				EC3AC58D300FC86700E8A2EB /* CHANGELOG.md */,
+				EC3AC58F300FC88100E8A2EB /* README.md */,
 			);
 			sourceTree = "<group>";
 		};
