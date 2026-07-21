@@ -334,6 +334,12 @@ struct ClipboardRow: View {
             imageRowContent(
                 imagePayload
             )
+        } else if let linkURL =
+            item.linkURL
+        {
+            linkRowContent(
+                linkURL
+            )
         } else if let filesPayload =
             item.filesPayload
         {
@@ -384,6 +390,100 @@ struct ClipboardRow: View {
             }
 
             metadataView
+        }
+    }
+    
+    private func linkRowContent(
+        _ linkURL:
+            URL
+    ) -> some View {
+        HStack(
+            alignment:
+                .center,
+            spacing:
+                12
+        ) {
+            ClipboardLinkThumbnailView(
+                url:
+                    linkURL,
+                width:
+                    96,
+                height:
+                    72,
+                showsIdentityOverlay:
+                    false
+            )
+
+            VStack(
+                alignment:
+                    .leading,
+                spacing:
+                    5
+            ) {
+                Text(
+                    item.displayText
+                )
+                .fontWeight(
+                    item.hasCustomTitle
+                        ? .medium
+                        : .regular
+                )
+                .lineLimit(
+                    item.hasCustomTitle
+                        ? 1
+                        : 2
+                )
+                .truncationMode(
+                    .middle
+                )
+                .multilineTextAlignment(
+                    .leading
+                )
+                .help(
+                    item.displayText
+                )
+
+                if item.hasCustomTitle {
+                    Text(
+                        item.automaticDisplayText
+                    )
+                    .font(.caption)
+                    .foregroundStyle(
+                        .secondary
+                    )
+                    .lineLimit(1)
+                    .truncationMode(
+                        .middle
+                    )
+                    .help(
+                        item.automaticDisplayText
+                    )
+                }
+
+                Text(
+                    ClipboardLinkPreviewService
+                        .domain(
+                            for:
+                                linkURL
+                        )
+                )
+                .font(.caption)
+                .foregroundStyle(
+                    .secondary
+                )
+                .lineLimit(1)
+                .truncationMode(
+                    .middle
+                )
+
+                metadataView
+            }
+            .frame(
+                maxWidth:
+                    .infinity,
+                alignment:
+                    .leading
+            )
         }
     }
 

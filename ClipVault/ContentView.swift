@@ -39,6 +39,10 @@ struct ContentView: View {
     @State private var searchText = ""
     @State private var selectedContentFilter:
         ClipboardContentFilter = .all
+    
+    @AppStorage("linkClipboardViewMode")
+    private var linkViewModeRawValue =
+        ClipboardViewMode.list.rawValue
 
     @AppStorage("imageClipboardViewMode")
     private var imageViewModeRawValue =
@@ -114,6 +118,12 @@ struct ContentView: View {
     {
         get {
             switch selectedContentFilter {
+            case .links:
+                return ClipboardViewMode(
+                    rawValue:
+                        linkViewModeRawValue
+                ) ?? .list
+
             case .images:
                 return ClipboardViewMode(
                     rawValue:
@@ -127,14 +137,17 @@ struct ContentView: View {
                 ) ?? .list
 
             case .all,
-                 .text,
-                 .links:
+                 .text:
                 return .list
             }
         }
 
         nonmutating set {
             switch selectedContentFilter {
+            case .links:
+                linkViewModeRawValue =
+                    newValue.rawValue
+
             case .images:
                 imageViewModeRawValue =
                     newValue.rawValue
@@ -144,8 +157,7 @@ struct ContentView: View {
                     newValue.rawValue
 
             case .all,
-                 .text,
-                 .links:
+                 .text:
                 break
             }
         }
@@ -154,6 +166,7 @@ struct ContentView: View {
     private var supportsGridView:
         Bool
     {
+        selectedContentFilter == .links ||
         selectedContentFilter == .images ||
         selectedContentFilter == .files
     }

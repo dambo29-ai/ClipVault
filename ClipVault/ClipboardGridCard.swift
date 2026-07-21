@@ -252,6 +252,21 @@ struct ClipboardGridCard: View {
                 maxWidth:
                     .infinity
             )
+        } else if let linkURL =
+            item.linkURL
+        {
+            ClipboardLinkThumbnailView(
+                url:
+                    linkURL,
+                width:
+                    168,
+                height:
+                    126
+            )
+            .frame(
+                maxWidth:
+                    .infinity
+            )
         } else if let filesPayload =
             item.filesPayload
         {
@@ -467,6 +482,16 @@ struct ClipboardGridCard: View {
         {
             return filesPayload
                 .rowMetadataText
+        }
+
+        if let linkURL =
+            item.linkURL
+        {
+            return ClipboardLinkPreviewService
+                .domain(
+                    for:
+                        linkURL
+                )
         }
 
         return ""
