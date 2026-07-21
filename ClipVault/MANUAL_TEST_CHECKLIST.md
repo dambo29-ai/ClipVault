@@ -8,15 +8,8 @@ Record the macOS and ClipVault build versions when performing a full regression 
 
 Current automated baseline:
 
-* 66 total tests.
-* 12 `SelectionClipboardTransactionService` tests.
-* Accepted Option-select capture keeps the newly selected text active.
-* Blocked, sensitive, paused, and empty capture outcomes restore the previous clipboard.
-* Copy-event failure, clipboard timeout, and unreadable clipboard content restore the previous clipboard.
-* Restoration failure returns `clipboardRestoreFailed`.
-* Reentrant capture returns `transactionAlreadyRunning`.
-* Clipboard-monitoring suppression begins and ends exactly once.
-* Accepted capture does not invoke clipboard restoration.
+* **273 total tests passing.**
+* Coverage includes typed payloads, persistence, retention, search classification, file references, aliases, symbolic links, image storage, backups, import rollback, asset cleanup, Link Presentation caching, List/Grid persistence, appearance mapping, file visuals, Quick Look preparation, and file-information metadata.
 
 These automated tests supplement this checklist; they do not replace manual cross-application and user-interface testing.
 
@@ -390,11 +383,7 @@ Expected filename format:
 
 ```text
 ClipVault Backup yyyy-MM-dd HH-mm-ss.clipvaultbackup
-
-Expected filename format:
-
-```text
-ClipVault Backup yyyy-MM-dd HH-mm-ss.clipvaultbackup
+```
 
 ---
 
@@ -493,7 +482,72 @@ ClipVault Backup yyyy-MM-dd HH-mm-ss.clipvaultbackup
 
 ---
 
-## 21. Visual Alignment Review
+## 21. Links, Images, and Files Views
+
+* [ ] Links, Images, and Files each remember their List/Grid mode independently.
+* [ ] The view toggle appears beside Search only for supported filters.
+* [ ] All, Text, and other unsupported filters remain List-only.
+* [ ] Grid cards remain uniform in height with long custom titles.
+* [ ] Tap-to-click and physical click provide the same copy-feedback animation.
+* [ ] No multi-selection or checkbox interface appears.
+
+### Link Previews
+
+* [ ] Cached previews appear immediately.
+* [ ] New public links load native rich metadata without opening a browser.
+* [ ] Missing metadata uses a site-icon or globe/domain fallback.
+* [ ] Offline links remain copyable.
+* [ ] Link copying is immediate while metadata is loading.
+* [ ] List thumbnails and Grid previews remain visually consistent.
+
+### Image and File Visuals
+
+* [ ] Image thumbnails display correctly in List and Grid.
+* [ ] PDFs and supported files receive native Quick Look thumbnails.
+* [ ] Folders, archives, aliases, and symbolic links receive native macOS icons.
+* [ ] File copy/paste works from both List and Grid.
+* [ ] Renaming changes only the exported copy, never the original item.
+
+---
+
+## 22. Quick Look and File Information
+
+* [ ] Ordinary files and images open in native Quick Look.
+* [ ] Space consistently closes the active preview.
+* [ ] Escape consistently closes the active preview.
+* [ ] Preview remains closable after clicking the main ClipVault window.
+* [ ] Folders open ClipVault’s native information preview with name, item count, modified date, and location.
+* [ ] Finder aliases show alias identity, destination path, and destination status.
+* [ ] Symbolic links show the stored destination string and destination status.
+* [ ] Broken destinations report Unavailable without crashing.
+* [ ] Closing previews releases security-scoped access correctly.
+
+---
+
+## 23. Appearance
+
+* [ ] Settings → Appearance offers System, Light, and Dark.
+* [ ] System follows macOS.
+* [ ] Light and Dark affect ClipVault only.
+* [ ] Every transition works immediately, including Light → System and Dark → System.
+* [ ] Switching appearance does not reset Settings to General.
+* [ ] The main window, Settings, menus, alerts, rows, cards, and controls remain readable in all modes.
+* [ ] The selected appearance persists after relaunch.
+
+---
+
+## 24. Documentation and Privacy
+
+* [ ] README accurately describes current features.
+* [ ] Backup documentation clearly states that ordinary file/folder contents are not embedded.
+* [ ] Link-preview network use is disclosed.
+* [ ] Option-select Accessibility requirements are documented.
+* [ ] Renamed File clips are documented as exported-copy names only.
+* [ ] Multi-selection is not described or implied.
+
+---
+
+## 25. Visual Alignment Review
 
 Inspect the app at normal size and minimum size.
 
@@ -516,7 +570,7 @@ Inspect the app at normal size and minimum size.
 
 ---
 
-## 22. Final Smoke Test
+## 26. Final Smoke Test
 
 Perform these steps in order:
 

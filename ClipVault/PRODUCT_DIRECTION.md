@@ -462,88 +462,74 @@ Automatic assignment, multi-Space membership, and tag-like behavior are deferred
 
 ## Images
 
-Image support concerns copied image data rather than only image files.
+Image support is implemented for copied image data from screenshots, Preview, Photos, Safari, image editors, and other applications exposing readable image pasteboard representations.
 
-Potential sources include:
+Implemented behavior:
 
-- Preview.
-- Photos.
-- Safari.
-- Image editors.
-- Screenshots copied directly to the clipboard.
-- Other apps exposing readable image pasteboard representations.
-
-An image item should eventually display:
-
-- A thumbnail.
-- Pixel dimensions where available.
-- Data size where useful.
-- Source application.
-- Timestamp.
-- Pin state.
-
-Copying an image item back to the clipboard should restore useful original representations where practical, not merely copy its display thumbnail.
-
-Large image payloads should be stored separately from history metadata.
-
-Recommended storage direction:
-
-- Lightweight history metadata.
-- Separate Application Support files for image payloads.
-- Separate generated thumbnails.
+- Managed image storage outside the lightweight history metadata.
+- List and Grid thumbnails.
+- Pixel dimensions, byte count, source, timestamp, pin state, and custom titles.
+- Native Quick Look.
+- Copy-back using useful image representations rather than the display thumbnail alone.
 - Coordinated asset deletion.
-- Backups containing both metadata and required assets.
-
-Large image data should not be embedded directly in the current JSON history file.
+- Backup packages containing required managed image assets.
 
 ---
 
 ## Files
 
-ClipVault will reference copied files rather than privately duplicating them.
+ClipVault references ordinary files and folders rather than privately embedding their contents. Files copied together from Finder are currently presented as individual File clips, which is the approved user-facing behavior.
 
-A File item may represent:
+Implemented behavior:
 
-- One file.
-- Multiple files copied in one clipboard event.
-- A folder.
-- A mixed group of files and folders.
+- Sandboxed security-scoped bookmarks for ordinary files and folders.
+- Native Finder-style icons and Quick Look thumbnails.
+- List and Grid views.
+- Automatic availability checks, iCloud-placeholder download handling, and unavailable-state warnings.
+- Native Quick Look for ordinary supported files.
+- Native information previews for folders, Finder aliases, and symbolic links.
+- Finder aliases remain aliases when copied back.
+- Symbolic links preserve their stored destination string and paste back as symbolic links.
+- Custom clip titles rename exported copies only; originals are never renamed.
 
-A File row should eventually support:
-
-- File or folder name.
-- Native icon or preview where appropriate.
-- Original path.
-- File or folder distinction.
-- Multiple-item summaries.
-- Missing or unavailable state.
-- Source application.
-- Timestamp.
-- Pin state.
-
-A reference may become unavailable if the original is moved, renamed, deleted, disconnected, or no longer accessible.
-
-App Sandbox remains mandatory. File support must therefore use a sandbox-compatible access and restoration design.
+A reference may become unavailable if the original item is moved, renamed, deleted, disconnected, or no longer accessible. Backup packages preserve File-reference metadata but do not embed ordinary file or folder contents.
 
 ---
 
 ## Links
 
-Links initially remain local and restrained.
+Links use Apple’s Link Presentation framework for native rich metadata previews.
 
-Behavior:
+Implemented behavior:
 
-- Recognize valid `http://` and `https://` URLs.
-- Display the URL.
-- Indicate Link status through the trailing Open Link control.
-- Click the main row to copy.
-- Use the trailing Link icon or context menu to open in the default browser.
+- Recognize valid HTTP and HTTPS URLs.
+- Click the main row or grid card to copy the URL.
+- Open the destination through the dedicated Open Link action or context menu.
+- Independent persistent List and Grid modes.
+- Representative webpage image, site icon, title, and domain when supplied.
+- Local preview caching and offline fallback states.
+- Preview loading never blocks or changes URL copying.
+- Link preview cache is replaceable presentation data and is not required in backups.
 
-Automatic website previews are deferred because they introduce network requests, caching, privacy concerns, failure states, and additional storage.
-
-ClipVault should not silently contact every copied domain.
+Network access is limited to retrieving Link Presentation metadata and should remain disclosed in user documentation.
 
 ---
+
+## Appearance
+
+Settings provides System, Light, and Dark modes for ClipVault only.
+
+- System follows the active macOS appearance.
+- Light and Dark force ClipVault’s native AppKit appearance.
+- Switching modes applies immediately without rebuilding the Settings hierarchy or resetting the active Settings section.
+
+---
+
+## Selection model
+
+Each row or grid card represents one independently actionable clipboard clip. Clicking it copies that clip.
+
+Multi-selection, checkboxes, batch paste, and batch actions across independent clips are intentionally excluded unless explicitly reconsidered later.
 
 ## Warning rows
 
