@@ -14,6 +14,12 @@
 - Symbolic-link preservation and reconstruction.
 - App-specific System, Light, and Dark appearance modes.
 - Hardened backup import validation and restored-image cleanup.
+- Native macOS Settings tabs for General, Appearance, Privacy, and App Rules.
+- Adaptive Settings-window sizing for General, Appearance, and Privacy.
+- A dedicated Privacy tab for sensitive-content protection, Option-select capture, Accessibility permission status, and Link Preview disclosure.
+- Default-on **Block Likely Sensitive Clips** protection with explicit confirmation before disabling it.
+- Persisted sensitive-clip protection preferences.
+- Capture-policy tests covering Allowed, Smart, and Blocked behavior when global sensitive-content protection is disabled.
 
 ### Changed
 
@@ -21,6 +27,12 @@
 - Tap-to-copy now provides the same visual feedback as a physical click.
 - Grid cards use consistent dimensions.
 - Link previews are cached locally and remain independent of URL copying.
+- Increased Settings typography to better match native macOS applications.
+- Moved Option-select capture controls and Accessibility status from General to Privacy.
+- Reworked App Rules into a fixed-height layout with an internally scrollable application list.
+- Tightened App Rules alignment, spacing, and app-name-to-mode-menu layout.
+- Settings can now be opened consistently through Command–Comma, the menu-bar command, and the main-window gear button.
+- Allowed apps now follow the global sensitive-clip protection preference, while Smart and Blocked apps retain their own protection policies.
 
 ### Fixed
 
@@ -28,3 +40,8 @@
 - Light/Dark/System appearance transitions and Settings-tab resets.
 - Intermittent Space/Escape failure when closing Quick Look.
 - Alias and symbolic-link routing being mistaken for image targets.
+- The main-window gear button failing to open the native Settings scene.
+- Excess Settings-window width and inconsistent tab spacing.
+- Settings content being vertically centered instead of aligned beneath the toolbar.
+- Uneven App Rules padding and excessive spacing between application names and mode menus.
+- Settings selection and keyboard-focus problems caused by the earlier sidebar implementation.

@@ -126,28 +126,6 @@ final class ClipboardFileQuickLookService:
         for payload:
             ClipboardFilesPayload
     ) throws {
-        if ClipboardFileInformationPreviewService
-            .shared
-            .canPreview(
-                payload
-            )
-        {
-            dismissPreview()
-
-            try ClipboardFileInformationPreviewService
-                .shared
-                .showPreview(
-                    for:
-                        payload
-                )
-
-            return
-        }
-
-        ClipboardFileInformationPreviewService
-            .shared
-            .dismissPreview()
-
         _ =
             try preparePreview(
                 for:
@@ -170,10 +148,15 @@ final class ClipboardFileQuickLookService:
         previewPanel.delegate =
             self
 
+        /*
+         Reload the panel before assigning the current index.
+         reloadData() may rebuild and reset the panel's item
+         state.
+         */
+        previewPanel.reloadData()
+
         previewPanel.currentPreviewItemIndex =
             0
-
-        previewPanel.reloadData()
 
         installKeyboardEventMonitor(
             for:
@@ -185,17 +168,32 @@ final class ClipboardFileQuickLookService:
                 true
         )
 
-        previewPanel.orderFrontRegardless()
-
         previewPanel.makeKeyAndOrderFront(
             nil
         )
+
+        /*
+         Quick Look may finish constructing media-specific
+         preview UI after the panel becomes visible. Refresh
+         the selected item on the next main-run-loop pass.
+         */
+        DispatchQueue
+            .main
+            .async {
+                guard
+                    previewPanel.isVisible,
+                    previewPanel.dataSource ===
+                        self
+                else {
+                    return
+                }
+
+                previewPanel
+                    .refreshCurrentPreviewItem()
+            }
     }
 
     func dismissPreview() {
-        ClipboardFileInformationPreviewService
-            .shared
-            .dismissPreview()
         if let previewPanel =
             QLPreviewPanel.shared(),
             previewPanel.dataSource ===

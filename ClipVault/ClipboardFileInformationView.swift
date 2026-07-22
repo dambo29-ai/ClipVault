@@ -7,6 +7,61 @@
 
 import AppKit
 import SwiftUI
+import QuickLookUI
+
+private struct EmbeddedQuickLookView:
+    NSViewRepresentable
+{
+    let previewURL:
+        URL
+
+    func makeNSView(
+        context:
+            Context
+    ) -> QLPreviewView {
+        let previewView =
+            QLPreviewView(
+                frame:
+                    .zero,
+                style:
+                    .normal
+            )!
+
+        previewView.autostarts =
+            true
+
+        previewView.previewItem =
+            previewURL
+                as NSURL
+
+        return previewView
+    }
+
+    func updateNSView(
+        _ previewView:
+            QLPreviewView,
+        context:
+            Context
+    ) {
+        let currentURL =
+            (
+                previewView
+                    .previewItem
+                    as? NSURL
+            ) as URL?
+
+        guard
+            currentURL !=
+                previewURL
+        else {
+            return
+        }
+
+        previewView.previewItem =
+            previewURL
+                as NSURL
+    }
+}
 
 struct ClipboardFileInformationView:
     View
@@ -14,189 +69,38 @@ struct ClipboardFileInformationView:
     let information:
         ClipboardFileInformation
 
-    private var nativeIcon:
-        NSImage
-    {
-        NSWorkspace.shared
-            .icon(
-                forFile:
-                    information
-                        .originalURL
-                        .path
-            )
-    }
-
     var body:
         some View
     {
-        HStack(
-            alignment:
-                .center,
+        VStack(
             spacing:
-                42
+                0
         ) {
-            Image(
-                nsImage:
-                    nativeIcon
+            EmbeddedQuickLookView(
+                previewURL:
+                    information
+                        .originalURL
             )
-            .resizable()
-            .scaledToFit()
             .frame(
-                width:
-                    300,
-                height:
-                    300
-            )
-            .accessibilityHidden(
-                true
-            )
-
-            VStack(
-                alignment:
-                    .leading,
-                spacing:
-                    24
-            ) {
-                VStack(
-                    alignment:
-                        .leading,
-                    spacing:
-                        8
-                ) {
-                    Text(
-                        information
-                            .displayName
-                    )
-                    .font(
-                        .system(
-                            size:
-                                32,
-                            weight:
-                                .semibold
-                        )
-                    )
-                    .lineLimit(2)
-                    .truncationMode(
-                        .middle
-                    )
-                    .textSelection(
-                        .enabled
-                    )
-
-                    Text(
-                        summaryText
-                    )
-                    .font(
-                        .title3
-                    )
-                    .foregroundStyle(
-                        .secondary
-                    )
-                }
-
-                VStack(
-                    alignment:
-                        .leading,
-                    spacing:
-                        13
-                ) {
-                    if let itemCountText =
-                        information.itemCountText
-                    {
-                        detailRow(
-                            title:
-                                "Contents",
-                            value:
-                                itemCountText
-                        )
-                    }
-
-                    if let modifiedDate =
-                        information.modifiedDate
-                    {
-                        detailRow(
-                            title:
-                                "Modified",
-                            value:
-                                modifiedDate
-                                    .formatted(
-                                        date:
-                                            .abbreviated,
-                                        time:
-                                            .shortened
-                                    )
-                        )
-                    }
-
-                    detailRow(
-                        title:
-                            "Location",
-                        value:
-                            information
-                                .originalURL
-                                .deletingLastPathComponent()
-                                .path
-                    )
-
-                    if let destination =
-                        information.destination
-                    {
-                        detailRow(
-                            title:
-                                "Destination",
-                            value:
-                                destination
-                        )
-                    }
-
-                    if let destinationStatusText =
-                        information
-                            .destinationStatusText
-                    {
-                        detailRow(
-                            title:
-                                "Destination Status",
-                            value:
-                                destinationStatusText
-                        )
-                    }
-                }
-
-                Spacer()
-
-                HStack {
-                    Spacer()
-
-                    Button(
-                        "Close"
-                    ) {
-                        NSApp.keyWindow?
-                            .performClose(
-                                nil
-                            )
-                    }
-                    .keyboardShortcut(
-                        .cancelAction
-                    )
-                }
-            }
-            .frame(
+                minWidth:
+                    640,
                 maxWidth:
                     .infinity,
+                minHeight:
+                    360,
                 maxHeight:
-                    .infinity,
-                alignment:
-                    .topLeading
+                    .infinity
             )
+
+            Divider()
+
+            metadataSection
         }
-        .padding(
-            44
-        )
         .frame(
             width:
                 860,
             height:
-                520
+                650
         )
         .background(
             Color(
@@ -205,41 +109,167 @@ struct ClipboardFileInformationView:
             )
         )
     }
-
-    private var summaryText:
-        String
+    
+    private var metadataSection:
+        some View
     {
-        let components =
-            [
-                information
-                    .kind
-                    .displayName,
-                information
-                    .itemCountText
-            ]
-            .compactMap {
-                $0
+        VStack(
+            alignment:
+                .leading,
+            spacing:
+                14
+        ) {
+            HStack(
+                alignment:
+                    .firstTextBaseline,
+                spacing:
+                    16
+            ) {
+                Text(
+                    information
+                        .displayName
+                )
+                .font(
+                    .title2
+                )
+                .fontWeight(
+                    .semibold
+                )
+                .lineLimit(
+                    1
+                )
+                .truncationMode(
+                    .middle
+                )
+                .textSelection(
+                    .enabled
+                )
+
+                Spacer()
+
+                Button(
+                    "Close"
+                ) {
+                    NSApp.keyWindow?
+                        .performClose(
+                            nil
+                        )
+                }
+                .keyboardShortcut(
+                    .cancelAction
+                )
             }
 
-        return components
-            .joined(
-                separator:
-                    " • "
-            )
+            Grid(
+                alignment:
+                    .leading,
+                horizontalSpacing:
+                    16,
+                verticalSpacing:
+                    8
+            ) {
+                metadataRow(
+                    title:
+                        "Kind",
+                    value:
+                        information
+                            .kindDescription
+                )
+
+                if let byteCountText =
+                    information
+                        .byteCountText
+                {
+                    metadataRow(
+                        title:
+                            "Size",
+                        value:
+                            byteCountText
+                    )
+                }
+
+                if let itemCountText =
+                    information
+                        .itemCountText
+                {
+                    metadataRow(
+                        title:
+                            "Contents",
+                        value:
+                            itemCountText
+                    )
+                }
+
+                if let modifiedDate =
+                    information
+                        .modifiedDate
+                {
+                    metadataRow(
+                        title:
+                            "Modified",
+                        value:
+                            modifiedDate
+                                .formatted(
+                                    date:
+                                        .abbreviated,
+                                    time:
+                                        .shortened
+                                )
+                    )
+                }
+
+                metadataRow(
+                    title:
+                        "Location",
+                    value:
+                        information
+                            .originalURL
+                            .deletingLastPathComponent()
+                            .path
+                )
+
+                if let destination =
+                    information
+                        .destination
+                {
+                    metadataRow(
+                        title:
+                            "Destination",
+                        value:
+                            destination
+                    )
+                }
+
+                if let destinationStatusText =
+                    information
+                        .destinationStatusText
+                {
+                    metadataRow(
+                        title:
+                            "Destination Status",
+                        value:
+                            destinationStatusText
+                    )
+                }
+            }
+        }
+        .padding(
+            .horizontal,
+            24
+        )
+        .padding(
+            .vertical,
+            18
+        )
     }
 
-    private func detailRow(
+    private func metadataRow(
         title:
             String,
         value:
             String
     ) -> some View {
-        HStack(
-            alignment:
-                .firstTextBaseline,
-            spacing:
-                14
-        ) {
+        GridRow {
             Text(
                 title
             )
@@ -249,17 +279,16 @@ struct ClipboardFileInformationView:
             .foregroundStyle(
                 .secondary
             )
-            .frame(
-                width:
-                    132,
-                alignment:
-                    .trailing
+            .gridColumnAlignment(
+                .trailing
             )
 
             Text(
                 value
             )
-            .lineLimit(2)
+            .lineLimit(
+                1
+            )
             .truncationMode(
                 .middle
             )
@@ -268,6 +297,9 @@ struct ClipboardFileInformationView:
             )
             .help(
                 value
+            )
+            .gridColumnAlignment(
+                .leading
             )
         }
     }

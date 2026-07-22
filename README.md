@@ -8,7 +8,7 @@ ClipVault is a native macOS clipboard-history app built with SwiftUI and AppKit.
 - Unified history with All, Text, Links, Images, and Files filters.
 - Search, pinning, custom clip titles, scoped clearing, retention limits, and persistence.
 - Optional Option-select capture using Accessibility permission.
-- Sensitive-content detection with optional skipped-item warnings.
+- Default-on sensitive-content protection with optional skipped-item warnings and an explicit opt-out confirmation.
 - Native list and grid views for Links, Images, and Files, remembered independently.
 - Rich Link Presentation previews with local caching and offline fallbacks.
 - Managed image storage, thumbnails, Quick Look, and image-aware backups.
@@ -16,7 +16,8 @@ ClipVault is a native macOS clipboard-history app built with SwiftUI and AppKit.
 - Finder-style file icons and Quick Look thumbnails.
 - Information previews for folders, Finder aliases, and symbolic links.
 - `.clipvaultbackup` export, validation, merge, replacement, and restored-asset cleanup.
-- Per-app capture rules.
+- Per-app capture rules with Allowed, Smart, and Blocked modes.
+- Native macOS Settings tabs for General, Appearance, Privacy, and App Rules.
 - ClipVault-specific System, Light, and Dark appearance modes.
 
 ## Clipboard behavior
@@ -50,9 +51,24 @@ For Link clips, ClipVault uses Apple’s Link Presentation framework to request 
 
 - Clipboard history and managed assets are stored locally.
 - App Sandbox remains enabled.
-- Network access is used for Link Presentation metadata.
-- Option-select capture is off by default and requires Accessibility permission when enabled.
-- Likely sensitive clips can be skipped from history while preserving the expected system-clipboard behavior.
+- Network access is used only to retrieve Link Presentation metadata for copied URLs.
+- Option-select capture is off by default and requires Accessibility permission only when enabled.
+- **Block Likely Sensitive Clips** is enabled by default.
+- With protection enabled, likely passwords and other sensitive-looking text remain available in the system clipboard but are not stored in ClipVault history.
+- Disabling sensitive-clip protection requires explicit confirmation.
+- Smart app rules continue applying sensitive-content filtering even when the global protection setting is disabled.
+- Blocked app rules always prevent ClipVault history capture.
+
+## Settings
+
+ClipVault uses a native macOS Settings window with four tabs:
+
+- **General** — history limits, retention, backup count, skipped-warning visibility, and keyboard shortcuts.
+- **Appearance** — System, Light, and Dark appearance modes.
+- **Privacy** — sensitive-clip protection, Option-select capture, Accessibility permission status, and Link Preview privacy information.
+- **App Rules** — per-application Allowed, Smart, and Blocked capture policies.
+
+General, Appearance, and Privacy resize to fit their content. App Rules uses a fixed-height, internally scrollable application list.
 
 ## Appearance
 
@@ -66,7 +82,7 @@ This changes ClipVault only, not macOS or other applications.
 
 ## Development status
 
-The current automated baseline is **273 passing tests**. See `ClipVault/MANUAL_TEST_CHECKLIST.md` for manual regression coverage and `ClipVault/PRODUCT_DIRECTION.md` for approved product decisions.
+The current automated baseline is **276 passing tests**. See `ClipVault/MANUAL_TEST_CHECKLIST.md` for manual regression coverage and `ClipVault/PRODUCT_DIRECTION.md` for approved product decisions.
 
 ## Known limitations
 

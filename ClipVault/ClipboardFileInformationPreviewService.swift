@@ -59,47 +59,8 @@ final class ClipboardFileInformationPreviewService:
         _ payload:
             ClipboardFilesPayload
     ) -> Bool {
-        guard
-            payload.files.count == 1,
-            let reference =
-                payload.files.first
-        else {
-            return false
-        }
-
-        if reference.isDirectory ||
-            reference.isSymbolicLink
-        {
-            return true
-        }
-
-        guard
-            let resolvedReference =
-                try? fileReferenceService
-                    .resolve(
-                        reference
-                    )
-        else {
-            return false
-        }
-
-        defer {
-            resolvedReference
-                .stopAccessing()
-        }
-
-        let resourceValues =
-            try? resolvedReference
-                .url
-                .resourceValues(
-                    forKeys: [
-                        .isAliasFileKey
-                    ]
-                )
-
-        return resourceValues?
-            .isAliasFile ??
-            false
+        payload.files.count ==
+            1
     }
 
     func showPreview(
@@ -165,7 +126,7 @@ final class ClipboardFileInformationPreviewService:
                         width:
                             860,
                         height:
-                            520
+                            650
                     ),
                 styleMask: [
                     .titled,
@@ -202,7 +163,7 @@ final class ClipboardFileInformationPreviewService:
                 width:
                     720,
                 height:
-                    440
+                    560
             )
 
         panel.center()

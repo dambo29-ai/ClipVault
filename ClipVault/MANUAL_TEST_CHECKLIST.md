@@ -8,8 +8,8 @@ Record the macOS and ClipVault build versions when performing a full regression 
 
 Current automated baseline:
 
-* **273 total tests passing.**
-* Coverage includes typed payloads, persistence, retention, search classification, file references, aliases, symbolic links, image storage, backups, import rollback, asset cleanup, Link Presentation caching, List/Grid persistence, appearance mapping, file visuals, Quick Look preparation, and file-information metadata.
+* **276 total tests passing.**
+* Coverage includes typed payloads, persistence, retention, search classification, file references, aliases, symbolic links, image storage, backups, import rollback, asset cleanup, Link Presentation caching, List/Grid persistence, appearance mapping, file visuals, Quick Look preparation, file-information metadata, and sensitive-content capture-policy precedence.
 
 These automated tests supplement this checklist; they do not replace manual cross-application and user-interface testing.
 
@@ -26,9 +26,16 @@ These automated tests supplement this checklist; they do not replace manual cros
 * [ ] The main window can be resized down to approximately 480 × 400.
 * [ ] The header controls remain horizontal at the minimum window size.
 * [ ] The search field, clipboard rows, row numbers, and trash icons remain visible at the minimum size.
-* [ ] The Settings window opens at an appropriate default size.
-* [ ] The Settings sidebar does not change width when switching sections.
+* [ ] The Settings window opens at approximately 700 points wide.
 * [ ] Settings opens on **General**.
+* [ ] General, Appearance, and Privacy resize vertically to fit their content.
+* [ ] App Rules remains at a stable taller height.
+* [ ] Switching tabs produces a smooth resize without bouncing or clipping.
+* [ ] Settings content begins with consistent spacing beneath the toolbar.
+* [ ] The bottom spacing in General, Appearance, and Privacy is visually balanced.
+* [ ] The native toolbar tabs display General, Appearance, Privacy, and App Rules.
+* [ ] No sidebar-toggle control appears.
+* [ ] The Settings traffic-light controls display normally.
 
 ---
 
@@ -79,7 +86,9 @@ These automated tests supplement this checklist; they do not replace manual cros
 * [ ] Disabling Option-select stops capture immediately without requiring a relaunch.
 * [ ] The Option-select preference persists after relaunch.
 * [ ] Enabling Option-select requests Accessibility access only when access has not already been granted.
-* [ ] **Selection Capture Access** accurately reports whether Accessibility access is granted.
+* [ ] **Selection Capture Permission** accurately reports whether Accessibility access is granted.
+* [ ] Option-select controls appear in Privacy rather than General.
+* [ ] Normal Command-C monitoring works without Accessibility permission.
 * [ ] Holding Option while dragging across text copies the completed selection.
 * [ ] Option-click without dragging does not trigger capture.
 * [ ] Dragging without Option does not trigger capture.
@@ -141,21 +150,47 @@ Run these checks after changing `SelectionClipboardTransactionService`, clipboar
 
 ---
 
-## 7. Sensitive-Clip Detection
+## 7. Sensitive-Clip Protection
 
-* [ ] A likely password or secret is skipped when appropriate.
-* [ ] A skipped clip remains available in the system clipboard.
-* [ ] A likely-sensitive Option-selected value is not saved to normal history.
-* [ ] A likely-sensitive Option-selection restores the previous clipboard and does not make the sensitive value pasteable.
+### Default Protection
+
+* [ ] **Block Likely Sensitive Clips** appears in Privacy.
+* [ ] Protection defaults to on when no preference has previously been saved.
+* [ ] The protection preference persists after relaunch.
+* [ ] A likely password copied from an Allowed app is skipped while protection is on.
+* [ ] A skipped sensitive clip remains available in the system clipboard.
+* [ ] A likely-sensitive Option-selection restores the previous clipboard and is not saved.
 * [ ] A likely-sensitive Option-selection produces one skipped-warning row when warnings are enabled.
-* [ ] Disabling **Show Skipped Clip Warnings** prevents Option-select warning rows while still restoring the previous clipboard.
 * [ ] The skipped-warning row is red.
 * [ ] The warning text is bold.
 * [ ] The warning row is non-clickable.
 * [ ] The warning row can be deleted.
 * [ ] Skipped-warning rows are not restored after relaunch.
-* [ ] Disabling **Show Skipped Clip Warnings** hides future warning rows.
-* [ ] Re-enabling the setting restores future warning rows.
+
+### Disabling Protection
+
+* [ ] Turning protection off displays the confirmation dialog.
+* [ ] Selecting **Cancel** leaves protection enabled.
+* [ ] Selecting **Allow Sensitive Clips** disables protection.
+* [ ] The confirmation explains that sensitive clips may be retained across launches and included in backups.
+* [ ] With protection off, a likely password copied from an Allowed app is stored in ClipVault.
+* [ ] Disabling protection affects future clips only.
+* [ ] Previously skipped clips are not recovered.
+* [ ] Turning protection back on does not delete previously stored clips.
+
+### Rule Precedence
+
+* [ ] Smart mode continues skipping likely passwords, tokens, API keys, and secret-looking text while global protection is off.
+* [ ] Blocked mode continues rejecting all capture while global protection is off.
+* [ ] Blocked copied text remains available in the system clipboard.
+* [ ] Allowed mode follows the global sensitive-clip protection preference.
+* [ ] Normal non-sensitive text is unaffected by the global protection preference.
+* [ ] Option-select capture follows the same Allowed, Smart, and Blocked policy precedence.
+
+### Warning Preference
+
+* [ ] Disabling **Show Skipped Clip Warnings** prevents future warning rows without disabling protection.
+* [ ] Re-enabling the warning setting restores future warning rows.
 * [ ] The skipped-warning preference persists after relaunch.
 
 Expected likely-sensitive warning:
@@ -168,7 +203,6 @@ Expected likely-sensitive warning:
 
 ## 8. General Settings
 
-* [ ] **General Settings** aligns with the **App Rules** section title.
 * [ ] History Limit works.
 * [ ] History Limit persists after relaunch.
 * [ ] Keep History For works.
@@ -178,32 +212,63 @@ Expected likely-sensitive warning:
 * [ ] Backups to Keep accepts valid values.
 * [ ] Backups to Keep persists after relaunch.
 * [ ] Show Skipped Clip Warnings works.
-* [ ] All standard controls share a consistent right-hand alignment.
 * [ ] Keyboard-shortcut rows remain aligned.
-* [ ] General Settings does not contain App Rules controls.
+* [ ] General does not contain Option-select or Accessibility controls.
+* [ ] General typography is consistent with the other Settings tabs.
+* [ ] General content begins and ends with balanced spacing.
 
 ---
 
-## 9. App Rules Layout
+## 9. Appearance Settings
+
+* [ ] System follows the current macOS appearance.
+* [ ] Light forces ClipVault into Light appearance.
+* [ ] Dark forces ClipVault into Dark appearance.
+* [ ] Appearance changes affect ClipVault only.
+* [ ] The selected appearance mode persists after relaunch.
+* [ ] Switching appearance modes does not change the selected Settings tab.
+* [ ] The three appearance options are centered.
+* [ ] Appearance content begins and ends with balanced spacing.
+* [ ] Appearance typography matches the General and Privacy tabs.
+
+---
+
+## 10. Privacy Settings
+
+* [ ] Privacy contains Block Likely Sensitive Clips.
+* [ ] Privacy contains Enable Option-Select Capture.
+* [ ] Privacy contains Selection Capture Permission.
+* [ ] Privacy contains the Link Preview Privacy disclosure.
+* [ ] Accessibility status refreshes after returning from System Settings.
+* [ ] The Link Preview disclosure accurately explains network retrieval and local caching.
+* [ ] Privacy grows automatically when content is added.
+* [ ] Privacy content begins and ends with balanced spacing.
+* [ ] Privacy typography matches the General and Appearance tabs.
+
+---
+
+## 11. App Rules Layout
 
 * [ ] App Rules opens without a beach ball.
 * [ ] The first transition from General to App Rules is acceptably fast.
 * [ ] Later transitions remain fast.
-* [ ] The App Rules title remains aligned with General Settings.
-* [ ] The search field aligns with the App Rules title.
-* [ ] The filter dropdown aligns with the App Rules title.
-* [ ] Application icons align with the App Rules title.
+* [ ] App Rules begins with spacing consistent with the other Settings tabs.
+* [ ] The search field, filter controls, information button, and Actions menu align correctly.
+* [ ] The filter panel has balanced left and right padding.
+* [ ] Application names and mode menus have an appropriate horizontal gap.
+* [ ] Mode menus remain vertically aligned across rows.
+* [ ] The application list scrolls independently while the upper controls remain fixed.
+* [ ] The information popover opens and explains App Rule modes.
 * [ ] Mode pickers align with the right edge of the search field.
 * [ ] The count summary remains centered.
 * [ ] The App Rules controls remain fixed while only the app list scrolls.
-* [ ] The sidebar remains visible while viewing App Rules.
 * [ ] Application icons load correctly.
 * [ ] Scrolling remains smooth.
 * [ ] Icons remain correct after searching and changing filters.
 
 ---
 
-## 10. App Rules Search and Filters
+## 12. App Rules Search and Filters
 
 * [ ] The App Rules search field is visually distinct from its surrounding background.
 * [ ] Search matches application display names.
@@ -219,7 +284,7 @@ Expected likely-sensitive warning:
 
 ---
 
-## 11. App Rules Counts
+## 13. App Rules Counts
 
 * [ ] Allowed count is correct.
 * [ ] Smart count is correct.
@@ -232,7 +297,7 @@ Expected likely-sensitive warning:
 
 ---
 
-## 12. App Rule Modes
+## 14. App Rule Modes
 
 * [ ] Allowed mode saves normal copied text.
 * [ ] Smart mode permits obvious URLs.
@@ -253,7 +318,7 @@ Expected likely-sensitive warning:
 
 ---
 
-## 13. Custom App Rules
+## 15. Custom App Rules
 
 * [ ] Changing an app rule creates a custom override.
 * [ ] A blue dot appears for a custom rule.
@@ -269,7 +334,7 @@ Expected likely-sensitive warning:
 
 ---
 
-## 14. App Discovery
+## 16. App Discovery
 
 * [ ] Existing known applications load when App Rules opens.
 * [ ] **Refresh App List** starts an asynchronous refresh.
@@ -287,7 +352,7 @@ Expected likely-sensitive warning:
 
 ---
 
-## 15. Default Blocked Applications
+## 17. Default Blocked Applications
 
 Confirm the intended defaults where installed:
 
@@ -300,7 +365,7 @@ Confirm the intended defaults where installed:
 
 ---
 
-## 16. Clipboard Persistence
+## 18. Clipboard Persistence
 
 * [ ] Normal clipboard history survives relaunch.
 * [ ] Deleted clips remain deleted after relaunch.
@@ -315,7 +380,7 @@ Confirm the intended defaults where installed:
 
 ---
 
-## 17. History Limits and Retention
+## 19. History Limits and Retention
 
 ### History Limit
 
@@ -344,7 +409,7 @@ Confirm the intended defaults where installed:
 
 ---
 
-## 18. History Export
+## 20. History Export
 
 * [ ] Export History creates a readable `.txt` file.
 * [ ] The exported text contains normal clipboard items.
@@ -355,7 +420,7 @@ Confirm the intended defaults where installed:
 
 ---
 
-## 19. Backup Packages
+## 21. Backup Packages
 
 * [ ] Export Backup creates a `.clipvaultbackup` package.
 * [ ] The filename follows the expected timestamp format.
@@ -387,7 +452,7 @@ ClipVault Backup yyyy-MM-dd HH-mm-ss.clipvaultbackup
 
 ---
 
-## 20. Backup Import
+## 22. Backup Import
 
 ### Import Entry Points
 
@@ -482,7 +547,7 @@ ClipVault Backup yyyy-MM-dd HH-mm-ss.clipvaultbackup
 
 ---
 
-## 21. Links, Images, and Files Views
+## 23. Links, Images, and Files Views
 
 * [ ] Links, Images, and Files each remember their List/Grid mode independently.
 * [ ] The view toggle appears beside Search only for supported filters.
@@ -510,7 +575,7 @@ ClipVault Backup yyyy-MM-dd HH-mm-ss.clipvaultbackup
 
 ---
 
-## 22. Quick Look and File Information
+## 24. Quick Look and File Information
 
 * [ ] Ordinary files and images open in native Quick Look.
 * [ ] Space consistently closes the active preview.
@@ -524,7 +589,7 @@ ClipVault Backup yyyy-MM-dd HH-mm-ss.clipvaultbackup
 
 ---
 
-## 23. Appearance
+## 25. Appearance
 
 * [ ] Settings → Appearance offers System, Light, and Dark.
 * [ ] System follows macOS.
@@ -536,7 +601,7 @@ ClipVault Backup yyyy-MM-dd HH-mm-ss.clipvaultbackup
 
 ---
 
-## 24. Documentation and Privacy
+## 26. Documentation and Privacy
 
 * [ ] README accurately describes current features.
 * [ ] Backup documentation clearly states that ordinary file/folder contents are not embedded.
@@ -547,7 +612,7 @@ ClipVault Backup yyyy-MM-dd HH-mm-ss.clipvaultbackup
 
 ---
 
-## 25. Visual Alignment Review
+## 27. Visual Alignment Review
 
 Inspect the app at normal size and minimum size.
 
@@ -570,7 +635,7 @@ Inspect the app at normal size and minimum size.
 
 ---
 
-## 26. Final Smoke Test
+## 28. Final Smoke Test
 
 Perform these steps in order:
 

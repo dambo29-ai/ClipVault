@@ -5,6 +5,7 @@
 //  Created by Alejandro Mora on 7/21/26.
 //
 
+import UniformTypeIdentifiers
 import Foundation
 
 enum ClipboardFileInformationKind:
@@ -12,6 +13,7 @@ enum ClipboardFileInformationKind:
     Equatable,
     Sendable
 {
+    case regularFile
     case folder
     case finderAlias
     case symbolicLink
@@ -20,6 +22,9 @@ enum ClipboardFileInformationKind:
         String
     {
         switch self {
+        case .regularFile:
+            return "File"
+            
         case .folder:
             return "Folder"
 
@@ -42,8 +47,14 @@ struct ClipboardFileInformation:
     let displayName:
         String
 
+    let localizedKindDescription:
+        String?
+
     let originalURL:
         URL
+
+    let byteCount:
+        Int64?
 
     let modifiedDate:
         Date?
@@ -60,13 +71,40 @@ struct ClipboardFileInformation:
     var itemCountText:
         String?
     {
-        guard let itemCount else {
+        guard
+            let itemCount
+        else {
             return nil
         }
 
         return itemCount == 1
             ? "1 item"
             : "\(itemCount) items"
+    }
+
+    var kindDescription:
+        String
+    {
+        localizedKindDescription ??
+            kind.displayName
+    }
+
+    var byteCountText:
+        String?
+    {
+        guard
+            let byteCount
+        else {
+            return nil
+        }
+
+        return ByteCountFormatter
+            .string(
+                fromByteCount:
+                    byteCount,
+                countStyle:
+                    .file
+            )
     }
 
     var destinationStatusText:
@@ -200,8 +238,11 @@ struct ClipboardFileInformationReader:
                     .resourceValues(
                         forKeys: [
                             .isDirectoryKey,
+                            .isRegularFileKey,
                             .isAliasFileKey,
                             .contentModificationDateKey,
+                            .contentTypeKey,
+                            .fileSizeKey,
                             .nameKey
                         ]
                     )
@@ -235,13 +276,51 @@ struct ClipboardFileInformationReader:
                     .folder,
                 displayName:
                     reference.displayName,
+                localizedKindDescription:
+                    resourceValues
+                        .contentType?
+                        .localizedDescription,
                 originalURL:
                     resolvedURL,
+                byteCount:
+                    nil,
                 modifiedDate:
                     resourceValues
                         .contentModificationDate,
                 itemCount:
                     itemCount,
+                destination:
+                    nil,
+                destinationExists:
+                    nil
+            )
+        }
+
+        if resourceValues.isRegularFile == true {
+            return ClipboardFileInformation(
+                kind:
+                    .regularFile,
+                displayName:
+                    reference.displayName,
+                localizedKindDescription:
+                    resourceValues
+                        .contentType?
+                        .localizedDescription,
+                originalURL:
+                    resolvedURL,
+                byteCount:
+                    resourceValues
+                        .fileSize
+                        .map {
+                            Int64(
+                                $0
+                            )
+                        },
+                modifiedDate:
+                    resourceValues
+                        .contentModificationDate,
+                itemCount:
+                    nil,
                 destination:
                     nil,
                 destinationExists:
@@ -292,8 +371,12 @@ func aliasInformationForTesting(
                 .finderAlias,
             displayName:
                 reference.displayName,
+            localizedKindDescription:
+                "Finder Alias",
             originalURL:
                 resolvedURL,
+            byteCount:
+                nil,
             modifiedDate:
                 modifiedDate,
             itemCount:
@@ -350,8 +433,12 @@ func aliasInformationForTesting(
                 .symbolicLink,
             displayName:
                 reference.displayName,
+            localizedKindDescription:
+                "Symbolic Link",
             originalURL:
                 reference.fileURL,
+            byteCount:
+                nil,
             modifiedDate:
                 (
                     try? reference

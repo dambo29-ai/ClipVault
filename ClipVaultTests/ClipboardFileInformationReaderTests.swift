@@ -226,4 +226,108 @@ struct ClipboardFileInformationReaderTests {
                 true
         )
     }
+    
+    @Test
+    func ordinaryFileInformationIncludesKindAndSize()
+        throws
+    {
+        let testDirectory =
+            FileManager
+                .default
+                .temporaryDirectory
+                .appendingPathComponent(
+                    "ClipboardFileInformationReaderTests-" +
+                        UUID()
+                            .uuidString,
+                    isDirectory:
+                        true
+                )
+
+        defer {
+            try? FileManager
+                .default
+                .removeItem(
+                    at:
+                        testDirectory
+                )
+        }
+
+        try FileManager
+            .default
+            .createDirectory(
+                at:
+                    testDirectory,
+                withIntermediateDirectories:
+                    true
+            )
+
+        let fileURL =
+            testDirectory
+                .appendingPathComponent(
+                    "Archive.zip"
+                )
+
+        let fileData =
+            Data(
+                repeating:
+                    7,
+                count:
+                    2_048
+            )
+
+        try fileData
+            .write(
+                to:
+                    fileURL
+            )
+
+        let reader =
+            ClipboardFileInformationReader()
+
+        let information =
+            try reader
+                .information(
+                    for:
+                        ClipboardFileReference(
+                            path:
+                                fileURL
+                                    .path,
+                            displayName:
+                                fileURL
+                                    .lastPathComponent,
+                            isDirectory:
+                                false,
+                            byteCount:
+                                fileData
+                                    .count,
+                            bookmarkData:
+                                Data(
+                                    [1]
+                                )
+                        ),
+                    resolvedURL:
+                        fileURL
+                )
+
+        #expect(
+            information.kind ==
+                .regularFile
+        )
+
+        #expect(
+            information.byteCount ==
+                2_048
+        )
+
+        #expect(
+            information.byteCountText ==
+                "2 KB"
+        )
+
+        #expect(
+            information
+                .localizedKindDescription !=
+                nil
+        )
+    }
 }
