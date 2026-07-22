@@ -14,7 +14,7 @@ ClipVault is a native macOS clipboard-history app built with SwiftUI and AppKit.
 - Managed image storage, thumbnails, Quick Look, and image-aware backups.
 - Sandboxed file and folder references using security-scoped bookmarks.
 - Finder-style file icons and Quick Look thumbnails.
-- Information previews for folders, Finder aliases, and symbolic links.
+- Native Quick Look previews for files, folders, archives, disk images, audio, video, aliases, and symbolic links.
 - `.clipvaultbackup` export, validation, merge, replacement, and restored-asset cleanup.
 - Per-app capture rules with Allowed, Smart, and Blocked modes.
 - Native macOS Settings tabs for General, Appearance, Privacy, and App Rules.
@@ -30,7 +30,7 @@ A File clip keeps file-paste semantics. Renaming a clip changes the name of the 
 
 ClipVault references ordinary files and folders rather than embedding their contents. Their continued availability depends on the original item and storage location remaining accessible.
 
-Finder aliases remain aliases. Symbolic links are preserved as symbolic links, including their stored destination string. Special information previews show useful metadata when generic Quick Look would otherwise display only an icon.
+Finder aliases remain aliases. Symbolic links are preserved as symbolic links, including their stored destination string. File, folder, archive, disk-image, audio, video, alias, and symbolic-link previews use Apple’s native Quick Look panel.
 
 ## Backups
 
@@ -82,11 +82,11 @@ This changes ClipVault only, not macOS or other applications.
 
 ## Development status
 
-The current automated baseline is **276 passing tests**. See `ClipVault/MANUAL_TEST_CHECKLIST.md` for manual regression coverage and `ClipVault/PRODUCT_DIRECTION.md` for approved product decisions.
+The current automated baseline is **277 passing tests**. See `ClipVault/MANUAL_TEST_CHECKLIST.md` for manual regression coverage and `ClipVault/PRODUCT_DIRECTION.md` for approved product decisions.
 
 ## Known limitations
 
 - Ordinary file and folder backups are references, not embedded copies.
-- Finder-specific Quick Look presentations are not always exposed to third-party apps; ClipVault uses its own native information panel for folders, aliases, and symbolic links.
+- Finder aliases and symbolic links currently preview their reference identity rather than automatically previewing the resolved target.
 - Link preview quality depends on metadata supplied by the destination website and current network availability.
 - Multi-selection and batch actions across independent ClipVault rows are intentionally out of scope.

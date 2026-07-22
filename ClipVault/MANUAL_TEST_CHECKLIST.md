@@ -8,8 +8,8 @@ Record the macOS and ClipVault build versions when performing a full regression 
 
 Current automated baseline:
 
-* **276 total tests passing.**
-* Coverage includes typed payloads, persistence, retention, search classification, file references, aliases, symbolic links, image storage, backups, import rollback, asset cleanup, Link Presentation caching, List/Grid persistence, appearance mapping, file visuals, Quick Look preparation, file-information metadata, and sensitive-content capture-policy precedence.
+* **277 total tests passing.**
+* Coverage includes typed payloads, persistence, retention, search classification, file references, aliases, symbolic links, image storage, backups, import rollback, asset cleanup, Link Presentation caching, List/Grid persistence, appearance mapping, file visuals, native Quick Look preparation, regular-file metadata reading, and sensitive-content capture-policy precedence.
 
 These automated tests supplement this checklist; they do not replace manual cross-application and user-interface testing.
 
@@ -575,16 +575,27 @@ ClipVault Backup yyyy-MM-dd HH-mm-ss.clipvaultbackup
 
 ---
 
-## 24. Quick Look and File Information
+## 24. Native Quick Look
 
-* [ ] Ordinary files and images open in native Quick Look.
+* [ ] Images open with native Quick Look controls, Share, full screen, and Open with Preview.
+* [ ] PDFs open with native document controls, page thumbnails, Share, and Open with Preview.
+* [ ] MP3 and other supported audio files display embedded artwork and metadata when available.
+* [ ] MP3 and other supported audio files use native playback controls.
+* [ ] MP3 and other supported audio files autoplay.
+* [ ] MP4 and other supported video files use native playback controls.
+* [ ] MP4 and other supported video files autoplay.
+* [ ] ZIP archives display filename, size, modified date, Share, and Uncompress.
+* [ ] DMG files display filename, size, modified date, Share, and Mount.
+* [ ] Folders display native folder information, item count, modified date, and Share.
+* [ ] Finder aliases open in native Quick Look without crashing.
+* [ ] Symbolic links open in native Quick Look without crashing.
+* [ ] Finder aliases and symbolic links may display the reference rather than the resolved target.
+* [ ] Multi-file previews remain functional.
 * [ ] Space consistently closes the active preview.
 * [ ] Escape consistently closes the active preview.
+* [ ] The native close control consistently closes the active preview.
 * [ ] Preview remains closable after clicking the main ClipVault window.
-* [ ] Folders open ClipVault’s native information preview with name, item count, modified date, and location.
-* [ ] Finder aliases show alias identity, destination path, and destination status.
-* [ ] Symbolic links show the stored destination string and destination status.
-* [ ] Broken destinations report Unavailable without crashing.
+* [ ] Repeated open-and-close cycles remain responsive.
 * [ ] Closing previews releases security-scoped access correctly.
 
 ---

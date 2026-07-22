@@ -9,8 +9,8 @@
 - Native Link Presentation previews in List and Grid views.
 - Persistent List/Grid modes for Links, Images, and Files.
 - Finder-style file icons and Quick Look thumbnails.
-- Quick Look previews for ordinary files and images.
-- Native information previews for folders, Finder aliases, and symbolic links.
+- Native Quick Look previews for ordinary files, images, folders, archives, disk images, audio, video, Finder aliases, and symbolic links.
+- Regular-file metadata reader coverage.
 - Symbolic-link preservation and reconstruction.
 - App-specific System, Light, and Dark appearance modes.
 - Hardened backup import validation and restored-image cleanup.
@@ -33,6 +33,9 @@
 - Tightened App Rules alignment, spacing, and app-name-to-mode-menu layout.
 - Settings can now be opened consistently through Command–Comma, the menu-bar command, and the main-window gear button.
 - Allowed apps now follow the global sensitive-clip protection preference, while Smart and Blocked apps retain their own protection policies.
+- Routed all supported file previews through the native `QLPreviewPanel`.
+- Corrected Quick Look reload and selection order.
+- Refresh the selected Quick Look item after presentation so media metadata, native controls, autoplay, sharing, and Open With actions load correctly.
 
 ### Fixed
 
@@ -45,3 +48,7 @@
 - Settings content being vertically centered instead of aligned beneath the toolbar.
 - Uneven App Rules padding and excessive spacing between application names and mode menus.
 - Settings selection and keyboard-focus problems caused by the earlier sidebar implementation.
+- MP3 previews showing incomplete controls and missing embedded metadata.
+- Audio and video previews failing to autoplay.
+- ZIP, DMG, folder, alias, and symbolic-link previews showing only generic icons.
+- Custom preview windows replacing native Quick Look controls and actions.
