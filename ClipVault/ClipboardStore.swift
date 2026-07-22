@@ -104,8 +104,17 @@ final class ClipboardStore: ObservableObject {
     @Published var isMonitoringPaused: Bool = false
     @Published private(set) var maxItemCount: Int = 100
     @Published private(set) var historyRetentionOption: HistoryRetentionOption = .forever
-    @Published private(set) var showsSkippedClipWarnings: Bool = true
-    @Published private(set) var backupKeepCount: Int = 5
+    @Published private(set) var showsSkippedClipWarnings:
+        Bool =
+            true
+
+    @Published private(set) var blocksLikelySensitiveClips:
+        Bool =
+            true
+
+    @Published private(set) var backupKeepCount:
+        Int =
+            5
     @Published private(set) var knownAppRecords: [String: KnownAppRecord] = [:]
     @Published private(set) var appRuleModes: [String: AppRuleMode] = [:]
     @Published private(set) var isRefreshingAvailableApps = false
@@ -113,8 +122,14 @@ final class ClipboardStore: ObservableObject {
     
     private let maxItemCountKey = "maxItemCount"
     private let historyRetentionOptionKey = "historyRetentionOption"
-    private let showsSkippedClipWarningsKey = "showsSkippedClipWarnings"
-    private let backupKeepCountKey = "backupKeepCount"
+    private let showsSkippedClipWarningsKey =
+        "showsSkippedClipWarnings"
+
+    private let blocksLikelySensitiveClipsKey =
+        "blocksLikelySensitiveClips"
+
+    private let backupKeepCountKey =
+        "backupKeepCount"
     private let knownAppRecordsKey = "knownAppRecords"
     private let appRuleModesKey = "appRuleModes"
     
@@ -289,6 +304,7 @@ final class ClipboardStore: ObservableObject {
         loadMaxItemCount()
         loadHistoryRetentionOption()
         loadSkippedClipWarningPreference()
+        loadSensitiveClipProtectionPreference()
         loadBackupKeepCount()
         loadKnownAppRecords()
         loadAppRuleModes()
@@ -1566,12 +1582,42 @@ final class ClipboardStore: ObservableObject {
         )
     }
 
-    func setShowsSkippedClipWarnings(_ newValue: Bool) {
-        showsSkippedClipWarnings = newValue
-        UserDefaults.standard.set(newValue, forKey: showsSkippedClipWarningsKey)
+    func setShowsSkippedClipWarnings(
+        _ newValue:
+            Bool
+    ) {
+        showsSkippedClipWarnings =
+            newValue
+
+        UserDefaults
+            .standard
+            .set(
+                newValue,
+                forKey:
+                    showsSkippedClipWarningsKey
+            )
     }
 
-    func setBackupKeepCount(_ newValue: Int) {
+    func setBlocksLikelySensitiveClips(
+        _ newValue:
+            Bool
+    ) {
+        blocksLikelySensitiveClips =
+            newValue
+
+        UserDefaults
+            .standard
+            .set(
+                newValue,
+                forKey:
+                    blocksLikelySensitiveClipsKey
+            )
+    }
+
+    func setBackupKeepCount(
+        _ newValue:
+            Int
+    ) {
         let clampedValue = min(
             max(
                 newValue,
@@ -2264,10 +2310,15 @@ final class ClipboardStore: ObservableObject {
             )
 
         let policyDecision =
-            ClipboardCapturePolicyService.decision(
-                for: cleanedText,
-                ruleMode: sourceRuleMode
-            )
+            ClipboardCapturePolicyService
+                .decision(
+                    for:
+                        cleanedText,
+                    ruleMode:
+                        sourceRuleMode,
+                    blocksLikelySensitiveClips:
+                        blocksLikelySensitiveClips
+                )
 
         switch policyDecision {
         case .capture:
@@ -2705,15 +2756,59 @@ final class ClipboardStore: ObservableObject {
         historyRetentionOption = savedOption
     }
 
-    private func loadSkippedClipWarningPreference() {
-        if UserDefaults.standard.object(forKey: showsSkippedClipWarningsKey) == nil {
-            showsSkippedClipWarnings = true
+    private func loadSkippedClipWarningPreference()
+    {
+        if UserDefaults
+            .standard
+            .object(
+                forKey:
+                    showsSkippedClipWarningsKey
+            ) ==
+            nil
+        {
+            showsSkippedClipWarnings =
+                true
         } else {
-            showsSkippedClipWarnings = UserDefaults.standard.bool(forKey: showsSkippedClipWarningsKey)
+            showsSkippedClipWarnings =
+                UserDefaults
+                    .standard
+                    .bool(
+                        forKey:
+                            showsSkippedClipWarningsKey
+                    )
         }
     }
 
-    private func loadBackupKeepCount() {
+    private func loadSensitiveClipProtectionPreference()
+    {
+        if UserDefaults
+            .standard
+            .object(
+                forKey:
+                    blocksLikelySensitiveClipsKey
+            ) ==
+            nil
+        {
+            /*
+             Privacy protection is enabled by default for
+             both new users and users upgrading from an
+             earlier ClipVault version.
+             */
+            blocksLikelySensitiveClips =
+                true
+        } else {
+            blocksLikelySensitiveClips =
+                UserDefaults
+                    .standard
+                    .bool(
+                        forKey:
+                            blocksLikelySensitiveClipsKey
+                    )
+        }
+    }
+
+    private func loadBackupKeepCount()
+    {
         let savedValue =
             UserDefaults.standard.integer(
                 forKey: backupKeepCountKey

@@ -43,25 +43,49 @@ struct AppRulesSettingsView: View {
     @State private var isShowingHelp = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            header
-                .padding(.horizontal, 24)
-                .padding(.vertical, 16)
-
-            Divider()
-
-            VStack(alignment: .leading, spacing: 10) {
+        VStack(
+            alignment:
+                .leading,
+            spacing:
+                0
+        ) {
+            VStack(
+                alignment:
+                    .leading,
+                spacing:
+                    10
+            ) {
                 controls
                 countSummary
 
                 ScrollView {
                     appList
-                        .frame(maxWidth: .infinity)
-                        .padding(.bottom, 24)
+                        .frame(
+                            maxWidth:
+                                .infinity
+                        )
+                        .padding(
+                            .bottom,
+                            16
+                        )
                 }
+                .frame(
+                    minHeight:
+                        390,
+                    idealHeight:
+                        470,
+                    maxHeight:
+                        .infinity
+                )
             }
-            .padding(.horizontal, 24)
-            .padding(.top, 18)
+            .padding(
+                .horizontal,
+                24
+            )
+            .padding(
+                .top,
+                10
+            )
         }
         .frame(
             maxWidth: .infinity,
@@ -76,52 +100,79 @@ struct AppRulesSettingsView: View {
         }
     }
 
-    private var header: some View {
-        HStack(spacing: 6) {
-            Text("App Rules")
-                .font(.title2)
-                .fontWeight(.semibold)
-
-            Button {
-                isShowingHelp.toggle()
-            } label: {
-                Image(systemName: "info.circle")
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.borderless)
-            .help("Learn about App Rule modes")
-            .accessibilityLabel("Learn about App Rule modes")
-            .popover(isPresented: $isShowingHelp, arrowEdge: .bottom) {
-                helpPopover
-            }
-        }
-    }
-
     private var controls: some View {
         VStack(alignment: .leading, spacing: 12) {
             searchField
 
-            HStack(spacing: 10) {
-                Picker("Filter", selection: $selectedFilter) {
+            HStack(
+                spacing:
+                    10
+            ) {
+                Picker(
+                    "Filter",
+                    selection:
+                        $selectedFilter
+                ) {
                     ForEach(AppRulesFilter.allCases) { filter in
                         Text(filter.displayName)
                             .tag(filter)
                     }
                 }
                 .pickerStyle(.menu)
-                .frame(width: 180)
+                .frame(
+                    width:
+                        150
+                )
                 .labelsHidden()
-                .padding(.leading, -6)
 
                 Toggle(
                     "Show Hidden Utility Apps",
-                    isOn: $showsHiddenUtilityApps
+                    isOn:
+                        $showsHiddenUtilityApps
                 )
-                .font(.caption)
+                .font(
+                    .callout
+                )
                 .toggleStyle(.checkbox)
                 .help(
                     "Show helper apps, installers, updaters, daemons, agents, and other utility apps normally hidden from the default App Rules list."
                 )
+                
+                Button {
+                    isShowingHelp
+                        .toggle()
+                } label: {
+                    Image(
+                        systemName:
+                            "info.circle"
+                    )
+                    .font(
+                        .system(
+                            size:
+                                15
+                        )
+                    )
+                    .foregroundStyle(
+                        .secondary
+                    )
+                }
+                .buttonStyle(
+                    .borderless
+                )
+                .help(
+                    "Learn about App Rule modes"
+                )
+                .accessibilityLabel(
+                    "Learn about App Rule modes"
+                )
+                .popover(
+                    isPresented:
+                        $isShowingHelp,
+                    arrowEdge:
+                        .bottom
+                ) {
+                    helpPopover
+                }
 
                 Spacer()
 
@@ -164,9 +215,15 @@ struct AppRulesSettingsView: View {
                 }
             }
         }
-        .padding(.vertical, 14)
-        .padding(.trailing, 14)
-        .background(.background.opacity(0.35))
+        .padding(
+            14
+        )
+        .background(
+            .background
+                .opacity(
+                    0.35
+                )
+        )
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -177,7 +234,9 @@ struct AppRulesSettingsView: View {
             "Blocked: \(blockedCount)  •  " +
             "Showing \(visibleCount) of \(countDenominator)"
         )
-        .font(.caption2)
+        .font(
+            .footnote
+        )
         .foregroundStyle(.secondary)
         .frame(maxWidth: .infinity, alignment: .center)
     }
@@ -235,7 +294,9 @@ struct AppRulesSettingsView: View {
                 .foregroundStyle(.tertiary)
 
             Text(message)
-                .font(.caption)
+                .font(
+                    .callout
+                )
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
@@ -250,12 +311,19 @@ struct AppRulesSettingsView: View {
     private var searchField: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 13))
+                .font(
+                    .body
+                )
                 .foregroundStyle(.secondary)
 
             TextField("Search apps", text: $searchText)
                 .textFieldStyle(.plain)
-                .font(.system(size: 13))
+                .font(
+                    .system(
+                        size:
+                            15
+                    )
+                )
 
             if !searchText.isEmpty {
                 Button {
@@ -288,7 +356,9 @@ struct AppRulesSettingsView: View {
             Text(
                 "Choose how ClipVault handles copied text from each installed app."
             )
-            .font(.caption)
+            .font(
+                .callout
+            )
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
 
@@ -326,7 +396,9 @@ struct AppRulesSettingsView: View {
                     Text(
                         "A blue dot means the app’s rule has been changed from its default. Use the reset button beside it to restore the default rule."
                     )
-                    .font(.caption)
+                    .font(
+                        .callout
+                    )
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 }
@@ -337,7 +409,9 @@ struct AppRulesSettingsView: View {
             Text(
                 "Smart mode is helpful, but not perfect. Weak or human-readable passwords like “sunshine2026” or “mydogHarvey” may look like normal text and could still be saved."
             )
-            .font(.caption)
+            .font(
+                .callout
+            )
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
         }
@@ -355,7 +429,9 @@ struct AppRulesSettingsView: View {
                 .fontWeight(.semibold)
 
             Text(description)
-                .font(.caption)
+                .font(
+                    .callout
+                )
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }

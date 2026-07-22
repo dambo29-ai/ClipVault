@@ -16,27 +16,54 @@ enum ClipboardCapturePolicyDecision:
 
 enum ClipboardCapturePolicyService {
     static func decision(
-        for text: String,
-        ruleMode: AppRuleMode
+        for text:
+            String,
+        ruleMode:
+            AppRuleMode,
+        blocksLikelySensitiveClips:
+            Bool =
+                true
     ) -> ClipboardCapturePolicyDecision {
         switch ruleMode {
         case .blocked:
+            /*
+             An explicit Blocked app rule always takes
+             priority over the global privacy preference.
+             */
             return .skipBlocked
 
         case .smart:
-            if shouldSkipInSmartMode(text) {
+            /*
+             Smart apps retain their additional sensitive
+             text and token filtering even when the global
+             protection preference is disabled.
+             */
+            if shouldSkipInSmartMode(
+                text
+            ) {
                 return .skipSensitive
             }
 
+            return .capture
+
         case .allowed:
-            break
-        }
+            /*
+             Allowed apps use the global sensitive-clip
+             preference. Disabling it permits likely
+             passwords to enter ClipVault history.
+             */
+            if
+                blocksLikelySensitiveClips,
+                PasswordDetector
+                    .isLikelyPassword(
+                        text
+                    )
+            {
+                return .skipSensitive
+            }
 
-        if PasswordDetector.isLikelyPassword(text) {
-            return .skipSensitive
+            return .capture
         }
-
-        return .capture
     }
 
     private static func shouldSkipInSmartMode(

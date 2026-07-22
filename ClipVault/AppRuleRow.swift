@@ -16,74 +16,182 @@ struct AppRuleRow: View {
     let onChange: (AppRuleMode) -> Void
     let onResetToDefault: () -> Void
     
-    var body: some View {
-        HStack(spacing: 12) {
-            AppIconView(appPath: appRule.iconFilePath)
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text(appRule.displayName)
-                    .font(.body)
-                    .lineLimit(1)
-                
-                Text(bundleIdentifierSummary)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+    var body:
+        some View
+    {
+        HStack(
+            spacing:
+                12
+        ) {
+            AppIconView(
+                appPath:
+                    appRule
+                        .iconFilePath
+            )
+
+            VStack(
+                alignment:
+                    .leading,
+                spacing:
+                    3
+            ) {
+                Text(
+                    appRule
+                        .displayName
+                )
+                .font(
+                    .body
+                )
+                .lineLimit(
+                    1
+                )
+
+                Text(
+                    bundleIdentifierSummary
+                )
+                .font(
+                    .footnote
+                )
+                .foregroundStyle(
+                    .secondary
+                )
+                .lineLimit(
+                    1
+                )
             }
-            
-            Spacer()
-            
-            HStack(spacing: 6) {
+            .frame(
+                width:
+                    350,
+                alignment:
+                    .leading
+            )
+
+            HStack(
+                spacing:
+                    6
+            ) {
                 if hasCustomMode {
                     Circle()
-                        .fill(.tint)
-                        .frame(width: 6, height: 6)
-                        .help("Custom rule")
+                        .fill(
+                            .tint
+                        )
+                        .frame(
+                            width:
+                                6,
+                            height:
+                                6
+                        )
+                        .help(
+                            "Custom rule"
+                        )
 
                     Button {
                         onResetToDefault()
                     } label: {
-                        Image(systemName: "arrow.counterclockwise")
-                            .frame(width: 18, height: 18)
-                            .contentShape(Rectangle())
+                        Image(
+                            systemName:
+                                "arrow.counterclockwise"
+                        )
+                        .frame(
+                            width:
+                                18,
+                            height:
+                                18
+                        )
+                        .contentShape(
+                            Rectangle()
+                        )
                     }
-                    .buttonStyle(.borderless)
-                    .help("Reset this app rule to its default")
-                    .accessibilityLabel("Reset this app rule to its default")
+                    .buttonStyle(
+                        .borderless
+                    )
+                    .help(
+                        "Reset this app rule to its default"
+                    )
+                    .accessibilityLabel(
+                        "Reset this app rule to its default"
+                    )
                 }
 
-                if mode == .blocked {
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .help("Clipboard capture is blocked for this app")
-                        .accessibilityLabel("Blocked")
+                if mode ==
+                    .blocked
+                {
+                    Image(
+                        systemName:
+                            "lock.fill"
+                    )
+                    .font(
+                        .system(
+                            size:
+                                12
+                        )
+                    )
+                    .foregroundStyle(
+                        .secondary
+                    )
+                    .help(
+                        "Clipboard capture is blocked for this app"
+                    )
+                    .accessibilityLabel(
+                        "Blocked"
+                    )
                 }
 
                 Picker(
                     "Mode",
-                    selection: Binding(
-                        get: {
-                            mode
-                        },
-                        set: { newMode in
-                            onChange(newMode)
-                        }
-                    )
+                    selection:
+                        Binding(
+                            get: {
+                                mode
+                            },
+                            set: {
+                                newMode in
+
+                                onChange(
+                                    newMode
+                                )
+                            }
+                        )
                 ) {
-                    ForEach(AppRuleMode.allCases) { availableMode in
-                        Text(availableMode.displayName)
-                            .tag(availableMode)
+                    ForEach(
+                        AppRuleMode
+                            .allCases
+                    ) {
+                        availableMode in
+
+                        Text(
+                            availableMode
+                                .displayName
+                        )
+                        .tag(
+                            availableMode
+                        )
                     }
                 }
-                .pickerStyle(.menu)
+                .pickerStyle(
+                    .menu
+                )
                 .labelsHidden()
-                .frame(width: 120)
+                .frame(
+                    width:
+                        120
+                )
             }
+            .frame(
+                maxWidth:
+                    .infinity,
+                alignment:
+                    .trailing
+            )
         }
-        .padding(.vertical, 10)
-        .padding(.leading, 0)
-        .padding(.trailing, 5)
+        .padding(
+            .vertical,
+            10
+        )
+        .padding(
+            .horizontal,
+            14
+        )
     }
     
     private var bundleIdentifierSummary: String {

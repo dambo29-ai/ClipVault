@@ -34,8 +34,15 @@ private enum ClipboardContentFilter:
 }
 
 struct ContentView: View {
-    @EnvironmentObject var clipboardStore: ClipboardStore
-    @Environment(\.openWindow) private var openWindow
+    @EnvironmentObject
+    var clipboardStore:
+        ClipboardStore
+
+    @Environment(\.openWindow)
+    private var openWindow
+
+    @Environment(\.openSettings)
+    private var openSettings
     @State private var searchText = ""
     @State private var selectedContentFilter:
         ClipboardContentFilter = .all
@@ -398,10 +405,13 @@ struct ContentView: View {
                 .disabled(clearScopeResult.isEmpty)
                 
                 Button {
-                    openWindow(id: "settings-window")
-                    NSApplication.shared.activate(
-                        ignoringOtherApps: true
-                    )
+                    openSettings()
+
+                    NSApplication.shared
+                        .activate(
+                            ignoringOtherApps:
+                                true
+                        )
                 } label: {
                     Image(systemName: "gearshape")
                         .font(.system(size: 14))

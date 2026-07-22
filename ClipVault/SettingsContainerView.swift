@@ -7,122 +7,322 @@
 
 import SwiftUI
 
-private enum SettingsSection: String, CaseIterable, Identifiable {
+private enum SettingsSection:
+    String,
+    Hashable
+{
     case general
     case appearance
+    case privacy
     case appRules
 
-    var id: String {
-        rawValue
+    var usesFixedHeight:
+        Bool
+    {
+        self ==
+            .appRules
     }
+}
 
-    var title: String {
-        switch self {
-        case .general:
-            return "General"
+private struct SettingsContentHeightPreferenceKey:
+    PreferenceKey
+{
+    static var defaultValue:
+        [SettingsSection: CGFloat] =
+            [:]
 
-        case .appearance:
-            return "Appearance"
+    static func reduce(
+        value:
+            inout [SettingsSection: CGFloat],
+        nextValue:
+            () -> [SettingsSection: CGFloat]
+    ) {
+        value
+            .merge(
+                nextValue(),
+                uniquingKeysWith: {
+                    _,
+                    newValue in
 
-        case .appRules:
-            return "App Rules"
-        }
+                    newValue
+                }
+            )
     }
+}
 
-    var systemImage: String {
-        switch self {
-        case .general:
-            return "gearshape"
+private extension View
+{
+    func reportSettingsContentHeight(
+        for section:
+            SettingsSection
+    ) -> some View {
+        background {
+            GeometryReader {
+                geometry in
 
-        case .appearance:
-            return "paintbrush"
-
-        case .appRules:
-            return "shield.lefthalf.filled"
+                Color.clear
+                    .preference(
+                        key:
+                            SettingsContentHeightPreferenceKey
+                                .self,
+                        value: [
+                            section:
+                                geometry
+                                    .size
+                                    .height
+                        ]
+                    )
+            }
         }
     }
 }
 
-struct SettingsContainerView: View {
-    @State private var selectedSection: SettingsSection = .general
+struct SettingsContainerView:
+    View
+{
+    @State private var selectedSection:
+        SettingsSection =
+            .general
 
-    private let sidebarWidth: CGFloat = 170
+    @State private var measuredContentHeights:
+        [SettingsSection: CGFloat] =
+            [:]
 
-    var body: some View {
-        HStack(spacing: 0) {
-            sidebar
+    /*
+     The TabView toolbar/titlebar region is outside the
+     measured page content. This constant accounts for
+     that native macOS Settings chrome.
+     */
+    private let settingsChromeHeight:
+        CGFloat =
+            10
 
-            Divider()
+    private let minimumWindowHeight:
+        CGFloat =
+            280
 
-            selectedDetailView
-                .frame(
-                    maxWidth: .infinity,
-                    maxHeight: .infinity
-                )
+    private let maximumAutomaticWindowHeight:
+        CGFloat =
+            680
+
+    private let appRulesWindowHeight:
+        CGFloat =
+            680
+
+    private var selectedWindowHeight:
+        CGFloat
+    {
+        if selectedSection
+            .usesFixedHeight
+        {
+            return appRulesWindowHeight
         }
-        .frame(
-            minWidth: 820,
-            idealWidth: 900,
-            minHeight: 620,
-            idealHeight: 700
+
+        let measuredContentHeight =
+            measuredContentHeights[
+                selectedSection
+            ] ??
+            defaultContentHeight(
+                for:
+                    selectedSection
+            )
+
+        return min(
+            max(
+                measuredContentHeight +
+                    settingsChromeHeight,
+                minimumWindowHeight
+            ),
+            maximumAutomaticWindowHeight
         )
     }
 
-    private var sidebar: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            ForEach(SettingsSection.allCases) { section in
-                Button {
-                    selectedSection = section
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: section.systemImage)
-                            .frame(width: 16, alignment: .center)
+    var body:
+        some View
+    {
+        TabView(
+            selection:
+                $selectedSection
+        ) {
+            Tab(
+                "General",
+                systemImage:
+                    "gearshape",
+                value:
+                    SettingsSection.general
+            ) {
+                VStack(
+                    spacing:
+                        0
+                ) {
+                    GeneralSettingsView()
+                        .fixedSize(
+                            horizontal:
+                                false,
+                            vertical:
+                                true
+                        )
+                        .reportSettingsContentHeight(
+                            for:
+                                .general
+                        )
 
-                        Text(section.title)
-
-                        Spacer(minLength: 0)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .frame(height: 30)
-                    .padding(.horizontal, 10)
-                    .contentShape(Rectangle())
-                    .foregroundStyle(
-                        selectedSection == section
-                            ? Color.white
-                            : Color.primary
+                    Spacer(
+                        minLength:
+                            0
                     )
-                    .background {
-                        if selectedSection == section {
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(Color.accentColor)
-                        }
-                    }
                 }
-                .buttonStyle(.plain)
+                .frame(
+                    maxWidth:
+                        .infinity,
+                    maxHeight:
+                        .infinity,
+                    alignment:
+                        .top
+                )
             }
 
-            Spacer()
+            Tab(
+                "Appearance",
+                systemImage:
+                    "paintbrush",
+                value:
+                    SettingsSection.appearance
+            ) {
+                VStack(
+                    spacing:
+                        0
+                ) {
+                    AppearanceSettingsView()
+                        .fixedSize(
+                            horizontal:
+                                false,
+                            vertical:
+                                true
+                        )
+                        .reportSettingsContentHeight(
+                            for:
+                                .appearance
+                        )
+
+                    Spacer(
+                        minLength:
+                            0
+                    )
+                }
+                .frame(
+                    maxWidth:
+                        .infinity,
+                    maxHeight:
+                        .infinity,
+                    alignment:
+                        .top
+                )
+            }
+
+            Tab(
+                "Privacy",
+                systemImage:
+                    "hand.raised",
+                value:
+                    SettingsSection.privacy
+            ) {
+                VStack(
+                    spacing:
+                        0
+                ) {
+                    PrivacySettingsView()
+                        .fixedSize(
+                            horizontal:
+                                false,
+                            vertical:
+                                true
+                        )
+                        .reportSettingsContentHeight(
+                            for:
+                                .privacy
+                        )
+
+                    Spacer(
+                        minLength:
+                            0
+                    )
+                }
+                .frame(
+                    maxWidth:
+                        .infinity,
+                    maxHeight:
+                        .infinity,
+                    alignment:
+                        .top
+                )
+            }
+
+            Tab(
+                "App Rules",
+                systemImage:
+                    "shield.lefthalf.filled",
+                value:
+                    SettingsSection.appRules
+            ) {
+                AppRulesSettingsView()
+            }
         }
-        .padding(.horizontal, 8)
-        .padding(.top, 12)
-        .frame(width: sidebarWidth)
-        .fixedSize(horizontal: true, vertical: false)
-        .frame(maxHeight: .infinity)
-        .layoutPriority(1)
-        .background(.regularMaterial)
+        .frame(
+            width:
+                700,
+            height:
+                selectedWindowHeight
+        )
+        .onPreferenceChange(
+            SettingsContentHeightPreferenceKey
+                .self
+        ) {
+            newHeights in
+
+            for (
+                section,
+                height
+            ) in newHeights {
+                guard
+                    height >
+                        0
+                else {
+                    continue
+                }
+
+                measuredContentHeights[
+                    section
+                ] =
+                    height
+            }
+        }
+        .animation(
+            .easeInOut(
+                duration:
+                    0.18
+            ),
+            value:
+                selectedWindowHeight
+        )
     }
 
-    @ViewBuilder
-    private var selectedDetailView: some View {
-        switch selectedSection {
+    private func defaultContentHeight(
+        for section:
+            SettingsSection
+    ) -> CGFloat {
+        switch section {
         case .general:
-            GeneralSettingsView()
+            return 420
 
         case .appearance:
-            AppearanceSettingsView()
+            return 230
+
+        case .privacy:
+            return 320
 
         case .appRules:
-            AppRulesSettingsView()
+            return appRulesWindowHeight
         }
     }
 }

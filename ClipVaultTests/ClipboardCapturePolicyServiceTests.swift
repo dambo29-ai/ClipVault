@@ -160,5 +160,62 @@ final class ClipboardCapturePolicyServiceTests:
             .skipBlocked
         )
     }
+    
+    func testAllowedModeCapturesLikelyPasswordWhenProtectionIsDisabled()
+    {
+        let decision =
+            ClipboardCapturePolicyService
+                .decision(
+                    for:
+                        "Q7!mP2#zL9@vR4$x",
+                    ruleMode:
+                        .allowed,
+                    blocksLikelySensitiveClips:
+                        false
+                )
+
+        XCTAssertEqual(
+            decision,
+            .capture
+        )
+    }
+
+    func testSmartModeStillSkipsSensitiveTextWhenProtectionIsDisabled()
+    {
+        let decision =
+            ClipboardCapturePolicyService
+                .decision(
+                    for:
+                        "ghp_abcdefghijklmnop",
+                    ruleMode:
+                        .smart,
+                    blocksLikelySensitiveClips:
+                        false
+                )
+
+        XCTAssertEqual(
+            decision,
+            .skipSensitive
+        )
+    }
+
+    func testBlockedModeStillBlocksWhenProtectionIsDisabled()
+    {
+        let decision =
+            ClipboardCapturePolicyService
+                .decision(
+                    for:
+                        "Ordinary clipboard text",
+                    ruleMode:
+                        .blocked,
+                    blocksLikelySensitiveClips:
+                        false
+                )
+
+        XCTAssertEqual(
+            decision,
+            .skipBlocked
+        )
+    }
 }
 

@@ -42,66 +42,55 @@ struct AppearanceSettingsView:
     var body:
         some View
     {
-        VStack(
-            spacing:
-                0
-        ) {
-            settingsHeader
+            VStack(
+                alignment:
+                    .center,
+                spacing:
+                    24
+            ) {
+                Text(
+                    "Choose how ClipVault appears. This setting changes ClipVault only and does not alter the appearance of macOS or other applications."
+                )
+                .font(
+                    .body
+                )
+                .foregroundStyle(
+                    .secondary
+                )
+                .multilineTextAlignment(
+                    .center
+                )
+                .frame(
+                    maxWidth:
+                        520
+                )
 
-            Divider()
-
-            ScrollView {
-                VStack(
-                    alignment:
-                        .leading,
-                    spacing:
-                        18
-                ) {
-                    Text(
-                        "Choose how ClipVault appears. This setting changes ClipVault only and does not alter the appearance of macOS or other applications."
-                    )
-                    .font(.subheadline)
-                    .foregroundStyle(
-                        .secondary
-                    )
-
-                    appearanceOptions
-                }
-                .padding(24)
+                appearanceOptions
             }
-        }
-        .frame(
-            maxWidth:
-                .infinity,
-            maxHeight:
-                .infinity,
-            alignment:
-                .topLeading
-        )
-    }
-
-    private var settingsHeader:
-        some View
-    {
-        HStack {
-            Text(
-                "Appearance"
+            .frame(
+                maxWidth:
+                    .infinity,
+                alignment:
+                    .top
             )
-            .font(.title2)
-            .fontWeight(
-                .semibold
+            .padding(
+                .horizontal,
+                24
             )
-
-            Spacer()
-        }
-        .padding(
-            .horizontal,
-            24
-        )
-        .padding(
-            .vertical,
-            16
-        )
+            .padding(
+                .top,
+                30
+            )
+            .padding(
+                .bottom,
+                24
+            )
+            .frame(
+                maxWidth:
+                    .infinity,
+                alignment:
+                    .top
+            )
     }
 
     private var appearanceOptions:
@@ -282,6 +271,9 @@ struct AppearanceSettingsView:
                         mode
                             .displayName
                     )
+                    .font(
+                        .body
+                    )
                     .fontWeight(
                         appearanceMode ==
                             mode
@@ -293,7 +285,9 @@ struct AppearanceSettingsView:
                 Text(
                     mode.description
                 )
-                .font(.caption)
+                .font(
+                    .body
+                )
                 .foregroundStyle(
                     .secondary
                 )

@@ -12,24 +12,18 @@ import KeyboardShortcuts
 struct GeneralSettingsView: View {
     @EnvironmentObject var clipboardStore: ClipboardStore
 
-    @EnvironmentObject
-    var optionSelectionGestureMonitor:
-        OptionSelectionGestureMonitor
     @State private var historyLimitText = ""
     @State private var backupKeepCountText = ""
-    @State private var hasAccessibilityPermission =
-        AccessibilityPermissionService.isGranted
     
     private let settingsControlColumnWidth: CGFloat = 150
     
     var body: some View {
-        VStack(spacing: 0) {
-            settingsHeader
-            
-            Divider()
-            
-            ScrollView {
-                VStack(alignment: .leading, spacing: 22) {
+        VStack(
+            alignment:
+                .leading,
+            spacing:
+                22
+        ) {
                     historyLimitSetting
                     
                     Divider()
@@ -46,24 +40,22 @@ struct GeneralSettingsView: View {
 
                     Divider()
 
-                    selectionCaptureEnabledSetting
-
-                    Divider()
-
-                    selectionCapturePermissionSetting
-
-                    Divider()
-
                     keyboardShortcutsSetting
                     
-                }
-                .padding(24)
-            }
         }
+        .padding(
+            .horizontal,
+            28
+        )
+        .padding(
+            .vertical,
+            24
+        )
         .frame(
-            maxWidth: .infinity,
-            maxHeight: .infinity,
-            alignment: .topLeading
+            maxWidth:
+                .infinity,
+            alignment:
+                .topLeading
         )
         .onAppear {
             historyLimitText =
@@ -71,8 +63,6 @@ struct GeneralSettingsView: View {
 
             backupKeepCountText =
                 "\(clipboardStore.backupKeepCount)"
-
-            refreshAccessibilityPermission()
         }
         .onChange(
             of: clipboardStore.maxItemCount
@@ -80,27 +70,6 @@ struct GeneralSettingsView: View {
             historyLimitText =
                 "\(newValue)"
         }
-        .onReceive(
-            NotificationCenter.default.publisher(
-                for: NSApplication.didBecomeActiveNotification
-            )
-        ) { _ in
-            refreshAccessibilityPermission()
-        }
-    }
-    
-    private var settingsHeader: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("General Settings")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-            }
-            
-            Spacer()
-        }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 16)
     }
     
     private var historyLimitSetting: some View {
@@ -109,12 +78,20 @@ struct GeneralSettingsView: View {
                 Text(
                     "History Limit (\(ClipboardStore.minimumHistoryLimit)-\(ClipboardStore.maximumHistoryLimit))"
                 )
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+                .font(
+                    .body
+                )
+                .fontWeight(
+                    .medium
+                )
                 
                 Text("ClipVault will keep up to \(clipboardStore.maxItemCount) copied text items.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(
+                        .body
+                    )
+                    .foregroundStyle(
+                        .secondary
+                    )
             }
             
             Spacer()
@@ -159,12 +136,20 @@ struct GeneralSettingsView: View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Keep History For")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+                    .font(
+                        .body
+                    )
+                    .fontWeight(
+                        .medium
+                    )
                 
                 Text("Automatically remove copied text older than the selected time period.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(
+                        .body
+                    )
+                    .foregroundStyle(
+                        .secondary
+                    )
             }
             
             Spacer()
@@ -197,14 +182,22 @@ struct GeneralSettingsView: View {
                 Text(
                     "Backups to Keep (\(ClipboardStore.minimumBackupKeepCount)-\(ClipboardStore.maximumBackupKeepCount))"
                 )
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+                .font(
+                    .body
+                )
+                .fontWeight(
+                    .medium
+                )
                 
                 Text(
                     "Delete Old Backups will keep the newest \(clipboardStore.backupKeepCount) .clipvaultbackup package(s)."
                 )
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                .font(
+                    .body
+                )
+                .foregroundStyle(
+                    .secondary
+                )
             }
             
             Spacer()
@@ -249,12 +242,20 @@ struct GeneralSettingsView: View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Show Skipped Clip Warnings")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+                    .font(
+                        .body
+                    )
+                    .fontWeight(
+                        .medium
+                    )
                 
                 Text("Show a temporary warning row when ClipVault skips likely sensitive clips or clips from blocked apps.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(
+                        .body
+                    )
+                    .foregroundStyle(
+                        .secondary
+                    )
             }
             
             Spacer()
@@ -276,114 +277,24 @@ struct GeneralSettingsView: View {
         }
     }
     
-    private var selectionCaptureEnabledSetting: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Enable Option-Select Capture")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-
-                Text(
-                    "Hold Option while selecting text to copy it, make it ready to paste, and save accepted text to ClipVault history."
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            Toggle(
-                "",
-                isOn: Binding(
-                    get: {
-                        optionSelectionGestureMonitor
-                            .isCaptureEnabled
-                    },
-                    set: { isEnabled in
-                        setOptionSelectCaptureEnabled(
-                            isEnabled
-                        )
-                    }
-                )
-            )
-            .labelsHidden()
-            .toggleStyle(.switch)
-            .frame(
-                width: settingsControlColumnWidth,
-                alignment: .trailing
-            )
-        }
-    }
-    
-    private var selectionCapturePermissionSetting: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Selection Capture Access")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-
-                Text(
-                    "Accessibility access will allow ClipVault to detect Option-select gestures in other applications."
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            VStack(alignment: .trailing, spacing: 8) {
-                Label(
-                    hasAccessibilityPermission
-                        ? "Access Granted"
-                        : "Access Not Granted",
-                    systemImage:
-                        hasAccessibilityPermission
-                            ? "checkmark.circle.fill"
-                            : "exclamationmark.triangle.fill"
-                )
-                .font(.caption)
-                .foregroundStyle(
-                    hasAccessibilityPermission
-                        ? .green
-                        : .secondary
-                )
-
-                Button(
-                    hasAccessibilityPermission
-                        ? "Refresh Status"
-                        : "Request Access"
-                ) {
-                    if hasAccessibilityPermission {
-                        refreshAccessibilityPermission()
-                    } else {
-                        AccessibilityPermissionService
-                            .requestAccessAndOpenSettings()
-
-                        DispatchQueue.main.asyncAfter(
-                            deadline: .now() + 1.0
-                        ) {
-                            refreshAccessibilityPermission()
-                        }
-                    }
-                }
-            }
-            .frame(
-                width: settingsControlColumnWidth,
-                alignment: .trailing
-            )
-        }
-    }
-    
     private var keyboardShortcutsSetting: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Keyboard Shortcuts")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+                    .font(
+                        .body
+                    )
+                    .fontWeight(
+                        .medium
+                    )
                 
                 Text("Set global shortcuts for ClipVault.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(
+                        .body
+                    )
+                    .foregroundStyle(
+                        .secondary
+                    )
             }
             
             Spacer()
@@ -408,9 +319,16 @@ struct GeneralSettingsView: View {
     ) -> some View {
         HStack(spacing: 10) {
             Text(label)
-                .font(.caption)
+                .font(
+                    .callout
+                )
                 .foregroundStyle(.secondary)
-                .frame(width: 92, alignment: .trailing)
+                .frame(
+                    width:
+                        110,
+                    alignment:
+                        .trailing
+                )
 
             KeyboardShortcuts.Recorder(
                 "",
@@ -418,35 +336,6 @@ struct GeneralSettingsView: View {
             )
             .labelsHidden()
         }
-    }
-    
-    private func setOptionSelectCaptureEnabled(
-        _ isEnabled: Bool
-    ) {
-        optionSelectionGestureMonitor
-            .setCaptureEnabled(isEnabled)
-
-        guard
-            isEnabled,
-            !AccessibilityPermissionService.isGranted
-        else {
-            refreshAccessibilityPermission()
-            return
-        }
-
-        AccessibilityPermissionService
-            .requestAccessAndOpenSettings()
-
-        DispatchQueue.main.asyncAfter(
-            deadline: .now() + 1.0
-        ) {
-            refreshAccessibilityPermission()
-        }
-    }
-    
-    private func refreshAccessibilityPermission() {
-        hasAccessibilityPermission =
-            AccessibilityPermissionService.isGranted
     }
     
     private func applyHistoryLimitText() {

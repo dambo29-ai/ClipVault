@@ -16,8 +16,14 @@ struct ClipVaultApp: App {
     @StateObject private var optionSelectionGestureMonitor =
         OptionSelectionGestureMonitor()
 
-    @Environment(\.openWindow) private var openWindow
-    @State private var hasRegisteredKeyboardShortcuts = false
+    @Environment(\.openWindow)
+    private var openWindow
+
+    @Environment(\.openSettings)
+    private var openSettings
+
+    @State private var hasRegisteredKeyboardShortcuts =
+        false
 
     @AppStorage(
         ClipVaultAppearanceMode
@@ -45,9 +51,16 @@ struct ClipVaultApp: App {
                 NSApplication.shared.activate(ignoringOtherApps: true)
             }
             
-            Button("Settings") {
-                openWindow(id: "settings-window")
-                NSApplication.shared.activate(ignoringOtherApps: true)
+            Button(
+                "Settings"
+            ) {
+                openSettings()
+
+                NSApplication.shared
+                    .activate(
+                        ignoringOtherApps:
+                            true
+                    )
             }
 
             Divider()
@@ -261,13 +274,6 @@ struct ClipVaultApp: App {
         }
         .menuBarExtraStyle(.menu)
         .commands {
-            CommandGroup(replacing: .appSettings) {
-                Button("Settings…") {
-                    openWindow(id: "settings-window")
-                    NSApplication.shared.activate(ignoringOtherApps: true)
-                }
-                .keyboardShortcut(",", modifiers: [.command])
-            }
 
             CommandGroup(replacing: .help) {
                 Button("ClipVault Help") {
@@ -301,7 +307,7 @@ struct ClipVaultApp: App {
         .defaultSize(width: 600, height: 500)
         .defaultLaunchBehavior(.suppressed)
         
-        Window("ClipVault Settings", id: "settings-window") {
+        Settings {
             SettingsContainerView()
                 .environmentObject(
                     clipboardStore
@@ -324,7 +330,15 @@ struct ClipVaultApp: App {
                         .applyToApplication()
                 }
         }
-        .defaultSize(width: 900, height: 700)
+        .defaultSize(
+            width:
+                700,
+            height:
+                585
+        )
+        .windowResizability(
+            .contentSize
+        )
     }
     
     @ViewBuilder
