@@ -281,6 +281,176 @@ struct ClipboardPasteboardClassificationServiceTests {
     }
     
     @Test
+    func richSpreadsheetTextTakesPriorityOverRasterImage()
+    {
+        let pasteboard =
+            makePasteboard()
+
+        let imageData =
+            Data(
+                [1, 2, 3, 4]
+            )
+
+        let rtfData =
+            Data(
+                "{\\rtf1\\ansi Cell Value}"
+                    .utf8
+            )
+
+        let htmlData =
+            Data(
+                "<table><tr><td>Cell Value</td></tr></table>"
+                    .utf8
+            )
+
+        let pasteboardItem =
+            NSPasteboardItem()
+
+        pasteboardItem
+            .setString(
+                "Cell Value",
+                forType:
+                    .string
+            )
+
+        pasteboardItem
+            .setData(
+                rtfData,
+                forType:
+                    .rtf
+            )
+
+        pasteboardItem
+            .setData(
+                htmlData,
+                forType:
+                    .html
+            )
+
+        pasteboardItem
+            .setData(
+                imageData,
+                forType:
+                    .png
+            )
+
+        pasteboard
+            .clearContents()
+
+        pasteboard
+            .writeObjects(
+                [
+                    pasteboardItem
+                ]
+            )
+
+        let content =
+            ClipboardPasteboardClassificationService
+                .content(
+                    from:
+                        pasteboard
+                )
+
+        guard
+            case let .text(
+                textPayload
+            ) =
+                content
+        else {
+            Issue.record(
+                "Expected editable spreadsheet text to take priority over the rendered image."
+            )
+
+            return
+        }
+
+        #expect(
+            textPayload.text ==
+                "Cell Value"
+        )
+
+        #expect(
+            textPayload.rtfData ==
+                rtfData
+        )
+
+        #expect(
+            textPayload.htmlData ==
+                htmlData
+        )
+    }
+
+    @Test
+    func tabularPlainTextTakesPriorityOverRasterImage()
+    {
+        let pasteboard =
+            makePasteboard()
+
+        let imageData =
+            Data(
+                [5, 6, 7, 8]
+            )
+
+        let tabularText =
+            """
+            A1\tB1
+            A2\tB2
+            """
+
+        let pasteboardItem =
+            NSPasteboardItem()
+
+        pasteboardItem
+            .setString(
+                tabularText,
+                forType:
+                    .string
+            )
+
+        pasteboardItem
+            .setData(
+                imageData,
+                forType:
+                    .png
+            )
+
+        pasteboard
+            .clearContents()
+
+        pasteboard
+            .writeObjects(
+                [
+                    pasteboardItem
+                ]
+            )
+
+        let content =
+            ClipboardPasteboardClassificationService
+                .content(
+                    from:
+                        pasteboard
+                )
+
+        guard
+            case let .text(
+                textPayload
+            ) =
+                content
+        else {
+            Issue.record(
+                "Expected tabular text to take priority over the rendered image."
+            )
+
+            return
+        }
+
+        #expect(
+            textPayload.text ==
+                tabularText
+        )
+    }
+    
+    @Test
     func rasterImageTakesPriorityOverText() {
         let pasteboard =
             makePasteboard()

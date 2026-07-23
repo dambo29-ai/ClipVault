@@ -6,6 +6,7 @@
 //
 
 import CoreFoundation
+import Darwin
 import Foundation
 
 enum ScreenshotDestinationResolution:
@@ -33,17 +34,17 @@ struct ScreenshotDestinationService
 
     init(
         homeDirectory:
-            URL =
-                FileManager
-                    .default
-                    .homeDirectoryForCurrentUser,
+            URL? =
+                nil,
         configuredLocationProvider:
             @escaping () -> String? =
                 ScreenshotDestinationService
                     .readConfiguredLocation
     ) {
         self.homeDirectory =
-            homeDirectory
+            homeDirectory ??
+            ScreenshotDestinationService
+                .actualUserHomeDirectory()
 
         self.configuredLocationProvider =
             configuredLocationProvider
@@ -181,6 +182,49 @@ struct ScreenshotDestinationService
         }
 
         return locationURL
+            .standardizedFileURL
+    }
+    
+    nonisolated
+    private static func actualUserHomeDirectory()
+        -> URL
+    {
+        let userIdentifier =
+            getuid()
+
+        if let passwordEntry =
+            getpwuid(
+                userIdentifier
+            ),
+           let homeDirectoryPointer =
+            passwordEntry
+                .pointee
+                .pw_dir
+        {
+            let homeDirectoryPath =
+                String(
+                    cString:
+                        homeDirectoryPointer
+                )
+
+            if !homeDirectoryPath.isEmpty {
+                return URL(
+                    fileURLWithPath:
+                        homeDirectoryPath,
+                    isDirectory:
+                        true
+                )
+                .standardizedFileURL
+            }
+        }
+
+        /*
+         Defensive fallback only. In a sandboxed app this
+         may resolve inside the app container.
+         */
+        return FileManager
+            .default
+            .homeDirectoryForCurrentUser
             .standardizedFileURL
     }
 

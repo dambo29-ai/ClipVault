@@ -26,27 +26,52 @@ enum ClipboardChangeContent {
 @MainActor
 enum ClipboardPasteboardClassificationService {
     static func content(
-        from pasteboard: NSPasteboard
+        from pasteboard:
+            NSPasteboard
     ) -> ClipboardChangeContent? {
         let fileURLs =
             (
-                pasteboard.readObjects(
-                    forClasses: [
-                        NSURL.self
-                    ],
-                    options: [
-                        .urlReadingFileURLsOnly:
-                            true
-                    ]
-                ) as? [NSURL]
+                pasteboard
+                    .readObjects(
+                        forClasses: [
+                            NSURL.self
+                        ],
+                        options: [
+                            .urlReadingFileURLsOnly:
+                                true
+                        ]
+                    ) as? [NSURL]
             )?
             .map {
                 $0 as URL
-            } ?? []
+            } ??
+            []
 
         if !fileURLs.isEmpty {
             return .fileURLs(
                 fileURLs
+            )
+        }
+
+        let textPayload =
+            textPayload(
+                from:
+                    pasteboard
+            )
+
+        /*
+         Spreadsheet applications commonly place both
+         editable text/table representations and a rendered
+         image on the pasteboard. Prefer the editable data
+         when rich or tabular text is present.
+         */
+        if let textPayload,
+           isRichOrTabularText(
+                textPayload
+           )
+        {
+            return .text(
+                textPayload
             )
         }
 
@@ -61,32 +86,73 @@ enum ClipboardPasteboardClassificationService {
             )
         }
 
+        if let textPayload {
+            return .text(
+                textPayload
+            )
+        }
+
+        return nil
+    }
+    
+    private static func textPayload(
+        from pasteboard:
+            NSPasteboard
+    ) -> ClipboardTextPayload? {
         guard
             let text =
-                pasteboard.string(
-                    forType:
-                        .string
-                )
+                pasteboard
+                    .string(
+                        forType:
+                            .string
+                    ),
+            !text.isEmpty
         else {
             return nil
         }
 
-        return .text(
-            ClipboardTextPayload(
-                text:
-                    text,
-                rtfData:
-                    pasteboard.data(
+        return ClipboardTextPayload(
+            text:
+                text,
+            rtfData:
+                pasteboard
+                    .data(
                         forType:
                             .rtf
                     ),
-                htmlData:
-                    pasteboard.data(
+            htmlData:
+                pasteboard
+                    .data(
                         forType:
                             .html
                     )
-            )
         )
+    }
+
+    private static func isRichOrTabularText(
+        _ payload:
+            ClipboardTextPayload
+    ) -> Bool {
+        if payload.rtfData !=
+            nil ||
+            payload.htmlData !=
+            nil
+        {
+            return true
+        }
+
+        return payload.text
+            .contains(
+                "\t"
+            ) ||
+            payload.text
+                .contains(
+                    "\n"
+                ) ||
+            payload.text
+                .contains(
+                    "\r"
+                )
     }
 
     private static func rasterImageData(

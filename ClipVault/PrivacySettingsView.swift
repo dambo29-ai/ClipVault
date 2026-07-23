@@ -18,12 +18,22 @@ struct PrivacySettingsView:
     @EnvironmentObject
     private var clipboardStore:
         ClipboardStore
+    
+    @EnvironmentObject
+    private var screenshotFolderAccessService:
+        ScreenshotFolderAccessService
 
     @State private var hasAccessibilityPermission =
         AccessibilityPermissionService
             .isGranted
     
     @State private var isShowingSensitiveClipConfirmation =
+        false
+    
+    @State private var screenshotAccessAlertMessage =
+        ""
+
+    @State private var isShowingScreenshotAccessAlert =
         false
 
     private let controlColumnWidth:
@@ -40,6 +50,10 @@ struct PrivacySettingsView:
                 22
         ) {
             sensitiveClipProtectionSetting
+
+            Divider()
+
+            screenshotFolderAccessSetting
 
             Divider()
 
@@ -108,6 +122,20 @@ struct PrivacySettingsView:
                 "Likely passwords and other sensitive-looking text may be stored in ClipVault history, retained across launches, and included in ClipVault backups. Smart and Blocked app rules will remain protective."
             )
         }
+        .alert(
+            "Screenshot Folder Access",
+            isPresented:
+                $isShowingScreenshotAccessAlert
+        ) {
+            Button(
+                "OK"
+            ) {
+            }
+        } message: {
+            Text(
+                screenshotAccessAlertMessage
+            )
+        }
     }
     
     private var sensitiveClipProtectionSetting:
@@ -169,6 +197,92 @@ struct PrivacySettingsView:
             .toggleStyle(
                 .switch
             )
+            .frame(
+                width:
+                    controlColumnWidth,
+                alignment:
+                    .trailing
+            )
+        }
+    }
+    
+    private var screenshotFolderAccessSetting:
+        some View
+    {
+        HStack(
+            alignment:
+                .top,
+            spacing:
+                18
+        ) {
+            VStack(
+                alignment:
+                    .leading,
+                spacing:
+                    5
+            ) {
+                Text(
+                    "Screenshot Folder Access"
+                )
+                .font(
+                    .body
+                )
+                .fontWeight(
+                    .medium
+                )
+
+                Text(
+                    "ClipVault detected the current macOS screenshot destination as \(screenshotFolderAccessService.destinationDescription). Grant read-only access before automatic screenshot copying can be enabled."
+                )
+                .font(
+                    .body
+                )
+                .foregroundStyle(
+                    .secondary
+                )
+                .textSelection(
+                    .enabled
+                )
+            }
+
+            Spacer()
+
+            VStack(
+                alignment:
+                    .trailing,
+                spacing:
+                    9
+            ) {
+                Label(
+                    screenshotFolderAccessService
+                        .hasAccessToCurrentDestination
+                        ? "Access Granted"
+                        : "Access Required",
+                    systemImage:
+                        screenshotFolderAccessService
+                            .hasAccessToCurrentDestination
+                            ? "checkmark.circle.fill"
+                            : "folder.badge.questionmark"
+                )
+                .font(
+                    .callout
+                )
+                .foregroundStyle(
+                    screenshotFolderAccessService
+                        .hasAccessToCurrentDestination
+                        ? .green
+                        : .secondary
+                )
+
+                Button(
+                    screenshotFolderAccessService
+                        .hasAccessToCurrentDestination
+                        ? "Refresh Access"
+                        : "Grant Access"
+                ) {
+                    requestScreenshotFolderAccess()
+                }
+            }
             .frame(
                 width:
                     controlColumnWidth,
@@ -365,6 +479,56 @@ struct PrivacySettingsView:
                 .secondary
             )
         }
+    }
+    
+    private func requestScreenshotFolderAccess()
+    {
+        let result =
+            screenshotFolderAccessService
+                .requestAccess()
+
+        switch result {
+        case .granted:
+            screenshotAccessAlertMessage =
+                "ClipVault now has read-only access to the current macOS screenshot folder."
+
+        case .cancelled:
+            return
+
+        case .clipboardDestination:
+            screenshotAccessAlertMessage =
+                "macOS is currently configured to place screenshots directly on the clipboard. Folder monitoring is not needed for this destination."
+
+        case let .unsupportedDestination(
+            destinationName
+        ):
+            screenshotAccessAlertMessage =
+                "The current macOS screenshot destination, \(destinationName), cannot be monitored by ClipVault."
+
+        case let .incorrectFolder(
+            expected,
+            selected
+        ):
+            screenshotAccessAlertMessage =
+                """
+                ClipVault expected access to:
+
+                \(expected.path)
+
+                You selected:
+
+                \(selected.path)
+
+                ClipVault did not change the macOS screenshot destination or save access to the selected folder.
+                """
+
+        case .bookmarkCreationFailed:
+            screenshotAccessAlertMessage =
+                "ClipVault could not save persistent read-only access to the screenshot folder."
+        }
+
+        isShowingScreenshotAccessAlert =
+            true
     }
     
     private func setSensitiveClipProtectionEnabled(

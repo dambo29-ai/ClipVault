@@ -10,9 +10,12 @@ import AppKit
 import KeyboardShortcuts
 
 struct GeneralSettingsView: View {
-    @EnvironmentObject var clipboardStore: ClipboardStore
+    @EnvironmentObject
+    var clipboardStore:
+        ClipboardStore
 
     @State private var historyLimitText = ""
+    
     @State private var backupKeepCountText = ""
     
     private let settingsControlColumnWidth: CGFloat = 150

@@ -16,6 +16,9 @@ struct ClipVaultApp: App {
     @StateObject private var optionSelectionGestureMonitor =
         OptionSelectionGestureMonitor()
 
+    @StateObject private var screenshotFolderAccessService =
+        ScreenshotFolderAccessService()
+
     @Environment(\.openWindow)
     private var openWindow
 
@@ -314,6 +317,9 @@ struct ClipVaultApp: App {
                 )
                 .environmentObject(
                     optionSelectionGestureMonitor
+                )
+                .environmentObject(
+                    screenshotFolderAccessService
                 )
                 .onAppear {
                     appearanceMode
