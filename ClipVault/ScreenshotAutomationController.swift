@@ -46,6 +46,9 @@ final class ScreenshotAutomationController:
 
     private let folderMonitorService:
         ScreenshotFolderMonitorService
+    
+    private let processingService:
+        ScreenshotProcessingService
 
     init(
         preferenceService:
@@ -53,7 +56,10 @@ final class ScreenshotAutomationController:
         folderAccessService:
             ScreenshotFolderAccessService,
         folderMonitorService:
-            ScreenshotFolderMonitorService
+            ScreenshotFolderMonitorService,
+        processingService:
+            ScreenshotProcessingService? =
+                nil
     ) {
         self.preferenceService =
             preferenceService
@@ -63,6 +69,10 @@ final class ScreenshotAutomationController:
 
         self.folderMonitorService =
             folderMonitorService
+        
+        self.processingService =
+            processingService ??
+            ScreenshotProcessingService()
 
         isMonitoring =
             folderMonitorService
@@ -163,6 +173,9 @@ final class ScreenshotAutomationController:
         folderMonitorService
             .stopMonitoring()
 
+        processingService
+            .stopMonitoring()
+
         isMonitoring =
             false
     }
@@ -206,17 +219,42 @@ final class ScreenshotAutomationController:
             return .accessRequired
         }
 
+        processingService
+            .beginMonitoring(
+                folderURL:
+                    grantedFolderURL
+            )
+
         let startResult =
             folderMonitorService
                 .startMonitoring(
                     folderURL:
                         grantedFolderURL,
                     onFolderChanged: {
-                        /*
-                         Screenshot discovery and clipboard
-                         integration are added in the next
-                         checkpoint.
-                         */
+                        [weak self]
+                        in
+
+                        guard
+                            let self
+                        else {
+                            return
+                        }
+
+                        Task {
+                            @MainActor
+                            [weak self]
+                            in
+
+                            guard
+                                let self
+                            else {
+                                return
+                            }
+
+                            await self
+                                .processingService
+                                .processFolderChange()
+                        }
                     }
                 )
 
@@ -230,6 +268,9 @@ final class ScreenshotAutomationController:
 
         case .securityScopedAccessFailed,
              .folderOpenFailed:
+            processingService
+                .stopMonitoring()
+
             isMonitoring =
                 false
 
