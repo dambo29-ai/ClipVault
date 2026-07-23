@@ -148,18 +148,119 @@ struct ClipboardPasteboardClassificationServiceTests {
                 )
 
         guard
-            case let .text(text) =
+            case let .text(
+                textPayload
+            ) =
                 content
         else {
             Issue.record(
                 "Expected ordinary text."
             )
+
             return
         }
 
         #expect(
-            text ==
+            textPayload.text ==
                 "Ordinary clipboard text"
+        )
+
+        #expect(
+            textPayload.rtfData ==
+                nil
+        )
+
+        #expect(
+            textPayload.htmlData ==
+                nil
+        )
+    }
+    
+    @Test
+    func richTextRepresentationsAreCaptured()
+    {
+        let pasteboard =
+            makePasteboard()
+
+        let rtfData =
+            Data(
+                "{\\rtf1\\ansi Rich text}"
+                    .utf8
+            )
+
+        let htmlData =
+            Data(
+                "<p><strong>Rich text</strong></p>"
+                    .utf8
+            )
+
+        let pasteboardItem =
+            NSPasteboardItem()
+
+        pasteboardItem
+            .setString(
+                "Rich text",
+                forType:
+                    .string
+            )
+
+        pasteboardItem
+            .setData(
+                rtfData,
+                forType:
+                    .rtf
+            )
+
+        pasteboardItem
+            .setData(
+                htmlData,
+                forType:
+                    .html
+            )
+
+        pasteboard
+            .clearContents()
+
+        pasteboard
+            .writeObjects(
+                [
+                    pasteboardItem
+                ]
+            )
+
+        let content =
+            ClipboardPasteboardClassificationService
+                .content(
+                    from:
+                        pasteboard
+                )
+
+        guard
+            case let .text(
+                textPayload
+            ) =
+                content
+        else {
+            Issue.record(
+                "Expected a text payload."
+            )
+
+            return
+        }
+
+        #expect(
+            textPayload.text ==
+                "Rich text"
+        )
+
+        #expect(
+            textPayload.rtfData ==
+                rtfData
+        )
+
+        #expect(
+            textPayload.htmlData ==
+                htmlData
         )
     }
 

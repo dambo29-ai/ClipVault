@@ -13,7 +13,82 @@ struct ClipboardTextPayload:
     Equatable,
     Sendable
 {
-    let text: String
+    let text:
+        String
+
+    let rtfData:
+        Data?
+
+    let htmlData:
+        Data?
+
+    init(
+        text:
+            String,
+        rtfData:
+            Data? =
+                nil,
+        htmlData:
+            Data? =
+                nil
+    ) {
+        self.text =
+            text
+
+        self.rtfData =
+            rtfData
+
+        self.htmlData =
+            htmlData
+    }
+
+    @discardableResult
+    func write(
+        to pasteboard:
+            NSPasteboard
+    ) -> Bool {
+        let pasteboardItem =
+            NSPasteboardItem()
+
+        pasteboardItem
+            .setString(
+                text,
+                forType:
+                    .string
+            )
+
+        if let rtfData,
+           !rtfData.isEmpty
+        {
+            pasteboardItem
+                .setData(
+                    rtfData,
+                    forType:
+                        .rtf
+                )
+        }
+
+        if let htmlData,
+           !htmlData.isEmpty
+        {
+            pasteboardItem
+                .setData(
+                    htmlData,
+                    forType:
+                        .html
+                )
+        }
+
+        pasteboard
+            .clearContents()
+
+        return pasteboard
+            .writeObjects(
+                [
+                    pasteboardItem
+                ]
+            )
+    }
 }
 
 struct ClipboardLinkPayload:
@@ -129,12 +204,11 @@ enum ClipboardPayload:
     ) -> Bool {
         switch self {
         case let .text(payload):
-            pasteboard.clearContents()
-
-            return pasteboard.setString(
-                payload.text,
-                forType: .string
-            )
+            return payload
+                .write(
+                    to:
+                        pasteboard
+                )
 
         case let .link(payload):
             pasteboard.clearContents()

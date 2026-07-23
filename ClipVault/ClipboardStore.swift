@@ -935,15 +935,21 @@ final class ClipboardStore: ObservableObject {
     }
 
     func captureSelectedText(
-        _ text: String,
-        sourceAppName: String?,
-        sourceBundleIdentifier: String?,
-        sourceAppPath: String?
+        _ textPayload:
+            ClipboardTextPayload,
+        sourceAppName:
+            String?,
+        sourceBundleIdentifier:
+            String?,
+        sourceAppPath:
+            String?
     ) -> ClipboardCaptureOutcome {
         processClipboardCapture(
             ClipboardChangePayload(
                 content:
-                    .text(text),
+                    .text(
+                        textPayload
+                    ),
                 sourceAppName:
                     sourceAppName,
                 sourceBundleIdentifier:
@@ -951,7 +957,8 @@ final class ClipboardStore: ObservableObject {
                 sourceAppPath:
                     sourceAppPath
             ),
-            captureSource: .optionSelect
+            captureSource:
+                .optionSelect
         )
     }
     
@@ -2261,26 +2268,60 @@ final class ClipboardStore: ObservableObject {
         }
 
         guard
-            case let .text(text) =
+            case let .text(
+                textPayload
+            ) =
                 payload.content
         else {
             return .skippedEmpty
         }
 
         let cleanedText =
-            text.trimmingCharacters(
-                in: .whitespacesAndNewlines
-            )
+            textPayload
+                .text
+                .trimmingCharacters(
+                    in:
+                        .whitespacesAndNewlines
+                )
 
         guard !cleanedText.isEmpty else {
             return .skippedEmpty
         }
         
-        let capturedPayload =
-            ClipboardPayload.inferred(
-                from: cleanedText,
-                itemKind: .normal
-            )
+        let inferredPayload =
+            ClipboardPayload
+                .inferred(
+                    from:
+                        cleanedText,
+                    itemKind:
+                        .normal
+                )
+
+        let capturedPayload:
+            ClipboardPayload
+
+        switch inferredPayload {
+        case .text:
+            capturedPayload =
+                .text(
+                    ClipboardTextPayload(
+                        text:
+                            cleanedText,
+                        rtfData:
+                            textPayload
+                                .rtfData,
+                        htmlData:
+                            textPayload
+                                .htmlData
+                    )
+                )
+
+        case .link,
+             .image,
+             .files:
+            capturedPayload =
+                inferredPayload
+        }
 
         let capturedDuplicateKey =
             capturedPayload.duplicateKey

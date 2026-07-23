@@ -40,9 +40,13 @@ struct SelectionClipboardTransactionServiceTests {
                     endIgnoringCallCount += 1
                 },
                 processSelectedText: {
-                    copiedText in
+                    copiedPayload in
 
-                    #expect(copiedText == "Selected text")
+                    #expect(
+                        copiedPayload.text ==
+                            "Selected text"
+                    )
+
                     return .captured
                 }
             )
@@ -61,6 +65,155 @@ struct SelectionClipboardTransactionServiceTests {
 
         #expect(beginIgnoringCallCount == 1)
         #expect(endIgnoringCallCount == 1)
+    }
+    
+    @Test
+    func acceptedCapturePreservesRichTextRepresentations()
+        async
+    {
+        let pasteboard =
+            makePasteboard()
+
+        pasteboard
+            .clearContents()
+
+        pasteboard
+            .setString(
+                "Original clipboard text",
+                forType:
+                    .string
+            )
+
+        let rtfData =
+            Data(
+                "{\\rtf1\\ansi\\b Selected rich text}"
+                    .utf8
+            )
+
+        let htmlData =
+            Data(
+                "<p><strong>Selected rich text</strong></p>"
+                    .utf8
+            )
+
+        let service =
+            SelectionClipboardTransactionService(
+                pasteboard:
+                    pasteboard,
+                isAccessibilityGranted: {
+                    true
+                },
+                postCopyCommand: {
+                    @MainActor
+                    _ in
+
+                    let pasteboardItem =
+                        NSPasteboardItem()
+
+                    pasteboardItem
+                        .setString(
+                            "Selected rich text",
+                            forType:
+                                .string
+                        )
+
+                    pasteboardItem
+                        .setData(
+                            rtfData,
+                            forType:
+                                .rtf
+                        )
+
+                    pasteboardItem
+                        .setData(
+                            htmlData,
+                            forType:
+                                .html
+                        )
+
+                    pasteboard
+                        .clearContents()
+
+                    return pasteboard
+                        .writeObjects(
+                            [
+                                pasteboardItem
+                            ]
+                        )
+                },
+                waitForClipboardChange: {
+                    _,
+                    _ in
+
+                    true
+                }
+            )
+
+        var capturedPayload:
+            ClipboardTextPayload?
+
+        let result =
+            await service
+                .captureSelectedText(
+                    from:
+                        123,
+                    beginIgnoringClipboardChanges: {
+                    },
+                    endIgnoringClipboardChanges: {
+                    },
+                    processSelectedText: {
+                        payload in
+
+                        capturedPayload =
+                            payload
+
+                        return .captured
+                    }
+                )
+
+        guard
+            case .processed(
+                .captured
+            ) =
+                result
+        else {
+            Issue.record(
+                "Expected a processed captured result."
+            )
+
+            return
+        }
+
+        #expect(
+            capturedPayload?.text ==
+                "Selected rich text"
+        )
+
+        #expect(
+            capturedPayload?.rtfData ==
+                rtfData
+        )
+
+        #expect(
+            capturedPayload?.htmlData ==
+                htmlData
+        )
+
+        #expect(
+            pasteboard.data(
+                forType:
+                    .rtf
+            ) ==
+                rtfData
+        )
+
+        #expect(
+            pasteboard.data(
+                forType:
+                    .html
+            ) ==
+                htmlData
+        )
     }
 
     @Test
@@ -628,9 +781,13 @@ struct SelectionClipboardTransactionServiceTests {
                 beginIgnoringClipboardChanges: {},
                 endIgnoringClipboardChanges: {},
                 processSelectedText: {
-                    copiedText in
+                    copiedPayload in
 
-                    #expect(copiedText == "Selected text")
+                    #expect(
+                        copiedPayload.text ==
+                            "Selected text"
+                    )
+
                     return .skippedEmpty
                 }
             )
@@ -697,9 +854,13 @@ struct SelectionClipboardTransactionServiceTests {
                 beginIgnoringClipboardChanges: {},
                 endIgnoringClipboardChanges: {},
                 processSelectedText: {
-                    copiedText in
+                    copiedPayload in
 
-                    #expect(copiedText == "Selected text")
+                    #expect(
+                        copiedPayload.text ==
+                            "Selected text"
+                    )
+
                     return .captured
                 }
             )

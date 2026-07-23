@@ -396,6 +396,115 @@ struct ClipboardPayloadTests {
                 "Text pasteboard value"
         )
     }
+    
+    @Test
+    func textPayloadRestoresRichPasteboardRepresentations()
+    {
+        let pasteboard =
+            makePasteboard()
+
+        let rtfData =
+            Data(
+                "{\\rtf1\\ansi\\b Bold text}"
+                    .utf8
+            )
+
+        let htmlData =
+            Data(
+                "<p><strong>Bold text</strong></p>"
+                    .utf8
+            )
+
+        let payload =
+            ClipboardPayload
+                .text(
+                    ClipboardTextPayload(
+                        text:
+                            "Bold text",
+                        rtfData:
+                            rtfData,
+                        htmlData:
+                            htmlData
+                    )
+                )
+
+        let didWrite =
+            payload.write(
+                to:
+                    pasteboard
+            )
+
+        #expect(
+            didWrite
+        )
+
+        #expect(
+            pasteboard.string(
+                forType:
+                    .string
+            ) ==
+                "Bold text"
+        )
+
+        #expect(
+            pasteboard.data(
+                forType:
+                    .rtf
+            ) ==
+                rtfData
+        )
+
+        #expect(
+            pasteboard.data(
+                forType:
+                    .html
+            ) ==
+                htmlData
+        )
+    }
+    
+    @Test
+    func richTextPayloadRoundTripPreservesRepresentations()
+        throws
+    {
+        let originalPayload =
+            ClipboardPayload
+                .text(
+                    ClipboardTextPayload(
+                        text:
+                            "Formatted text",
+                        rtfData:
+                            Data(
+                                "{\\rtf1\\ansi Formatted text}"
+                                    .utf8
+                            ),
+                        htmlData:
+                            Data(
+                                "<p>Formatted text</p>"
+                                    .utf8
+                            )
+                    )
+                )
+
+        let encodedData =
+            try JSONEncoder()
+                .encode(
+                    originalPayload
+                )
+
+        let decodedPayload =
+            try JSONDecoder()
+                .decode(
+                    ClipboardPayload.self,
+                    from:
+                        encodedData
+                )
+
+        #expect(
+            decodedPayload ==
+                originalPayload
+        )
+    }
 
     @Test
     func linkPayloadWritesURLStringToPasteboard() {

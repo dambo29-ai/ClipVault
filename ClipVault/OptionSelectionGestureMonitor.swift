@@ -284,15 +284,18 @@ final class OptionSelectionGestureMonitor: ObservableObject {
                                 .endIgnoringClipboardMonitoringChanges()
                         },
                         processSelectedText: {
-                            selectedText in
+                            selectedTextPayload in
 
-                            clipboardStore.captureSelectedText(
-                                selectedText,
-                                sourceAppName: sourceAppName,
-                                sourceBundleIdentifier:
-                                    sourceBundleIdentifier,
-                                sourceAppPath: sourceAppPath
-                            )
+                            clipboardStore
+                                .captureSelectedText(
+                                    selectedTextPayload,
+                                    sourceAppName:
+                                        sourceAppName,
+                                    sourceBundleIdentifier:
+                                        sourceBundleIdentifier,
+                                    sourceAppPath:
+                                        sourceAppPath
+                                )
                         }
                     )
 

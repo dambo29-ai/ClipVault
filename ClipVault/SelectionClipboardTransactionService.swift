@@ -102,7 +102,9 @@ final class SelectionClipboardTransactionService {
         from processIdentifier: pid_t,
         beginIgnoringClipboardChanges: () -> Void,
         endIgnoringClipboardChanges: () -> Void,
-        processSelectedText: (String) -> ClipboardCaptureOutcome
+        processSelectedText:
+            (ClipboardTextPayload) ->
+            ClipboardCaptureOutcome
     ) async -> SelectionClipboardTransactionResult {
         guard !isRunning else {
             return .transactionAlreadyRunning
@@ -165,7 +167,8 @@ final class SelectionClipboardTransactionService {
         guard
             let copiedText =
                 pasteboard.string(
-                    forType: .string
+                    forType:
+                        .string
                 ),
             !copiedText.isEmpty
         else {
@@ -180,8 +183,26 @@ final class SelectionClipboardTransactionService {
                 : .clipboardRestoreFailed
         }
 
+        let copiedPayload =
+            ClipboardTextPayload(
+                text:
+                    copiedText,
+                rtfData:
+                    pasteboard.data(
+                        forType:
+                            .rtf
+                    ),
+                htmlData:
+                    pasteboard.data(
+                        forType:
+                            .html
+                    )
+            )
+
         let captureOutcome =
-            processSelectedText(copiedText)
+            processSelectedText(
+                copiedPayload
+            )
 
         guard captureOutcome == .captured else {
             let restorationSucceeded =

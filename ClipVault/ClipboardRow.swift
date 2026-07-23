@@ -27,6 +27,9 @@ struct ClipboardRow: View {
     @State private var copyFeedbackGeneration =
         0
 
+    @State private var isShowingTextPreview =
+        false
+
     @State private var fileAvailability:
         ClipboardFileAvailabilityStatus =
             .available
@@ -170,6 +173,16 @@ struct ClipboardRow: View {
                         beginRenaming()
                     }
 
+                    if item.contentKind ==
+                        .text
+                    {
+                        Button(
+                            "Preview"
+                        ) {
+                            previewText()
+                        }
+                    }
+
                     if isLink {
                         Button(
                             "Open Link"
@@ -225,6 +238,12 @@ struct ClipboardRow: View {
             }
 
             if !isRenaming {
+                if item.contentKind ==
+                    .text
+                {
+                    previewTextButton
+                }
+
                 if isLink {
                     openLinkButton
                 }
@@ -790,6 +809,21 @@ struct ClipboardRow: View {
             linkURL
         )
     }
+    
+    private func previewText()
+    {
+        guard
+            item.kind ==
+                .normal,
+            item.contentKind ==
+                .text
+        else {
+            return
+        }
+
+        isShowingTextPreview =
+            true
+    }
 
     private func previewImage() {
         guard
@@ -990,6 +1024,57 @@ struct ClipboardRow: View {
             )
         }
         .buttonStyle(.borderless)
+    }
+    
+    private var previewTextButton:
+        some View
+    {
+        Button {
+            previewText()
+        } label: {
+            Image(
+                systemName:
+                    "eye"
+            )
+            .foregroundStyle(
+                .secondary
+            )
+            .frame(
+                width:
+                    28,
+                height:
+                    28
+            )
+            .contentShape(
+                Rectangle()
+            )
+        }
+        .buttonStyle(
+            .borderless
+        )
+        .help(
+            "Preview full text"
+        )
+        .accessibilityLabel(
+            "Preview full text"
+        )
+        .popover(
+            isPresented:
+                $isShowingTextPreview,
+            arrowEdge:
+                .trailing
+        ) {
+            ClipboardTextPreviewPopover(
+                title:
+                    item.customTitle ??
+                    "Text Clip",
+                text:
+                    item.text,
+                onCopy: {
+                    performCopy()
+                }
+            )
+        }
     }
 
     private var openLinkButton:

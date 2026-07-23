@@ -39,6 +39,71 @@ final class ClipboardPersistenceServiceTests: XCTestCase {
 
         XCTAssertEqual(loadedItems, originalItems)
     }
+    
+    func testSavingAndLoadingPreservesRichTextRepresentations()
+        async throws
+    {
+        let testStorage =
+            try makeTestStorage()
+
+        defer {
+            removeTestStorage(
+                testStorage
+            )
+        }
+
+        let service =
+            ClipboardPersistenceService(
+                storageURL:
+                    testStorage
+                        .fileURL
+            )
+
+        let rtfData =
+            Data(
+                "{\\rtf1\\ansi\\b Persisted rich text}"
+                    .utf8
+            )
+
+        let htmlData =
+            Data(
+                "<p><strong>Persisted rich text</strong></p>"
+                    .utf8
+            )
+
+        let originalItem =
+            ClipboardItem(
+                payload:
+                    .text(
+                        ClipboardTextPayload(
+                            text:
+                                "Persisted rich text",
+                            rtfData:
+                                rtfData,
+                            htmlData:
+                                htmlData
+                        )
+                    )
+            )
+
+        try await service
+            .saveItems(
+                [
+                    originalItem
+                ]
+            )
+
+        let loadedItems =
+            try await service
+                .loadItems()
+
+        XCTAssertEqual(
+            loadedItems,
+            [
+                originalItem
+            ]
+        )
+    }
 
     func testSavingCreatesMissingParentDirectory() async throws {
         let testStorage = try makeTestStorage(

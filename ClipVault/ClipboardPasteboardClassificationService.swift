@@ -10,9 +10,17 @@ import Foundation
 import UniformTypeIdentifiers
 
 enum ClipboardChangeContent {
-    case fileURLs([URL])
-    case rasterImage(Data)
-    case text(String)
+    case fileURLs(
+        [URL]
+    )
+
+    case rasterImage(
+        Data
+    )
+
+    case text(
+        ClipboardTextPayload
+    )
 }
 
 @MainActor
@@ -64,7 +72,20 @@ enum ClipboardPasteboardClassificationService {
         }
 
         return .text(
-            text
+            ClipboardTextPayload(
+                text:
+                    text,
+                rtfData:
+                    pasteboard.data(
+                        forType:
+                            .rtf
+                    ),
+                htmlData:
+                    pasteboard.data(
+                        forType:
+                            .html
+                    )
+            )
         )
     }
 
