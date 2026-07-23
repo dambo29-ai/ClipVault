@@ -163,6 +163,10 @@ final class ClipboardStore: ObservableObject {
     private var currentClipboardChangeCount:
         Int?
     
+    private var automatedScreenshotDataInProgress:
+        Set<Data> =
+            []
+    
     // Old key retained only so we can migrate existing Allowed/Blocked choices.
     private let legacyBlockedAppGroupIDsKey = "blockedAppGroupIDs"
     
@@ -932,6 +936,54 @@ final class ClipboardStore: ObservableObject {
     func beginIgnoringClipboardMonitoringChanges() {
         clipboardMonitoringService
             .beginIgnoringClipboardChanges()
+    }
+    
+    func captureAutomatedScreenshot(
+        _ imageData:
+            Data
+    ) {
+        guard
+            !automatedScreenshotDataInProgress
+                .contains(
+                    imageData
+                )
+        else {
+            return
+        }
+
+        automatedScreenshotDataInProgress
+            .insert(
+                imageData
+            )
+
+        handleCopiedRasterImage(
+            imageData,
+            payload:
+                ClipboardChangePayload(
+                    content:
+                        .rasterImage(
+                            imageData
+                        ),
+                    sourceAppName:
+                        "macOS Screenshot",
+                    sourceBundleIdentifier:
+                        nil,
+                    sourceAppPath:
+                        nil
+                ),
+            customTitle:
+                "Screenshot Created",
+            completion: {
+                [weak self]
+                in
+
+                self?
+                    .automatedScreenshotDataInProgress
+                    .remove(
+                        imageData
+                    )
+            }
+        )
     }
 
     func captureSelectedText(
@@ -1735,11 +1787,21 @@ final class ClipboardStore: ObservableObject {
     }
     
     private func handleCopiedRasterImage(
-        _ imageData: Data,
+        _ imageData:
+            Data,
         payload:
-            ClipboardChangePayload
+            ClipboardChangePayload,
+        customTitle:
+            String? =
+                nil,
+        completion:
+            @escaping () -> Void =
+                {
+                }
     ) {
         guard !isMonitoringPaused else {
+            completion()
+
             return
         }
 
@@ -1783,12 +1845,20 @@ final class ClipboardStore: ObservableObject {
                     .nativeClipboard
             )
 
+            completion()
+
             return
         }
 
         Task { @MainActor [weak self] in
             guard let self else {
+                completion()
+
                 return
+            }
+
+            defer {
+                completion()
             }
 
             do {
@@ -1874,7 +1944,9 @@ final class ClipboardStore: ObservableObject {
                         sourceAppName:
                             sourceAppName,
                         sourceBundleIdentifier:
-                            sourceBundleIdentifier
+                            sourceBundleIdentifier,
+                        customTitle:
+                            customTitle
                     )
 
                 updatedItems.insert(

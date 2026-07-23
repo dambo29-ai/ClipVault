@@ -13,6 +13,9 @@ import KeyboardShortcuts
 struct ClipVaultApp: App {
     init()
     {
+        let clipboardStore =
+            ClipboardStore()
+
         let folderAccessService =
             ScreenshotFolderAccessService()
 
@@ -21,6 +24,26 @@ struct ClipVaultApp: App {
 
         let folderMonitorService =
             ScreenshotFolderMonitorService()
+        
+        let processingService =
+            ScreenshotProcessingService(
+                stableImageHandler: {
+                    [weak clipboardStore]
+                    _,
+                    imageData in
+
+                    clipboardStore?
+                        .captureAutomatedScreenshot(
+                            imageData
+                        )
+                }
+            )
+        
+        _clipboardStore =
+            StateObject(
+                wrappedValue:
+                    clipboardStore
+            )
 
         _screenshotFolderAccessService =
             StateObject(
@@ -49,11 +72,14 @@ struct ClipVaultApp: App {
                         folderAccessService:
                             folderAccessService,
                         folderMonitorService:
-                            folderMonitorService
+                            folderMonitorService,
+                        processingService:
+                            processingService
                     )
             )
     }
-    @StateObject private var clipboardStore = ClipboardStore()
+    @StateObject private var clipboardStore:
+        ClipboardStore
 
     @StateObject private var optionSelectionGestureMonitor =
         OptionSelectionGestureMonitor()

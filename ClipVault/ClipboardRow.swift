@@ -535,7 +535,10 @@ struct ClipboardRow: View {
                     item.displayText
                 )
 
-                if item.hasCustomTitle {
+                if item.hasCustomTitle &&
+                    item.sourceAppName !=
+                        "macOS Screenshot"
+                {
                     Text(
                         imagePayload
                             .displayTitle
