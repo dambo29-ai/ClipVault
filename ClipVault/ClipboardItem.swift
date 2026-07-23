@@ -457,9 +457,20 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
 
         switch explicitContentKind {
         case .link:
+            let normalizedURLString =
+                ClipboardLinkClassificationService
+                    .normalizedURLString(
+                        for:
+                            text
+                    ) ??
+                text
+
             return .link(
                 ClipboardLinkPayload(
-                    urlString: text
+                    urlString:
+                        normalizedURLString,
+                    displayText:
+                        text
                 )
             )
 

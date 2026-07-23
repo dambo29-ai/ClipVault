@@ -94,11 +94,92 @@ struct ClipboardLinkClassificationServiceTests {
     }
 
     @Test
-    func rejectsDomainWithoutScheme() {
+    func recognizesDomainWithoutScheme()
+    {
         #expect(
-            !ClipboardLinkClassificationService.isLink(
-                "www.apple.com"
-            )
+            ClipboardLinkClassificationService
+                .isLink(
+                    "www.apple.com"
+                )
+        )
+    }
+    
+    @Test
+    func recognizesBareDomainWithoutWWW()
+    {
+        #expect(
+            ClipboardLinkClassificationService
+                .isLink(
+                    "apple.com"
+                )
+        )
+    }
+
+    @Test
+    func recognizesSchemeLessDomainWithPath()
+    {
+        #expect(
+            ClipboardLinkClassificationService
+                .isLink(
+                    "support.apple.com/mac"
+                )
+        )
+    }
+
+    @Test
+    func recognizesSchemeLessDomainWithQueryAndFragment()
+    {
+        #expect(
+            ClipboardLinkClassificationService
+                .isLink(
+                    "example.com/path?q=clip#details"
+                )
+        )
+    }
+
+    @Test
+    func recognizesMultiPartTopLevelDomain()
+    {
+        #expect(
+            ClipboardLinkClassificationService
+                .isLink(
+                    "example.co.uk/path"
+                )
+        )
+    }
+
+    @Test
+    func normalizesSchemeLessDomainToHTTPS()
+    {
+        #expect(
+            ClipboardLinkClassificationService
+                .normalizedURLString(
+                    for:
+                        "apple.com/mac"
+                ) ==
+                "https://apple.com/mac"
+        )
+    }
+
+    @Test
+    func rejectsLikelyStandaloneFilename()
+    {
+        #expect(
+            !ClipboardLinkClassificationService
+                .isLink(
+                    "report.pdf"
+                )
+        )
+    }
+
+    @Test
+    func rejectsMalformedDomainLabel()
+    {
+        #expect(
+            !ClipboardLinkClassificationService
+                .isLink(
+                    "-example.com"
+                )
         )
     }
 

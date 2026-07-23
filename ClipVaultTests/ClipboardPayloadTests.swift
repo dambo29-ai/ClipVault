@@ -326,6 +326,44 @@ struct ClipboardPayloadTests {
                 )
         )
     }
+    
+    @Test
+    func inferenceNormalizesSchemeLessLinkWithoutChangingDisplayText()
+    {
+        let payload =
+            ClipboardPayload
+                .inferred(
+                    from:
+                        "apple.com/mac",
+                    itemKind:
+                        .normal
+                )
+
+        #expect(
+            payload ==
+                .link(
+                    ClipboardLinkPayload(
+                        urlString:
+                            "https://apple.com/mac",
+                        displayText:
+                            "apple.com/mac"
+                    )
+                )
+        )
+
+        #expect(
+            payload.displayText ==
+                "apple.com/mac"
+        )
+
+        #expect(
+            payload.linkURL ==
+                URL(
+                    string:
+                        "https://apple.com/mac"
+                )
+        )
+    }
 
     @Test
     func inferenceCreatesTextPayloadForOrdinaryText() {

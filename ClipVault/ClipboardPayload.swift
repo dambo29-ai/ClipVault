@@ -96,7 +96,101 @@ struct ClipboardLinkPayload:
     Equatable,
     Sendable
 {
-    let urlString: String
+    /*
+     The normalized HTTP or HTTPS URL used for opening
+     the link and loading Link Presentation metadata.
+     */
+    let urlString:
+        String
+
+    /*
+     The exact text originally copied by the user.
+     Older saved payloads do not contain this field, so
+     decoding falls back to urlString.
+     */
+    let displayText:
+        String
+
+    init(
+        urlString:
+            String,
+        displayText:
+            String? =
+                nil
+    ) {
+        self.urlString =
+            urlString
+
+        self.displayText =
+            displayText ??
+            urlString
+    }
+
+    private enum CodingKeys:
+        String,
+        CodingKey
+    {
+        case urlString
+        case displayText
+    }
+
+    init(
+        from decoder:
+            Decoder
+    ) throws {
+        let container =
+            try decoder
+                .container(
+                    keyedBy:
+                        CodingKeys.self
+                )
+
+        let decodedURLString =
+            try container
+                .decode(
+                    String.self,
+                    forKey:
+                        .urlString
+                )
+
+        urlString =
+            decodedURLString
+
+        displayText =
+            try container
+                .decodeIfPresent(
+                    String.self,
+                    forKey:
+                        .displayText
+                ) ??
+            decodedURLString
+    }
+
+    func encode(
+        to encoder:
+            Encoder
+    ) throws {
+        var container =
+            encoder
+                .container(
+                    keyedBy:
+                        CodingKeys.self
+                )
+
+        try container
+            .encode(
+                urlString,
+                forKey:
+                    .urlString
+            )
+
+        try container
+            .encode(
+                displayText,
+                forKey:
+                    .displayText
+            )
+    }
 }
 
 enum ClipboardPayload:
@@ -131,7 +225,20 @@ enum ClipboardPayload:
             return payload.text
 
         case let .link(payload):
-            return payload.urlString
+            if payload.displayText ==
+                payload.urlString
+            {
+                return payload.urlString
+            }
+
+            return [
+                payload.displayText,
+                payload.urlString
+            ]
+            .joined(
+                separator:
+                    "\n"
+            )
 
         case let .image(payload):
             return payload.searchableText
@@ -147,7 +254,7 @@ enum ClipboardPayload:
             return payload.text
 
         case let .link(payload):
-            return payload.urlString
+            return payload.displayText
 
         case let .image(payload):
             return payload.displayTitle
@@ -211,12 +318,15 @@ enum ClipboardPayload:
                 )
 
         case let .link(payload):
-            pasteboard.clearContents()
+            pasteboard
+                .clearContents()
 
-            return pasteboard.setString(
-                payload.urlString,
-                forType: .string
-            )
+            return pasteboard
+                .setString(
+                    payload.displayText,
+                    forType:
+                        .string
+                )
 
         case .image, .files:
             /*
@@ -260,12 +370,19 @@ enum ClipboardPayload:
             )
         }
 
-        if ClipboardLinkClassificationService.isLink(
-            text
-        ) {
+        if let normalizedURLString =
+            ClipboardLinkClassificationService
+                .normalizedURLString(
+                    for:
+                        text
+                )
+        {
             return .link(
                 ClipboardLinkPayload(
-                    urlString: text
+                    urlString:
+                        normalizedURLString,
+                    displayText:
+                        text
                 )
             )
         }
