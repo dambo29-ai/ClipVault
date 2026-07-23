@@ -22,6 +22,10 @@ struct PrivacySettingsView:
     @EnvironmentObject
     private var screenshotFolderAccessService:
         ScreenshotFolderAccessService
+    
+    @EnvironmentObject
+    private var screenshotAutomationController:
+        ScreenshotAutomationController
 
     @State private var hasAccessibilityPermission =
         AccessibilityPermissionService
@@ -34,6 +38,12 @@ struct PrivacySettingsView:
         ""
 
     @State private var isShowingScreenshotAccessAlert =
+        false
+    
+    @State private var screenshotAutomationAlertMessage =
+        ""
+
+    @State private var isShowingScreenshotAutomationAlert =
         false
 
     private let controlColumnWidth:
@@ -54,6 +64,10 @@ struct PrivacySettingsView:
             Divider()
 
             screenshotFolderAccessSetting
+
+            Divider()
+
+            screenshotAutomationSetting
 
             Divider()
 
@@ -134,6 +148,21 @@ struct PrivacySettingsView:
         } message: {
             Text(
                 screenshotAccessAlertMessage
+            )
+        }
+        
+        .alert(
+            "Screenshot Automation",
+            isPresented:
+                $isShowingScreenshotAutomationAlert
+        ) {
+            Button(
+                "OK"
+            ) {
+            }
+        } message: {
+            Text(
+                screenshotAutomationAlertMessage
             )
         }
     }
@@ -282,6 +311,101 @@ struct PrivacySettingsView:
                 ) {
                     requestScreenshotFolderAccess()
                 }
+            }
+            .frame(
+                width:
+                    controlColumnWidth,
+                alignment:
+                    .trailing
+            )
+        }
+    }
+    
+    private var screenshotAutomationSetting:
+        some View
+    {
+        HStack(
+            alignment:
+                .top,
+            spacing:
+                18
+        ) {
+            VStack(
+                alignment:
+                    .leading,
+                spacing:
+                    5
+            ) {
+                Text(
+                    "Automatically Copy New Screenshots"
+                )
+                .font(
+                    .body
+                )
+                .fontWeight(
+                    .medium
+                )
+
+                Text(
+                    "When enabled, ClipVault monitors the current macOS screenshot folder. Only screenshots created after monitoring begins are considered. Screen recordings are excluded."
+                )
+                .font(
+                    .body
+                )
+                .foregroundStyle(
+                    .secondary
+                )
+            }
+
+            Spacer()
+
+            VStack(
+                alignment:
+                    .trailing,
+                spacing:
+                    9
+            ) {
+                Text(
+                    screenshotAutomationController
+                        .isMonitoring
+                        ? "Monitoring"
+                        : "Not Monitoring"
+                )
+                .font(
+                    .body
+                )
+                .foregroundStyle(
+                    screenshotAutomationController
+                        .isMonitoring
+                        ? Color.green
+                        : Color.secondary
+                )
+
+                Toggle(
+                    "",
+                    isOn:
+                        Binding(
+                            get: {
+                                screenshotAutomationController
+                                    .isEnabled
+                            },
+                            set: {
+                                isEnabled in
+
+                                setScreenshotAutomationEnabled(
+                                    isEnabled
+                                )
+                            }
+                        )
+                )
+                .labelsHidden()
+                .toggleStyle(
+                    .switch
+                )
+                .disabled(
+                    !screenshotFolderAccessService
+                        .hasAccessToCurrentDestination
+                )
             }
             .frame(
                 width:
@@ -481,6 +605,58 @@ struct PrivacySettingsView:
         }
     }
     
+    private func setScreenshotAutomationEnabled(
+        _ isEnabled:
+            Bool
+    ) {
+        let result =
+            screenshotAutomationController
+                .setEnabled(
+                    isEnabled
+                )
+
+        switch result {
+        case .enabled,
+             .disabled:
+            return
+
+        case .accessRequired:
+            screenshotAutomationAlertMessage =
+                "Grant read-only access to the current macOS screenshot folder before enabling automatic screenshot copying."
+
+        case .clipboardDestination:
+            screenshotAutomationAlertMessage =
+                "macOS is already configured to place screenshots directly on the clipboard. Folder monitoring is not needed."
+
+        case let .unsupportedDestination(
+            destinationName
+        ):
+            screenshotAutomationAlertMessage =
+                "The current macOS screenshot destination, \(destinationName), cannot be monitored by ClipVault."
+
+        case let .monitorStartFailed(
+            startResult
+        ):
+            switch startResult {
+            case .securityScopedAccessFailed:
+                screenshotAutomationAlertMessage =
+                    "ClipVault could not begin security-scoped access to the screenshot folder. Refresh folder access and try again."
+
+            case .folderOpenFailed:
+                screenshotAutomationAlertMessage =
+                    "ClipVault could not open the screenshot folder for monitoring. Refresh folder access and try again."
+
+            case .started,
+                 .alreadyMonitoring:
+                screenshotAutomationAlertMessage =
+                    "ClipVault could not start screenshot monitoring."
+            }
+        }
+
+        isShowingScreenshotAutomationAlert =
+            true
+    }
+    
     private func requestScreenshotFolderAccess()
     {
         let result =
@@ -491,6 +667,10 @@ struct PrivacySettingsView:
         case .granted:
             screenshotAccessAlertMessage =
                 "ClipVault now has read-only access to the current macOS screenshot folder."
+
+            _ =
+                screenshotAutomationController
+                    .refreshAfterFolderAccessChange()
 
         case .cancelled:
             return

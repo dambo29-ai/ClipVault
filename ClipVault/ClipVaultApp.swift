@@ -11,13 +11,64 @@ import KeyboardShortcuts
 
 @main
 struct ClipVaultApp: App {
+    init()
+    {
+        let folderAccessService =
+            ScreenshotFolderAccessService()
+
+        let preferenceService =
+            ScreenshotAutomationPreferenceService()
+
+        let folderMonitorService =
+            ScreenshotFolderMonitorService()
+
+        _screenshotFolderAccessService =
+            StateObject(
+                wrappedValue:
+                    folderAccessService
+            )
+
+        _screenshotAutomationPreferenceService =
+            StateObject(
+                wrappedValue:
+                    preferenceService
+            )
+
+        _screenshotFolderMonitorService =
+            StateObject(
+                wrappedValue:
+                    folderMonitorService
+            )
+
+        _screenshotAutomationController =
+            StateObject(
+                wrappedValue:
+                    ScreenshotAutomationController(
+                        preferenceService:
+                            preferenceService,
+                        folderAccessService:
+                            folderAccessService,
+                        folderMonitorService:
+                            folderMonitorService
+                    )
+            )
+    }
     @StateObject private var clipboardStore = ClipboardStore()
 
     @StateObject private var optionSelectionGestureMonitor =
         OptionSelectionGestureMonitor()
 
-    @StateObject private var screenshotFolderAccessService =
-        ScreenshotFolderAccessService()
+    @StateObject private var screenshotFolderAccessService:
+        ScreenshotFolderAccessService
+    
+    @StateObject private var screenshotAutomationPreferenceService:
+        ScreenshotAutomationPreferenceService
+
+    @StateObject private var screenshotFolderMonitorService:
+        ScreenshotFolderMonitorService
+
+    @StateObject private var screenshotAutomationController:
+        ScreenshotAutomationController
 
     @Environment(\.openWindow)
     private var openWindow
@@ -263,6 +314,10 @@ struct ClipVaultApp: App {
 
                     optionSelectionGestureMonitor
                         .applySavedCapturePreference()
+                    
+                    _ =
+                        screenshotAutomationController
+                            .applySavedPreference()
                 }
                 .onChange(
                     of:
@@ -320,6 +375,9 @@ struct ClipVaultApp: App {
                 )
                 .environmentObject(
                     screenshotFolderAccessService
+                )
+                .environmentObject(
+                    screenshotAutomationController
                 )
                 .onAppear {
                     appearanceMode
