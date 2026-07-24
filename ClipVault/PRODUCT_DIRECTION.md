@@ -462,7 +462,9 @@ Automatic assignment, multi-Space membership, and tag-like behavior are deferred
 
 ## Images
 
-Image support is implemented for copied image data from screenshots, Preview, Photos, Safari, image editors, and other applications exposing readable image pasteboard representations.
+Image support is implemented for copied image data from Preview, Photos, Safari, image editors, Finder image files, and other applications exposing readable image pasteboard representations.
+
+ClipVault also supports optional automatic capture of newly created macOS screenshots.
 
 Implemented behavior:
 
@@ -473,6 +475,21 @@ Implemented behavior:
 - Copy-back using useful image representations rather than the display thumbnail alone.
 - Coordinated asset deletion.
 - Backup packages containing required managed image assets.
+
+Automatic screenshot behavior:
+
+- Disabled by default.
+- Detects the current macOS screenshot destination without weakening App Sandbox.
+- Requires explicit read-only folder access through a security-scoped bookmark.
+- Monitors only screenshots created after monitoring begins.
+- Excludes screen recordings and unrelated images.
+- Waits until a screenshot file is stable and readable before processing it.
+- Adds the screenshot to history as an Image titled **Screenshot Created**.
+- Identifies the source as **macOS Screenshot**.
+- Writes the screenshot to the system clipboard so it can be pasted immediately.
+- Prevents repeated filesystem callbacks from creating duplicate history items.
+- Respects ClipVault’s global Pause Monitoring state.
+- May require a few seconds between capture and clipboard availability.
 
 ---
 

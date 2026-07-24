@@ -236,6 +236,16 @@ Expected likely-sensitive warning:
 ## 10. Privacy Settings
 
 * [ ] Privacy contains Block Likely Sensitive Clips.
+* [ ] Privacy contains Screenshot Folder Access.
+* [ ] Privacy shows the actual macOS screenshot destination rather than the sandbox container path.
+* [ ] Screenshot Folder Access reports Access Granted after the user approves the correct folder.
+* [ ] Screenshot folder access persists after quitting and reopening ClipVault.
+* [ ] Selecting the wrong folder is rejected without removing valid existing access.
+* [ ] Privacy contains Automatically Copy New Screenshots.
+* [ ] Automatic screenshot copying is Off by default for a new installation.
+* [ ] Monitoring status appears above the toggle.
+* [ ] Monitoring is green and visually matches the Access Granted status.
+* [ ] The setting explains that screenshots may take a few seconds to appear and become available for pasting.
 * [ ] Privacy contains Enable Option-Select Capture.
 * [ ] Privacy contains Selection Capture Permission.
 * [ ] Privacy contains the Link Preview Privacy disclosure.
@@ -247,7 +257,57 @@ Expected likely-sensitive warning:
 
 ---
 
-## 11. App Rules Layout
+## 11. Automatic Screenshot Capture
+
+### Enabled
+
+* [ ] Grant access to the current macOS screenshot folder.
+* [ ] Turn Automatically Copy New Screenshots On.
+* [ ] The status changes to Monitoring.
+* [ ] Quit and reopen ClipVault.
+* [ ] The toggle remains On and monitoring resumes.
+* [ ] Take one screenshot using Shift–Command–3 or Shift–Command–4.
+* [ ] After a short processing delay, exactly one new Image item appears.
+* [ ] The item title is Screenshot Created.
+* [ ] The source is macOS Screenshot.
+* [ ] The redundant Copied Image subtitle is not shown.
+* [ ] The screenshot can be pasted immediately without first clicking its ClipVault row.
+* [ ] The screenshot pastes as image data rather than a filename or file reference.
+* [ ] Waiting or switching applications does not create another row for the same capture event.
+* [ ] Taking the same visible screenshot a second time creates a second history item because it is a separate capture action.
+* [ ] A normal image copied from another application still displays Copied Image.
+* [ ] An image file copied from Finder retains normal Finder file-copy behavior until its ClipVault Image row is clicked.
+
+### Disabled
+
+* [ ] Turn Automatically Copy New Screenshots Off.
+* [ ] The status changes to Not Monitoring.
+* [ ] Copy recognizable text.
+* [ ] Take a screenshot.
+* [ ] The screenshot file is still saved by macOS.
+* [ ] No screenshot item is added automatically.
+* [ ] The recognizable text remains on the system clipboard.
+
+### Paused
+
+* [ ] Turn screenshot automation On.
+* [ ] Pause ClipVault monitoring from the menu bar.
+* [ ] Copy recognizable text.
+* [ ] Take a screenshot.
+* [ ] No screenshot item is stored.
+* [ ] The screenshot does not replace the recognizable clipboard text.
+* [ ] Resume monitoring afterward.
+
+### Exclusions
+
+* [ ] Create a short macOS screen recording.
+* [ ] The recording file is not added to ClipVault.
+* [ ] The recording does not change the system clipboard.
+* [ ] An unrelated image added to the screenshot folder is not automatically captured.
+
+---
+
+## 12. App Rules Layout
 
 * [ ] App Rules opens without a beach ball.
 * [ ] The first transition from General to App Rules is acceptably fast.
@@ -268,7 +328,7 @@ Expected likely-sensitive warning:
 
 ---
 
-## 12. App Rules Search and Filters
+## 13. App Rules Search and Filters
 
 * [ ] The App Rules search field is visually distinct from its surrounding background.
 * [ ] Search matches application display names.
@@ -284,7 +344,7 @@ Expected likely-sensitive warning:
 
 ---
 
-## 13. App Rules Counts
+## 14. App Rules Counts
 
 * [ ] Allowed count is correct.
 * [ ] Smart count is correct.
@@ -297,7 +357,7 @@ Expected likely-sensitive warning:
 
 ---
 
-## 14. App Rule Modes
+## 15. App Rule Modes
 
 * [ ] Allowed mode saves normal copied text.
 * [ ] Smart mode permits obvious URLs.
@@ -318,7 +378,7 @@ Expected likely-sensitive warning:
 
 ---
 
-## 15. Custom App Rules
+## 16. Custom App Rules
 
 * [ ] Changing an app rule creates a custom override.
 * [ ] A blue dot appears for a custom rule.
@@ -334,7 +394,7 @@ Expected likely-sensitive warning:
 
 ---
 
-## 16. App Discovery
+## 17. App Discovery
 
 * [ ] Existing known applications load when App Rules opens.
 * [ ] **Refresh App List** starts an asynchronous refresh.
@@ -352,7 +412,7 @@ Expected likely-sensitive warning:
 
 ---
 
-## 17. Default Blocked Applications
+## 18. Default Blocked Applications
 
 Confirm the intended defaults where installed:
 
@@ -365,7 +425,7 @@ Confirm the intended defaults where installed:
 
 ---
 
-## 18. Clipboard Persistence
+## 19. Clipboard Persistence
 
 * [ ] Normal clipboard history survives relaunch.
 * [ ] Deleted clips remain deleted after relaunch.
@@ -380,7 +440,7 @@ Confirm the intended defaults where installed:
 
 ---
 
-## 19. History Limits and Retention
+## 20. History Limits and Retention
 
 ### History Limit
 
@@ -409,7 +469,7 @@ Confirm the intended defaults where installed:
 
 ---
 
-## 20. History Export
+## 21. History Export
 
 * [ ] Export History creates a readable `.txt` file.
 * [ ] The exported text contains normal clipboard items.
@@ -420,7 +480,7 @@ Confirm the intended defaults where installed:
 
 ---
 
-## 21. Backup Packages
+## 22. Backup Packages
 
 * [ ] Export Backup creates a `.clipvaultbackup` package.
 * [ ] The filename follows the expected timestamp format.
@@ -452,7 +512,7 @@ ClipVault Backup yyyy-MM-dd HH-mm-ss.clipvaultbackup
 
 ---
 
-## 22. Backup Import
+## 23. Backup Import
 
 ### Import Entry Points
 
@@ -547,7 +607,7 @@ ClipVault Backup yyyy-MM-dd HH-mm-ss.clipvaultbackup
 
 ---
 
-## 23. Links, Images, and Files Views
+## 24. Links, Images, and Files Views
 
 * [ ] Links, Images, and Files each remember their List/Grid mode independently.
 * [ ] The view toggle appears beside Search only for supported filters.
@@ -575,7 +635,7 @@ ClipVault Backup yyyy-MM-dd HH-mm-ss.clipvaultbackup
 
 ---
 
-## 24. Native Quick Look
+## 25. Native Quick Look
 
 * [ ] Images open with native Quick Look controls, Share, full screen, and Open with Preview.
 * [ ] PDFs open with native document controls, page thumbnails, Share, and Open with Preview.
@@ -600,7 +660,7 @@ ClipVault Backup yyyy-MM-dd HH-mm-ss.clipvaultbackup
 
 ---
 
-## 25. Appearance
+## 26. Appearance
 
 * [ ] Settings → Appearance offers System, Light, and Dark.
 * [ ] System follows macOS.
@@ -612,7 +672,7 @@ ClipVault Backup yyyy-MM-dd HH-mm-ss.clipvaultbackup
 
 ---
 
-## 26. Documentation and Privacy
+## 27. Documentation and Privacy
 
 * [ ] README accurately describes current features.
 * [ ] Backup documentation clearly states that ordinary file/folder contents are not embedded.
@@ -623,7 +683,7 @@ ClipVault Backup yyyy-MM-dd HH-mm-ss.clipvaultbackup
 
 ---
 
-## 27. Visual Alignment Review
+## 28. Visual Alignment Review
 
 Inspect the app at normal size and minimum size.
 
@@ -646,7 +706,7 @@ Inspect the app at normal size and minimum size.
 
 ---
 
-## 28. Final Smoke Test
+## 29. Final Smoke Test
 
 Perform these steps in order:
 

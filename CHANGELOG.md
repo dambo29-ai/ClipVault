@@ -20,6 +20,11 @@
 - Default-on **Block Likely Sensitive Clips** protection with explicit confirmation before disabling it.
 - Persisted sensitive-clip protection preferences.
 - Capture-policy tests covering Allowed, Smart, and Blocked behavior when global sensitive-content protection is disabled.
+- Optional automatic capture of newly created macOS screenshots.
+- Sandboxed screenshot-folder access using persistent read-only security-scoped bookmarks.
+- Screenshot-folder monitoring, candidate discovery, stable-file verification, and clipboard integration.
+- Automated screenshot identity using **Screenshot Created** and **macOS Screenshot** metadata.
+- Regression coverage for screenshot preference, destination detection, folder access, monitoring, discovery, processing, stability, and duplicate-event protection.
 
 ### Changed
 
@@ -36,6 +41,8 @@
 - Routed all supported file previews through the native `QLPreviewPanel`.
 - Corrected Quick Look reload and selection order.
 - Refresh the selected Quick Look item after presentation so media metadata, native controls, autoplay, sharing, and Open With actions load correctly.
+- Spreadsheet clipboard data now takes priority over rendered image representations when Excel and similar applications provide both.
+- Automated screenshots replace the system clipboard only after the screenshot file is complete and readable.
 
 ### Fixed
 
@@ -52,3 +59,7 @@
 - Audio and video previews failing to autoplay.
 - ZIP, DMG, folder, alias, and symbolic-link previews showing only generic icons.
 - Custom preview windows replacing native Quick Look controls and actions.
+- Excel cell ranges being captured and pasted back as images instead of editable cell data.
+- Screenshot destination detection resolving to the app sandbox’s container Desktop rather than the logged-in user’s actual Desktop.
+- Repeated screenshot-folder callbacks creating duplicate automated capture requests.
+- Redundant **Copied Image** text appearing below **Screenshot Created**.
