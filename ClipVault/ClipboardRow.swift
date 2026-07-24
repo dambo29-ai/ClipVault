@@ -40,9 +40,11 @@ struct ClipboardRow: View {
 
     var body: some View {
         HStack(
-            alignment: .top,
-            spacing: 10
+            alignment: .center,
+            spacing: 8
         ) {
+            typeAccentBar
+
             numberView
 
             if item.kind ==
@@ -105,6 +107,69 @@ struct ClipboardRow: View {
             }
         }
     }
+    
+    private var typeAccentBar:
+        some View
+    {
+        Capsule()
+            .fill(
+                typeAccentColor
+            )
+            .frame(
+                width:
+                    4,
+                height:
+                    typeAccentHeight
+            )
+            .opacity(
+                isHighlighted ||
+                isCopyFeedbackActive
+                    ? 1
+                    : 0.78
+            )
+            .accessibilityHidden(
+                true
+            )
+    }
+
+    private var typeAccentColor:
+        Color
+    {
+        guard
+            item.kind ==
+                .normal
+        else {
+            return .secondary
+        }
+
+        switch item.contentKind {
+        case .text:
+            return .orange
+
+        case .link:
+            return .green
+
+        case .image:
+            return .blue
+
+        case .files:
+            return .yellow
+        }
+    }
+
+    private var typeAccentHeight:
+        CGFloat
+    {
+        switch item.contentKind {
+        case .text:
+            return 34
+
+        case .link,
+             .image,
+             .files:
+            return 54
+        }
+    }
 
     @ViewBuilder
     private var numberView:
@@ -124,7 +189,6 @@ struct ClipboardRow: View {
                 width: 28,
                 alignment: .center
             )
-            .padding(.top, 10)
         } else {
             Color.clear
                 .frame(width: 28)

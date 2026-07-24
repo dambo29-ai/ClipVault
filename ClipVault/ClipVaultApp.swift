@@ -318,8 +318,19 @@ struct ClipVaultApp: App {
             
             Divider()
 
-            Button("ClipVault Help") {
-                showClipVaultHelpAlert(backupKeepCount: clipboardStore.backupKeepCount)
+            Button(
+                "ClipVault Help"
+            ) {
+                openWindow(
+                    id:
+                        "help-window"
+                )
+
+                NSApplication.shared
+                    .activate(
+                        ignoringOtherApps:
+                            true
+                    )
             }
 
             Button("Quit ClipVault") {
@@ -359,12 +370,29 @@ struct ClipVaultApp: App {
         .menuBarExtraStyle(.menu)
         .commands {
 
-            CommandGroup(replacing: .help) {
-                Button("ClipVault Help") {
-                    showClipVaultHelpAlert(
-                        backupKeepCount: clipboardStore.backupKeepCount
+            CommandGroup(
+                replacing:
+                    .help
+            ) {
+                Button(
+                    "ClipVault Help"
+                ) {
+                    openWindow(
+                        id:
+                            "help-window"
                     )
+
+                    NSApplication.shared
+                        .activate(
+                            ignoringOtherApps:
+                                true
+                        )
                 }
+                .keyboardShortcut(
+                    "?",
+                    modifiers:
+                        .command
+                )
             }
         }
 
@@ -391,6 +419,41 @@ struct ClipVaultApp: App {
         .defaultSize(width: 600, height: 500)
         .defaultLaunchBehavior(.suppressed)
         
+    Window(
+        "ClipVault Help",
+        id:
+            "help-window"
+    ) {
+        HelpWindowView()
+            .environmentObject(
+                clipboardStore
+            )
+            .onAppear {
+                appearanceMode
+                    .applyToApplication()
+            }
+            .onChange(
+                of:
+                    appearanceModeRawValue
+            ) {
+                _,
+                _ in
+
+                appearanceMode
+                    .applyToApplication()
+            }
+    }
+    .defaultSize(
+        width:
+            900,
+        height:
+            650
+    )
+    .defaultLaunchBehavior(
+        .suppressed
+    )
+
+    
         Settings {
             SettingsContainerView()
                 .environmentObject(
@@ -468,160 +531,6 @@ struct ClipVaultApp: App {
             }
         }
     }
-}
-
-@MainActor
-private func showClipVaultHelpAlert(backupKeepCount: Int) {
-    let alert = NSAlert()
-    alert.messageText = "ClipVault Help"
-    alert.alertStyle = .informational
-    alert.addButton(withTitle: "OK")
-    
-    let textView = NSTextView(frame: NSRect(x: 0, y: 0, width: 520, height: 520))
-    textView.isEditable = false
-    textView.isSelectable = true
-    textView.drawsBackground = false
-    textView.textContainerInset = NSSize(width: 0, height: 0)
-    textView.textContainer?.lineFragmentPadding = 0
-    
-    let regularFont = NSFont.systemFont(ofSize: 13)
-    let boldFont = NSFont.boldSystemFont(ofSize: 13)
-    
-    let regularAttributes: [NSAttributedString.Key: Any] = [
-        .font: regularFont,
-        .foregroundColor: NSColor.labelColor
-    ]
-    
-    let boldAttributes: [NSAttributedString.Key: Any] = [
-        .font: boldFont,
-        .foregroundColor: NSColor.labelColor
-    ]
-    
-    let helpText = NSMutableAttributedString()
-    
-    appendParagraph(
-        to: helpText,
-        text: "ClipVault saves a local history of normal copied text from your Mac clipboard.",
-        attributes: regularAttributes
-    )
-    
-    appendSection(
-        to: helpText,
-        heading: "Show ClipVault",
-        body: "Use the menu bar icon or press Control-Option-V.",
-        headingAttributes: boldAttributes,
-        bodyAttributes: regularAttributes
-    )
-    
-    appendSection(
-        to: helpText,
-        heading: "Pause Monitoring",
-        body: "Use the menu bar icon or press Control-Option-P. When monitoring is paused, ClipVault will ignore new clipboard changes until monitoring resumes.",
-        headingAttributes: boldAttributes,
-        bodyAttributes: regularAttributes
-    )
-    
-    appendSection(
-        to: helpText,
-        heading: "Search",
-        body: "Use the search field in the ClipVault window to filter saved clips. Press Escape while searching to clear the search field.",
-        headingAttributes: boldAttributes,
-        bodyAttributes: regularAttributes
-    )
-    
-    appendSection(
-        to: helpText,
-        heading: "Copy an Old Clip",
-        body: "Click a normal clipboard row to copy that text back to the system clipboard.",
-        headingAttributes: boldAttributes,
-        bodyAttributes: regularAttributes
-    )
-    
-    appendSection(
-        to: helpText,
-        heading: "Clear History",
-        body: "Clear History permanently deletes saved ClipVault history. It does not change the current macOS system clipboard.",
-        headingAttributes: boldAttributes,
-        bodyAttributes: regularAttributes
-    )
-    
-    appendSection(
-        to: helpText,
-        heading: "Export History",
-        body: "Export History creates a readable text file containing your normal saved clips.",
-        headingAttributes: boldAttributes,
-        bodyAttributes: regularAttributes
-    )
-    
-    appendSection(
-        to: helpText,
-        heading: "Backups",
-        body: "Export Backup creates a .clipvaultbackup package containing the history manifest and managed image files, then automatically keeps only the newest \(backupKeepCount) package(s).\nImport Latest Backup restores the newest .clipvaultbackup package from the Exports folder, including its managed image files.\nYou can drag one .clipvaultbackup package onto the main window to import it directly.\nReveal Latest Backup opens the newest .clipvaultbackup package in Finder.\nDelete Old Backups applies the package cleanup rule.",
-        headingAttributes: boldAttributes,
-        bodyAttributes: regularAttributes
-    )
-    
-    appendSection(
-        to: helpText,
-        heading: "App Rules",
-        body: "Allowed saves normal clips unless they look sensitive.\nSmart is useful for password managers and skips likely passwords, tokens, API keys, and secret-looking text.\nBlocked never saves copied text from that app.",
-        headingAttributes: boldAttributes,
-        bodyAttributes: regularAttributes
-    )
-    
-    appendSection(
-        to: helpText,
-        heading: "Skipped Warnings",
-        body: "If enabled in Settings, ClipVault shows red placeholder rows when sensitive or blocked clips are skipped. Text copied normally with Command–C remains available in the macOS system clipboard. Rejected Option-selections restore the previous clipboard instead.",
-        headingAttributes: boldAttributes,
-        bodyAttributes: regularAttributes
-    )
-    
-    textView.textStorage?.setAttributedString(helpText)
-    
-    let scrollView = NSScrollView(frame: NSRect(x: 0, y: 0, width: 520, height: 360))
-    scrollView.hasVerticalScroller = true
-    scrollView.documentView = textView
-    scrollView.drawsBackground = false
-    scrollView.borderType = .noBorder
-    
-    alert.accessoryView = scrollView
-    alert.runModal()
-}
-
-private func appendParagraph(
-    to attributedString: NSMutableAttributedString,
-    text: String,
-    attributes: [NSAttributedString.Key: Any]
-) {
-    attributedString.append(
-        NSAttributedString(
-            string: "\(text)\n\n",
-            attributes: attributes
-        )
-    )
-}
-
-private func appendSection(
-    to attributedString: NSMutableAttributedString,
-    heading: String,
-    body: String,
-    headingAttributes: [NSAttributedString.Key: Any],
-    bodyAttributes: [NSAttributedString.Key: Any]
-) {
-    attributedString.append(
-        NSAttributedString(
-            string: "\(heading)\n",
-            attributes: headingAttributes
-        )
-    )
-    
-    attributedString.append(
-        NSAttributedString(
-            string: "\(body)\n\n",
-            attributes: bodyAttributes
-        )
-    )
 }
 
 @MainActor
