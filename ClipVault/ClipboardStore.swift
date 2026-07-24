@@ -735,23 +735,27 @@ final class ClipboardStore: ObservableObject {
             .releasePasteboardAccess()
 
         switch item.payload {
-        case .text, .link:
+        case .text,
+             .link:
             let didWrite =
-            item.payload.write(
-                to: .general
-            )
-            
+                item.payload
+                    .write(
+                        to:
+                            .general
+                    )
+
             guard didWrite else {
                 return
             }
-            
+
             clipboardMonitoringService
                 .synchronizeChangeCount()
-            
+
             markAsCurrentClipboardItem(
                 item
             )
-            
+
+
         case let .image(imagePayload):
             Task { @MainActor [weak self] in
                 guard let self else {

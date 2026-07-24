@@ -50,12 +50,16 @@ struct ClipboardTextPayload:
         let pasteboardItem =
             NSPasteboardItem()
 
-        pasteboardItem
-            .setString(
-                text,
-                forType:
-                    .string
-            )
+        if let htmlData,
+           !htmlData.isEmpty
+        {
+            pasteboardItem
+                .setData(
+                    htmlData,
+                    forType:
+                        .html
+                )
+        }
 
         if let rtfData,
            !rtfData.isEmpty
@@ -68,16 +72,12 @@ struct ClipboardTextPayload:
                 )
         }
 
-        if let htmlData,
-           !htmlData.isEmpty
-        {
-            pasteboardItem
-                .setData(
-                    htmlData,
-                    forType:
-                        .html
-                )
-        }
+        pasteboardItem
+            .setString(
+                text,
+                forType:
+                    .string
+            )
 
         pasteboard
             .clearContents()
