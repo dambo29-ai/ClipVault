@@ -57,6 +57,19 @@ struct ClipboardItem: Identifiable, Equatable, Codable {
     var hasCustomTitle: Bool {
         customTitle != nil
     }
+    
+    var isAutomatedScreenshot:
+        Bool
+    {
+        customTitle ==
+            AutomatedScreenshotCapturePolicyService
+                .itemTitle &&
+        sourceAppName ==
+            AutomatedScreenshotCapturePolicyService
+                .sourceAppName &&
+        contentKind ==
+            .image
+    }
 
     var linkURL: URL? {
         payload.linkURL

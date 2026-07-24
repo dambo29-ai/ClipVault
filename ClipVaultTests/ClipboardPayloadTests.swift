@@ -663,4 +663,99 @@ struct ClipboardPayloadTests {
                 )
         )
     }
+    @Test
+    func identifiesAutomatedScreenshotItem()
+    {
+        let imagePayload =
+            ClipboardImagePayload(
+                storageIdentifier:
+                    UUID(),
+                format:
+                    ClipboardImageFormat(
+                        uniformTypeIdentifier:
+                            "public.png",
+                        filenameExtension:
+                            "png",
+                        displayName:
+                            "PNG"
+                    ),
+                pixelWidth:
+                    100,
+                pixelHeight:
+                    100,
+                byteCount:
+                    4,
+                contentHash:
+                    "test-screenshot-hash"
+            )
+
+        let item =
+            ClipboardItem(
+                payload:
+                    .image(
+                        imagePayload
+                    ),
+                sourceAppName:
+                    AutomatedScreenshotCapturePolicyService
+                        .sourceAppName,
+                customTitle:
+                    AutomatedScreenshotCapturePolicyService
+                        .itemTitle
+            )
+
+        #expect(
+            item
+                .isAutomatedScreenshot
+        )
+    }
+
+    @Test
+    func ordinaryRenamedImageIsNotAutomatedScreenshot()
+    {
+        let imagePayload =
+            ClipboardImagePayload(
+                storageIdentifier:
+                    UUID(),
+                format:
+                    ClipboardImageFormat(
+                        uniformTypeIdentifier:
+                            "public.png",
+                        filenameExtension:
+                            "png",
+                        displayName:
+                            "PNG"
+                    ),
+                pixelWidth:
+                    100,
+                pixelHeight:
+                    100,
+                byteCount:
+                    4,
+                contentHash:
+                    "test-ordinary-image-hash"
+            )
+
+        let item =
+            ClipboardItem(
+                payload:
+                    .image(
+                        imagePayload
+                    ),
+                sourceAppName:
+                    "Microsoft Excel",
+                customTitle:
+                    "Project Chart"
+            )
+
+        #expect(
+            !item
+                .isAutomatedScreenshot
+        )
+
+        #expect(
+            item
+                .automaticDisplayText ==
+                "Copied Image"
+        )
+    }
 }

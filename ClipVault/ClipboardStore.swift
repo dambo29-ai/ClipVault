@@ -163,9 +163,8 @@ final class ClipboardStore: ObservableObject {
     private var currentClipboardChangeCount:
         Int?
     
-    private var automatedScreenshotDataInProgress:
-        Set<Data> =
-            []
+    private let automatedScreenshotCapturePolicyService =
+        AutomatedScreenshotCapturePolicyService()
     
     // Old key retained only so we can migrate existing Allowed/Blocked choices.
     private let legacyBlockedAppGroupIDsKey = "blockedAppGroupIDs"
@@ -943,18 +942,16 @@ final class ClipboardStore: ObservableObject {
             Data
     ) {
         guard
-            !automatedScreenshotDataInProgress
-                .contains(
-                    imageData
+            automatedScreenshotCapturePolicyService
+                .beginCapture(
+                    imageData:
+                        imageData,
+                    isMonitoringPaused:
+                        isMonitoringPaused
                 )
         else {
             return
         }
-
-        automatedScreenshotDataInProgress
-            .insert(
-                imageData
-            )
 
         handleCopiedRasterImage(
             imageData,
@@ -965,22 +962,25 @@ final class ClipboardStore: ObservableObject {
                             imageData
                         ),
                     sourceAppName:
-                        "macOS Screenshot",
+                        AutomatedScreenshotCapturePolicyService
+                            .sourceAppName,
                     sourceBundleIdentifier:
                         nil,
                     sourceAppPath:
                         nil
                 ),
             customTitle:
-                "Screenshot Created",
+                AutomatedScreenshotCapturePolicyService
+                    .itemTitle,
             completion: {
                 [weak self]
                 in
 
                 self?
-                    .automatedScreenshotDataInProgress
-                    .remove(
-                        imageData
+                    .automatedScreenshotCapturePolicyService
+                    .finishCapture(
+                        imageData:
+                            imageData
                     )
             }
         )
