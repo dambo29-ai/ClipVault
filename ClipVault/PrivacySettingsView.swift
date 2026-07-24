@@ -347,7 +347,7 @@ struct PrivacySettingsView:
                 )
 
                 Text(
-                    "When enabled, ClipVault monitors the current macOS screenshot folder. Only screenshots created after monitoring begins are considered. Screen recordings are excluded."
+                    "When enabled, ClipVault monitors the current macOS screenshot folder. New screenshots may take a few seconds to appear in ClipVault and become available for pasting. Only screenshots created after monitoring begins are considered. Screen recordings are excluded."
                 )
                 .font(
                     .body
